@@ -26,7 +26,7 @@ export function Hero() {
               <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
               Телемедицина нового поколения
             </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
               Забота о здоровье —{" "}
               <span className="relative">
                 <span className="text-primary">без дороги в поликлинику</span>
@@ -57,7 +57,7 @@ export function Hero() {
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6 lg:flex-nowrap">
             <div className="flex items-center gap-2.5 text-foreground/80">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
                 <CheckCircle className="w-4.5 h-4.5 text-primary" />
