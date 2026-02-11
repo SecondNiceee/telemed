@@ -175,7 +175,7 @@ export default function BookingPage() {
                 в {selectedTime}
               </p>
               <div className="space-y-3">
-                <Button asChild className="w-full bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
+                <Button variant="outline" asChild className="w-full border-primary text-primary hover:bg-primary/5 transition-all">
                   <Link href="/">На главную</Link>
                 </Button>
                 <Button variant="outline" asChild className="w-full bg-transparent">
@@ -356,7 +356,7 @@ export default function BookingPage() {
                         в {selectedTime}
                       </p>
                     </div>
-                    <Button size="lg" onClick={handleBooking} className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all px-8">
+                    <Button variant="outline" size="lg" onClick={handleBooking} className="border-primary text-primary hover:bg-primary/5 transition-all px-8">
                       Подтвердить запись · {doctor.price.toLocaleString("ru-RU")}{" "}
                       ₽
                     </Button>

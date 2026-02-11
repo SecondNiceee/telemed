@@ -7,7 +7,7 @@ import './globals.css'
 const _inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: 'МедОнлайн - Телемедицина',
+  title: 'smartcardio Телемедицина',
   description: 'Онлайн консультации с лучшими врачами. Запишитесь на прием не выходя из дома.',
   generator: 'v0.app',
   icons: {
