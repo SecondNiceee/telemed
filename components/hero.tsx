@@ -26,7 +26,7 @@ export function Hero() {
               <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
               Телемедицина нового поколения
             </span>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
               Забота о здоровье —{" "}
               <span className="relative">
                 <span className="text-primary">без дороги в поликлинику</span>
