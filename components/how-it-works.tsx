@@ -62,7 +62,7 @@ export function HowItWorks() {
                   <div className="w-16 h-16 bg-gradient-to-br from-[#40f] to-[#ff00d9] rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-[#b100fe]/20">
                     <step.icon className="w-8 h-8" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-[#6cff01] rounded-full flex items-center justify-center text-[#0a1a00] font-bold text-sm">
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#b100fe] font-bold text-sm shadow-md shadow-[#b100fe]/15 ring-2 ring-[#b100fe]/20">
                     {index + 1}
                   </div>
                 </div>
