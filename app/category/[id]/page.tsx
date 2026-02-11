@@ -73,7 +73,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               <p className="text-muted-foreground text-lg">
                 В данной категории пока нет врачей
               </p>
-              <Button asChild className="mt-4">
+              <Button asChild className="mt-4 bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
                 <Link href="/#categories">Выбрать другую категорию</Link>
               </Button>
             </div>

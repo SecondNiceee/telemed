@@ -8,7 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#40f] to-[#ff00d9] rounded-lg flex items-center justify-center">
                 <Activity className="w-6 h-6 text-primary-foreground" />
               </div>
               <span className="text-xl font-semibold">МедОнлайн</span>

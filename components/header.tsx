@@ -13,7 +13,7 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-[#40f] to-[#ff00d9] rounded-lg flex items-center justify-center">
               <Activity className="w-6 h-6 text-primary-foreground" />
             </div>
             <span className="text-xl font-semibold text-foreground">
@@ -46,7 +46,7 @@ export function Header() {
             <Button variant="ghost" size="sm">
               Войти
             </Button>
-            <Button size="sm">Записаться</Button>
+            <Button size="sm" className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">Записаться</Button>
           </div>
 
           <button
@@ -90,7 +90,7 @@ export function Header() {
                 <Button variant="ghost" size="sm" className="flex-1">
                   Войти
                 </Button>
-                <Button size="sm" className="flex-1">
+                <Button size="sm" className="flex-1 bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
                   Записаться
                 </Button>
               </div>
