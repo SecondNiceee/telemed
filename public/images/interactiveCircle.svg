@@ -1,0 +1,18 @@
+<svg className="interactive__circle" width="540" height="517" viewBox="0 0 540 517" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g filter="url(#filter0_f_78_1123)">
+    <ellipse cx="270" cy="258.5" rx="248" ry="236.5" fill="url(#paint0_linear_78_1123)" fill-opacity="0.4" />
+  </g>
+  <defs>
+    <filter id="filter0_f_78_1123" x="0.363636" y="0.363636" width="539.273" height="516.273" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix" />
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+      <feGaussianBlur stdDeviation="10.8182" result="effect1_foregroundBlur_78_1123" />
+    </filter>
+    <linearGradient id="paint0_linear_78_1123" x1="270" y1="22" x2="270" y2="495" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3339EE" />
+      <stop offset="0.291" stop-color="#5D26F4" />
+      <stop offset="0.606" stop-color="#B200FF" />
+      <stop offset="1" stop-color="#7744FF" />
+    </linearGradient>
+  </defs>
+</svg>
