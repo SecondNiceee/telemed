@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Activity, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 export function Header() {
@@ -13,11 +14,15 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#40f] to-[#ff00d9] rounded-lg flex items-center justify-center">
-              <Activity className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <Image
+              src="/images/logo.jpg"
+              alt="smartcardio"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-lg object-contain"
+            />
             <span className="text-xl font-semibold text-foreground">
-              МедОнлайн
+              smartcardio Телемедицина
             </span>
           </Link>
 
@@ -46,7 +51,7 @@ export function Header() {
             <Button variant="ghost" size="sm">
               Войти
             </Button>
-            <Button size="sm" className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">Записаться</Button>
+            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 transition-all">Записаться</Button>
           </div>
 
           <button
@@ -90,7 +95,7 @@ export function Header() {
                 <Button variant="ghost" size="sm" className="flex-1">
                   Войти
                 </Button>
-                <Button size="sm" className="flex-1 bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
+                <Button variant="outline" size="sm" className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all">
                   Записаться
                 </Button>
               </div>

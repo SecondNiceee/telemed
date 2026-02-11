@@ -1,15 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-20 sm:py-28">
+    <section className="relative overflow-hidden py-12 sm:py-16">
       {/* Background with gradient mesh */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#b100fe]/8 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-[#ff00d9]/6 rounded-full blur-3xl" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-primary/4 rounded-full blur-3xl" />
       {/* VideoLiner decorative background */}
       <Image
         src="/images/videoLiner.svg"
@@ -23,11 +22,11 @@ export function Hero() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center space-y-8">
           <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-[#b100fe]/10 text-[#b100fe] rounded-full text-sm font-semibold tracking-wide border border-[#b100fe]/20">
-              <span className="w-2 h-2 bg-[#b100fe] rounded-full animate-pulse" />
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-semibold tracking-wide border border-primary/20">
+              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
               Телемедицина нового поколения
             </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] text-balance">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
               Качественная медицина{" "}
               <span className="relative">
                 <span className="text-primary">доступна каждому</span>
@@ -36,23 +35,26 @@ export function Hero() {
                 </svg>
               </span>
             </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed font-medium">
               Консультации с лучшими специалистами онлайн. 
-              Более <span className="text-foreground font-semibold">100 врачей</span> готовы помочь вам прямо сейчас.
+              Более <span className="text-foreground font-bold">100 врачей</span> готовы помочь вам прямо сейчас.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
             <Link
               href="/#categories"
-              className="inline-flex items-center justify-center gap-2 text-base font-medium text-primary-foreground px-12 py-4 rounded-lg bg-gradient-to-r from-[#40f] to-[#ff00d9] shadow-lg shadow-[#b100fe]/25 hover:shadow-xl hover:shadow-[#b100fe]/40 hover:brightness-110 transition-all md:px-16 lg:px-20"
+              className="inline-flex items-center justify-center gap-2 text-base font-medium text-primary px-12 py-4 rounded-lg border-2 border-primary bg-background hover:bg-primary/5 shadow-sm transition-all md:px-16 lg:px-20"
             >
               Записаться на прием
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <Button variant="outline" size="lg" className="text-base px-8 h-12 bg-transparent">
+            <Link
+              href="#how-it-works"
+              className="inline-flex items-center justify-center gap-2 text-base font-medium text-foreground/70 px-12 py-4 rounded-lg border border-border bg-background transition-all md:px-16 lg:px-20"
+            >
               Узнать больше
-            </Button>
+            </Link>
           </div>
 
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6">

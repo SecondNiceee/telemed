@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: DoctorPageProps) {
   const doctor = getDoctorById(id);
 
   return {
-    title: doctor ? `${doctor.name} - МедОнлайн` : "Врач не найден",
+    title: doctor ? `${doctor.name} - smartcardio` : "Врач не найден",
     description: doctor
       ? `Профиль врача ${doctor.name} - ${doctor.specialty}`
       : "Профиль врача",
@@ -84,8 +84,8 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                         {doctor.degree}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 bg-accent/10 px-3 py-1.5 rounded-lg mx-auto md:mx-0">
-                      <Star className="w-5 h-5 text-accent fill-accent" />
+                    <div className="flex items-center gap-1 bg-amber-50 px-3 py-1.5 rounded-lg mx-auto md:mx-0">
+                      <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
                       <span className="text-lg font-semibold text-foreground">
                         {doctor.rating}
                       </span>
@@ -112,7 +112,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                         за консультацию
                       </span>
                     </div>
-                    <Button asChild size="lg" className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
+                    <Button variant="outline" asChild size="lg" className="border-primary text-primary hover:bg-primary/5 transition-all">
                       <Link href={`/doctor/${doctor.id}/booking`}>
                         Записаться на прием
                       </Link>
@@ -211,15 +211,15 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           </div>
 
           {/* CTA */}
-          <Card className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0">
+          <Card className="border-2 border-primary/20 bg-primary/5">
             <CardContent className="p-6 text-center">
-              <h3 className="text-xl font-semibold mb-2 text-primary-foreground">
+              <h3 className="text-xl font-semibold mb-2 text-foreground">
                 Готовы записаться на прием?
               </h3>
-              <p className="opacity-90 mb-4 text-primary-foreground/90">
+              <p className="text-muted-foreground mb-4">
                 Выберите удобную дату и время для консультации
               </p>
-              <Button variant="secondary" size="lg" asChild>
+              <Button variant="outline" size="lg" asChild className="border-primary text-primary hover:bg-primary/5 transition-all">
                 <Link href={`/doctor/${doctor.id}/booking`}>
                   Выбрать время
                 </Link>

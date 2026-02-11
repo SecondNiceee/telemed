@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: CategoryPageProps) {
   const category = getCategoryById(id);
   
   return {
-    title: category ? `${category.name} - МедОнлайн` : "Категория не найдена",
+    title: category ? `${category.name} - smartcardio` : "Категория не найдена",
     description: category?.description || "Найдите врача и запишитесь на прием",
   };
 }
@@ -73,7 +73,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               <p className="text-muted-foreground text-lg">
                 В данной категории пока нет врачей
               </p>
-              <Button asChild className="mt-4 bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
+              <Button variant="outline" asChild className="mt-4 border-primary text-primary hover:bg-primary/5 transition-all">
                 <Link href="/#categories">Выбрать другую категорию</Link>
               </Button>
             </div>

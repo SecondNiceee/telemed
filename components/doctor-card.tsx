@@ -35,8 +35,8 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                     {doctor.degree}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 bg-accent/10 px-2 py-1 rounded-lg">
-                  <Star className="w-4 h-4 text-accent fill-accent" />
+                <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                   <span className="text-sm font-medium text-foreground">
                     {doctor.rating}
                   </span>
@@ -62,7 +62,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/doctor/${doctor.id}`}>Профиль</Link>
                 </Button>
-                <Button size="sm" asChild className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
+                <Button variant="outline" size="sm" asChild className="border-primary text-primary hover:bg-primary/5 transition-all">
                   <Link href={`/doctor/${doctor.id}/booking`}>Записаться</Link>
                 </Button>
               </div>

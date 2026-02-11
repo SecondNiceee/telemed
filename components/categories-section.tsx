@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react";
 
 export function CategoriesSection() {
   return (
-    <section id="categories" className="py-10 sm:py-14 bg-background relative overflow-visible">
+    <section id="categories" className="py-8 sm:py-10 bg-background relative overflow-visible">
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-8">
