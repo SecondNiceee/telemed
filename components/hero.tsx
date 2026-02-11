@@ -4,7 +4,7 @@ import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-20 sm:py-28">
+    <section className="relative overflow-hidden py-20 sm:py-28 lg:py-36">
       {/* Background with gradient mesh */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -57,7 +57,7 @@ export function Hero() {
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6">
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6 lg:flex-nowrap">
             <div className="flex items-center gap-2.5 text-foreground/80">
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
                 <CheckCircle className="w-4.5 h-4.5 text-primary" />
