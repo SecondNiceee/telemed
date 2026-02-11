@@ -26,7 +26,7 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-10 sm:py-14 bg-secondary/30 relative overflow-hidden">
+    <section id="how-it-works" className="py-8 sm:py-10 bg-secondary/30 relative overflow-hidden">
       {/* Decorative blurred logo marks */}
       <Image
         src="/images/logo.jpg"
