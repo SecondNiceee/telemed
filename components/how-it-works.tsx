@@ -59,10 +59,10 @@ export function HowItWorks() {
             <div key={step.title} className="relative">
               <div className="flex flex-col items-center text-center">
                 <div className="relative mb-6">
-                  <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg">
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#40f] to-[#ff00d9] rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-[#b100fe]/20">
                     <step.icon className="w-8 h-8" />
                   </div>
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-accent rounded-full flex items-center justify-center text-accent-foreground font-bold text-sm">
+                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#b100fe] font-bold text-sm shadow-md shadow-[#b100fe]/15 ring-2 ring-[#b100fe]/20">
                     {index + 1}
                   </div>
                 </div>

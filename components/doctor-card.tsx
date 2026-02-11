@@ -62,7 +62,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/doctor/${doctor.id}`}>Профиль</Link>
                 </Button>
-                <Button size="sm" asChild>
+                <Button size="sm" asChild className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
                   <Link href={`/doctor/${doctor.id}/booking`}>Записаться</Link>
                 </Button>
               </div>

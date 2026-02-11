@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { categories } from "@/lib/data";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
@@ -7,15 +6,7 @@ import { ArrowRight } from "lucide-react";
 export function CategoriesSection() {
   return (
     <section id="categories" className="py-10 sm:py-14 bg-background relative overflow-visible">
-      {/* Interactive Circle - decorative background */}
-      <Image
-        src="/images/interactiveCircle.svg"
-        alt=""
-        width={540}
-        height={517}
-        className="pointer-events-none absolute blur-[21.6px] -top-[15%] left-0 -translate-x-1/2 w-[clamp(16.25rem,-2.626rem+39.33vw,33.75rem)] h-auto hidden md:block"
-        aria-hidden="true"
-      />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">

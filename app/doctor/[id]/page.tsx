@@ -112,7 +112,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                         за консультацию
                       </span>
                     </div>
-                    <Button asChild size="lg">
+                    <Button asChild size="lg" className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0 hover:brightness-110 transition-all">
                       <Link href={`/doctor/${doctor.id}/booking`}>
                         Записаться на прием
                       </Link>
@@ -211,12 +211,12 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           </div>
 
           {/* CTA */}
-          <Card className="bg-primary text-primary-foreground">
+          <Card className="bg-gradient-to-r from-[#40f] to-[#ff00d9] text-primary-foreground border-0">
             <CardContent className="p-6 text-center">
-              <h3 className="text-xl font-semibold mb-2">
+              <h3 className="text-xl font-semibold mb-2 text-primary-foreground">
                 Готовы записаться на прием?
               </h3>
-              <p className="opacity-90 mb-4">
+              <p className="opacity-90 mb-4 text-primary-foreground/90">
                 Выберите удобную дату и время для консультации
               </p>
               <Button variant="secondary" size="lg" asChild>
