@@ -4,7 +4,7 @@ import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-12 sm:py-16">
+    <section className="relative overflow-hidden py-20 sm:py-28">
       {/* Background with gradient mesh */}
       <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -27,9 +27,9 @@ export function Hero() {
               Телемедицина нового поколения
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
-              Забота о сердце{" "}
+              Забота о здоровье —{" "}
               <span className="relative">
-                <span className="text-primary">без границ</span>
+                <span className="text-primary">без дороги в поликлинику</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
                   <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/40" />
                 </svg>
