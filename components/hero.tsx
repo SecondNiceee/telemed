@@ -27,17 +27,17 @@ export function Hero() {
               Телемедицина нового поколения
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
-              Качественная медицина{" "}
+              Smartcardio{" "}
               <span className="relative">
-                <span className="text-primary">доступна каждому</span>
+                <span className="text-primary">Телемедицина</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
                   <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/40" />
                 </svg>
               </span>
             </h1>
             <p className="text-lg sm:text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed font-medium">
-              Консультации с лучшими специалистами онлайн. 
-              Более <span className="text-foreground font-bold">100 врачей</span> готовы помочь вам прямо сейчас.
+              Ваш врач на расстоянии одного клика. 
+              Профессиональные консультации <span className="text-foreground font-bold">кардиологов и терапевтов</span> без очередей и ожидания.
             </p>
           </div>
 

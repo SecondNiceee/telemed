@@ -22,7 +22,7 @@ export function Header() {
               className="w-10 h-10 rounded-lg object-contain"
             />
             <span className="text-xl font-semibold text-foreground">
-              smartcardio Телемедицина
+              SmartcardioТелемедицина
             </span>
           </Link>
 
