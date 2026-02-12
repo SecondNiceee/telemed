@@ -1,22 +1,26 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Star, Clock } from "lucide-react";
-import type { Doctor } from "@/lib/data";
+import { Clock } from "lucide-react";
+import type { ApiDoctor } from "@/lib/api";
+import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api";
 
 interface DoctorCardProps {
-  doctor: Doctor;
+  doctor: ApiDoctor;
 }
 
 export function DoctorCard({ doctor }: DoctorCardProps) {
+  const photoUrl = getDoctorPhotoUrl(doctor);
+  const specialty = getDoctorSpecialty(doctor);
+
   return (
     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm">
       <CardContent className="p-0">
         <div className="flex flex-col sm:flex-row sm:items-stretch">
           <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
             <img
-              src={doctor.photo || "/placeholder.svg"}
-              alt={doctor.name}
+              src={photoUrl || "/placeholder.svg"}
+              alt={doctor.name || "Врач"}
               className="w-full h-full object-cover absolute inset-0"
             />
           </div>
@@ -26,37 +30,36 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {doctor.name}
+                    {doctor.name || "Без имени"}
                   </h3>
                   <p className="text-muted-foreground text-sm">
-                    {doctor.specialty}
+                    {specialty}
                   </p>
-                  <p className="text-xs text-primary font-medium mt-1">
-                    {doctor.degree}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                  <span className="text-sm font-medium text-foreground">
-                    {doctor.rating}
-                  </span>
+                  {doctor.degree && (
+                    <p className="text-xs text-primary font-medium mt-1">
+                      {doctor.degree}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>Стаж {doctor.experience} лет</span>
-                </div>
-                <span>{doctor.reviewsCount} отзывов</span>
+                {doctor.experience != null && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>Стаж {doctor.experience} лет</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-border">
               <div>
-                <span className="text-xl font-bold text-foreground">
-                  {doctor.price.toLocaleString("ru-RU")} ₽
-                </span>
+                {doctor.price != null && (
+                  <span className="text-xl font-bold text-foreground">
+                    {doctor.price.toLocaleString("ru-RU")} ₽
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild>
