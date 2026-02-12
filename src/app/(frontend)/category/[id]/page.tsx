@@ -9,6 +9,8 @@ import {
   fetchDoctorsByCategory,
   ApiError,
   getErrorMessage,
+  type ApiDoctor,
+  type ApiCategory,
 } from "@/lib/api";
 import { ArrowLeft } from "lucide-react";
 
@@ -36,8 +38,8 @@ export async function generateMetadata({ params }: CategoryPageProps) {
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { id: slug } = await params;
 
-  let category;
-  let doctors;
+  let category: ApiCategory | null = null;
+  let doctors: ApiDoctor[] = [];
   let error: string | null = null;
 
   try {

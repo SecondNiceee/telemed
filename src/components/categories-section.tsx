@@ -1,17 +1,16 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
-import { fetchCategories, getErrorMessage } from "@/lib/api";
+import { fetchCategories, getErrorMessage, type ApiCategory } from "@/lib/api";
 
 export async function CategoriesSection() {
-  let categories;
+  let categories: ApiCategory[] = [];
   let error: string | null = null;
 
   try {
     categories = await fetchCategories();
   } catch (err) {
     error = getErrorMessage(err);
-    categories = [];
   }
 
   if (error) {

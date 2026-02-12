@@ -5,6 +5,7 @@ import {
   getDoctorSpecialty,
   ApiError,
   getErrorMessage,
+  type ApiDoctor,
 } from "@/lib/api";
 import { BookingClient } from "./booking-client";
 import { Header } from "@/components/header";
@@ -19,7 +20,7 @@ interface BookingPageProps {
 export default async function BookingPage({ params }: BookingPageProps) {
   const { id } = await params;
 
-  let doctor;
+  let doctor: ApiDoctor | null = null;
   let error: string | null = null;
 
   try {

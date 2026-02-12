@@ -13,6 +13,7 @@ import {
   getDoctorCategories,
   ApiError,
   getErrorMessage,
+  type ApiDoctor,
 } from "@/lib/api";
 import {
   ArrowLeft,
@@ -49,7 +50,7 @@ export async function generateMetadata({ params }: DoctorPageProps) {
 export default async function DoctorPage({ params }: DoctorPageProps) {
   const { id } = await params;
 
-  let doctor;
+  let doctor: ApiDoctor | null = null;
   let error: string | null = null;
 
   try {
