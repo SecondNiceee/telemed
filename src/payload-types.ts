@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    'doctor-categories': DoctorCategory;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,6 +79,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'doctor-categories': DoctorCategoriesSelect<false> | DoctorCategoriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -120,6 +122,29 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  role: 'user' | 'doctor' | 'admin';
+  name?: string | null;
+  categories?: (number | DoctorCategory)[] | null;
+  experience?: number | null;
+  /**
+   * Например: Врач высшей категории, Кандидат медицинских наук
+   */
+  degree?: string | null;
+  price?: number | null;
+  photo?: (number | null) | Media;
+  bio?: string | null;
+  education?:
+    | {
+        value?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  services?:
+    | {
+        value?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -138,6 +163,25 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doctor-categories".
+ */
+export interface DoctorCategory {
+  id: number;
+  name: string;
+  /**
+   * Уникальный идентификатор для URL (например: therapist)
+   */
+  slug: string;
+  description?: string | null;
+  /**
+   * Название иконки из библиотеки Lucide (например: stethoscope, heart, brain)
+   */
+  icon?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -189,6 +233,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'doctor-categories';
+        value: number | DoctorCategory;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -237,6 +285,26 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  role?: T;
+  name?: T;
+  categories?: T;
+  experience?: T;
+  degree?: T;
+  price?: T;
+  photo?: T;
+  bio?: T;
+  education?:
+    | T
+    | {
+        value?: T;
+        id?: T;
+      };
+  services?:
+    | T
+    | {
+        value?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -271,6 +339,18 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doctor-categories_select".
+ */
+export interface DoctorCategoriesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  description?: T;
+  icon?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
