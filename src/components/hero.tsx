@@ -34,9 +34,16 @@ export function Hero() {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
               Забота о здоровье —{" "}
               <span className="relative">
-                <span className="text-primary">без дороги в поликлинику</span>
+                <span className="bg-gradient-to-r from-[oklch(0.50_0.28_305)] via-[oklch(0.55_0.25_280)] to-[oklch(0.55_0.22_340)] bg-clip-text text-transparent">без дороги в поликлинику</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
-                  <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/40" />
+                  <defs>
+                    <linearGradient id="underlineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="oklch(0.50 0.28 305)" stopOpacity="0.5" />
+                      <stop offset="50%" stopColor="oklch(0.55 0.25 280)" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="oklch(0.55 0.22 340)" stopOpacity="0.5" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M2 10C50 4 150 2 298 10" stroke="url(#underlineGrad)" strokeWidth="3" strokeLinecap="round" />
                 </svg>
               </span>
             </h1>
