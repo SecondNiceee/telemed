@@ -8,9 +8,11 @@ export function getBaseUrl(): string {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  console.log("Тут нет ошибок")
   const baseUrl = getBaseUrl()
-  const url = `${baseUrl}${path}`
-
+  const url = `${baseUrl}${path}`;
+  console.log(url);
+  
   let response: Response
 
   try {

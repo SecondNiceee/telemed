@@ -6,7 +6,7 @@ import {
   ApiError,
   getErrorMessage,
   type ApiDoctor,
-} from "@/lib/api";
+} from "@/lib/api/index";
 import { BookingClient } from "./booking-client";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";

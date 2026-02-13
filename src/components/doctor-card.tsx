@@ -2,8 +2,8 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
-import type { ApiDoctor } from "@/lib/api";
-import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api";
+import type { ApiDoctor } from "@/lib/api/index";
+import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api/index";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;

@@ -11,7 +11,7 @@ import {
   getErrorMessage,
   type ApiDoctor,
   type ApiCategory,
-} from "@/lib/api";
+} from "@/lib/api/index";
 import { ArrowLeft } from "lucide-react";
 
 interface CategoryPageProps {

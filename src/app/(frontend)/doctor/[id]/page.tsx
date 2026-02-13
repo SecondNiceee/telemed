@@ -14,7 +14,7 @@ import {
   ApiError,
   getErrorMessage,
   type ApiDoctor,
-} from "@/lib/api";
+} from "@/lib/api/index";
 import {
   ArrowLeft,
   Clock,
