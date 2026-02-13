@@ -1,18 +1,28 @@
 import { ApiError } from './errors'
 
+// export function getBaseUrl(): string {
+//   if (typeof window !== 'undefined') {
+//     return '' // client-side: relative URLs
+//   }
+//   return process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+// }
+
 export function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return '' // client-side: relative URLs
   }
-  return process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  
+  // Server-side: use full URL for fetch
+  return  process.env.SERVER_URL || "http://localhost:3000"
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   console.log("Тут нет ошибок")
   const baseUrl = getBaseUrl()
+  console.log(baseUrl);
   const url = `${baseUrl}${path}`;
   console.log(url);
-  
+
   let response: Response
 
   try {
