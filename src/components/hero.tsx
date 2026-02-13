@@ -5,15 +5,9 @@ import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 export function Hero() {
   return (
     <section className="relative overflow-hidden py-20 sm:py-24">
-      {/* Vibrant background with colorful gradient mesh */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-background" />
-      <div className="absolute top-[-10%] left-[10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px]" />
-      <div className="absolute top-[20%] right-[5%] w-[400px] h-[400px] bg-[oklch(0.65_0.22_260)] opacity-15 rounded-full blur-[100px]" />
-      <div className="absolute bottom-[-5%] left-[30%] w-[450px] h-[450px] bg-[oklch(0.60_0.20_340)] opacity-12 rounded-full blur-[110px]" />
-      <div className="absolute top-[50%] right-[25%] w-[300px] h-[300px] bg-[oklch(0.55_0.25_290)] opacity-10 rounded-full blur-[90px]" />
-      {/* Subtle animated floating orbs */}
-      <div className="absolute top-[15%] left-[60%] w-32 h-32 bg-primary/25 rounded-full blur-2xl animate-pulse" />
-      <div className="absolute bottom-[20%] right-[15%] w-24 h-24 bg-[oklch(0.60_0.20_340)] opacity-20 rounded-full blur-2xl animate-pulse [animation-delay:1s]" />
+      {/* Professional minimal background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background/95" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent" />
       {/* VideoLiner decorative background */}
       <Image
         src="/images/videoLiner.svg"
@@ -34,16 +28,9 @@ export function Hero() {
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
               Забота о здоровье —{" "}
               <span className="relative">
-                <span className="bg-gradient-to-r from-[oklch(0.50_0.28_305)] via-[oklch(0.55_0.25_280)] to-[oklch(0.55_0.22_340)] bg-clip-text text-transparent">без дороги в поликлинику</span>
+                <span className="text-primary">без дороги в поликлинику</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
-                  <defs>
-                    <linearGradient id="underlineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="oklch(0.50 0.28 305)" stopOpacity="0.5" />
-                      <stop offset="50%" stopColor="oklch(0.55 0.25 280)" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="oklch(0.55 0.22 340)" stopOpacity="0.5" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M2 10C50 4 150 2 298 10" stroke="url(#underlineGrad)" strokeWidth="3" strokeLinecap="round" />
+                  <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/30" />
                 </svg>
               </span>
             </h1>
