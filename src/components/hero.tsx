@@ -5,17 +5,16 @@ import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 export function Hero() {
   return (
     <section className="relative overflow-hidden py-20 sm:py-24">
-      {/* Background with gradient mesh */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-primary/4 rounded-full blur-3xl" />
+      {/* Professional minimal background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-background/95" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent" />
       {/* VideoLiner decorative background */}
       <Image
         src="/images/videoLiner.svg"
         alt=""
         width={755}
         height={821}
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[600px] blur-[100px] opacity-80 -z-10 hidden md:block lg:min-w-[600px] md:min-w-[500px] md:-translate-x-[60%]"
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[600px] blur-[80px] opacity-90 -z-10 hidden md:block lg:min-w-[600px] md:min-w-[500px] md:-translate-x-[60%]"
         aria-hidden="true"
       />
       
@@ -31,7 +30,7 @@ export function Hero() {
               <span className="relative">
                 <span className="text-primary">без дороги в поликлинику</span>
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
-                  <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/40" />
+                  <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/30" />
                 </svg>
               </span>
             </h1>
