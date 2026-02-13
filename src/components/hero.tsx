@@ -5,17 +5,22 @@ import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 export function Hero() {
   return (
     <section className="relative overflow-hidden py-20 sm:py-24">
-      {/* Background with gradient mesh */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-primary/4 rounded-full blur-3xl" />
+      {/* Vibrant background with colorful gradient mesh */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-background" />
+      <div className="absolute top-[-10%] left-[10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px]" />
+      <div className="absolute top-[20%] right-[5%] w-[400px] h-[400px] bg-[oklch(0.65_0.22_260)] opacity-15 rounded-full blur-[100px]" />
+      <div className="absolute bottom-[-5%] left-[30%] w-[450px] h-[450px] bg-[oklch(0.60_0.20_340)] opacity-12 rounded-full blur-[110px]" />
+      <div className="absolute top-[50%] right-[25%] w-[300px] h-[300px] bg-[oklch(0.55_0.25_290)] opacity-10 rounded-full blur-[90px]" />
+      {/* Subtle animated floating orbs */}
+      <div className="absolute top-[15%] left-[60%] w-32 h-32 bg-primary/25 rounded-full blur-2xl animate-pulse" />
+      <div className="absolute bottom-[20%] right-[15%] w-24 h-24 bg-[oklch(0.60_0.20_340)] opacity-20 rounded-full blur-2xl animate-pulse [animation-delay:1s]" />
       {/* VideoLiner decorative background */}
       <Image
         src="/images/videoLiner.svg"
         alt=""
         width={755}
         height={821}
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[600px] blur-[100px] opacity-80 -z-10 hidden md:block lg:min-w-[600px] md:min-w-[500px] md:-translate-x-[60%]"
+        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[600px] blur-[80px] opacity-90 -z-10 hidden md:block lg:min-w-[600px] md:min-w-[500px] md:-translate-x-[60%]"
         aria-hidden="true"
       />
       
