@@ -4,7 +4,10 @@ export function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
     return '' // client-side: relative URLs
   }
-  return process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  
+  // Server-side: use relative URLs so Next.js handles routing internally
+  // This works for both development and production
+  return ''
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
