@@ -5,9 +5,11 @@ export function getBaseUrl(): string {
     return '' // client-side: relative URLs
   }
   
-  // Server-side: use relative URLs so Next.js handles routing internally
-  // This works for both development and production
-  return ''
+  // Server-side: use full URL for fetch
+  // In production on Vercel, requests are made internally, so localhost works
+  // In local development, localhost:3000 works
+  const port = process.env.PORT || '3000'
+  return `http://localhost:${port}`
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
