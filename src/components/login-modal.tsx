@@ -20,9 +20,10 @@ type LoginMode = "user" | "doctor"
 
 interface LoginModalProps {
   children: React.ReactNode
+  onSuccess?: () => void
 }
 
-export function LoginModal({ children }: LoginModalProps) {
+export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<LoginMode>("user")
@@ -62,6 +63,7 @@ export function LoginModal({ children }: LoginModalProps) {
         }
         setOpen(false)
         handleReset()
+        onSuccess?.()
         router.push("/doctor-dashboard")
       } else {
         if (user.role === "doctor") {
@@ -71,6 +73,7 @@ export function LoginModal({ children }: LoginModalProps) {
         }
         setOpen(false)
         handleReset()
+        onSuccess?.()
         router.refresh()
       }
     } catch (err) {
