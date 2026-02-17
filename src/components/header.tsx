@@ -3,12 +3,42 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { LoginModal } from "@/components/login-modal";
+import { AuthApi } from "@/lib/api/auth";
+import type { User } from "@/payload-types";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const currentUser = await AuthApi.me();
+      setUser(currentUser);
+    } catch {
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const handleLogout = async () => {
+    await AuthApi.logout();
+    setUser(null);
+    window.location.href = "/";
+  };
+
+  const accountHref = user?.role === "doctor" || user?.role === "admin"
+    ? "/doctor-dashboard"
+    : "/";
+
 
   return (
     <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
@@ -49,12 +79,36 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-4">
-            <LoginModal>
-              <Button variant="ghost" size="sm">
-                Войти
-              </Button>
-            </LoginModal>
-            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 transition-all">Записаться</Button>
+            {authLoading ? (
+              <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
+            ) : user ? (
+              <>
+                <Link
+                  href={accountHref}
+                  className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors font-medium"
+                >
+                  <UserIcon className="w-4 h-4" />
+                  <span className="max-w-[180px] truncate">{user.email}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label="Выйти"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Выйти</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <LoginModal onSuccess={checkAuth}>
+                  <Button variant="ghost" size="sm">
+                    Войти
+                  </Button>
+                </LoginModal>
+                <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 transition-all">Записаться</Button>
+              </>
+            )}
           </div>
 
           <button
@@ -94,15 +148,42 @@ export function Header() {
               >
                 Как это работает
               </Link>
-              <div className="flex gap-2 pt-4 border-t border-border">
-                <LoginModal>
-                  <Button variant="ghost" size="sm" className="flex-1">
-                    Войти
-                  </Button>
-                </LoginModal>
-                <Button variant="outline" size="sm" className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all">
-                  Записаться
-                </Button>
+              <div className="flex flex-col gap-2 pt-4 border-t border-border">
+                {authLoading ? (
+                  <div className="h-9 rounded-md bg-muted animate-pulse" />
+                ) : user ? (
+                  <>
+                    <Link
+                      href={accountHref}
+                      className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors font-medium py-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span className="truncate">{user.email}</span>
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        handleLogout();
+                      }}
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors py-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Выйти</span>
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <LoginModal onSuccess={checkAuth}>
+                      <Button variant="ghost" size="sm" className="flex-1">
+                        Войти
+                      </Button>
+                    </LoginModal>
+                    <Button variant="outline" size="sm" className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all">
+                      Записаться
+                    </Button>
+                  </div>
+                )}
               </div>
             </nav>
           </div>
