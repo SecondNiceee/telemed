@@ -9,14 +9,41 @@ import jwt from 'jsonwebtoken'
  */
 function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
   try {
-    const cookieHeader = req.headers.get('cookie') || ''
+    console.log('[v0] getCallerRole called')
+    console.log('[v0] req.headers type:', typeof req.headers)
+    console.log('[v0] req.headers.get exists:', typeof req.headers?.get)
+
+    let cookieHeader = ''
+    if (typeof req.headers?.get === 'function') {
+      cookieHeader = req.headers.get('cookie') || ''
+    } else if (req.headers && typeof req.headers === 'object') {
+      // Fallback: headers might be a plain object in some Payload contexts
+      cookieHeader = (req.headers as any)['cookie'] || (req.headers as any).cookie || ''
+    }
+
+    console.log('[v0] cookieHeader:', cookieHeader ? cookieHeader.substring(0, 100) + '...' : '(empty)')
+
     const match = cookieHeader.match(/payload-token=([^;]+)/)
-    if (!match) return {}
+    if (!match) {
+      console.log('[v0] No payload-token found in cookies')
+      return {}
+    }
+
     const token = match[1]
-    const secret = process.env.PAYLOAD_SECRET || ''
+    console.log('[v0] Token found, length:', token.length)
+
+    const secret = process.env.PAYLOAD_SECRET
+    console.log('[v0] PAYLOAD_SECRET exists:', !!secret)
+    if (!secret) {
+      console.log('[v0] PAYLOAD_SECRET is empty!')
+      return {}
+    }
+
     const decoded = jwt.verify(token, secret) as { role?: string; id?: string; collection?: string }
+    console.log('[v0] JWT decoded successfully:', JSON.stringify(decoded))
     return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
-  } catch {
+  } catch (error) {
+    console.log('[v0] getCallerRole ERROR:', error instanceof Error ? error.message : String(error))
     return {}
   }
 }
