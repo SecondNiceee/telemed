@@ -7,7 +7,19 @@ export const Users: CollectionConfig = {
     defaultColumns: ['name', 'email', 'role'],
     group: 'Пользователи',
   },
-  auth: true,
+  auth: {
+    verify: false,
+  },
+  hooks: {
+    beforeChange: [
+      ({ data, operation }) => {
+        if (operation === 'create') {
+          data._verified = true
+        }
+        return data
+      },
+    ],
+  },
   access: {
     read: () => true,
     create: ({ req: { user } }) => user?.role === 'admin',
