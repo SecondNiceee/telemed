@@ -1,4 +1,25 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
+import jwt from 'jsonwebtoken'
+
+/**
+ * Extract the real logged-in user from the JWT cookie directly,
+ * bypassing req.user (which Payload may overwrite with the target user
+ * in auth collections) and avoiding payload.auth() (which causes
+ * infinite recursion in access control).
+ */
+function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
+  try {
+    const cookieHeader = req.headers.get('cookie') || ''
+    const match = cookieHeader.match(/payload-token=([^;]+)/)
+    if (!match) return {}
+    const token = match[1]
+    const secret = process.env.PAYLOAD_SECRET || ''
+    const decoded = jwt.verify(token, secret) as { role?: string; id?: string; collection?: string }
+    return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
+  } catch {
+    return {}
+  }
+}
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -9,6 +30,7 @@ export const Users: CollectionConfig = {
   },
   auth: {
     verify: false,
+    tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
   hooks: {
     beforeChange: [
@@ -22,23 +44,23 @@ export const Users: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req: { user } }) => {
-      if (!user) return false
-      return (user as any).role === 'admin'
+    create: ({ req }) => {
+      const caller = getCallerRole(req)
+      return caller.role === 'admin'
     },
-    update: ({ req: { user }, id }) => {
-      if (!user) return false
-      if ((user as any).role === 'admin') return true
-      if (String((user as any).id) === String(id)) return true
+    update: ({ req, id }) => {
+      const caller = getCallerRole(req)
+      if (caller.role === 'admin') return true
+      if (caller.id && String(caller.id) === String(id)) return true
       return false
     },
-    delete: ({ req: { user } }) => {
-      if (!user) return false
-      return (user as any).role === 'admin'
+    delete: ({ req }) => {
+      const caller = getCallerRole(req)
+      return caller.role === 'admin'
     },
-    admin: ({ req: { user } }) => {
-      if (!user) return false
-      return (user as any).role === 'admin'
+    admin: ({ req }) => {
+      const caller = getCallerRole(req)
+      return caller.role === 'admin'
     },
   },
   fields: [
@@ -48,6 +70,7 @@ export const Users: CollectionConfig = {
       required: true,
       defaultValue: 'user',
       label: 'Роль',
+      saveToJWT: true,
       options: [
         { label: 'Пользователь', value: 'user' },
         { label: 'Врач', value: 'doctor' },
