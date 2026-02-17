@@ -1,13 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
-
-async function isAdmin(req: PayloadRequest): Promise<boolean> {
-  try {
-    const { user } = await req.payload.auth({ headers: req.headers })
-    return user?.role === 'admin'
-  } catch {
-    return false
-  }
-}
+import type { CollectionConfig } from 'payload'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -31,14 +22,24 @@ export const Users: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: async ({ req }) => isAdmin(req),
-    update: async ({ req, id }) => {
-      const { user } = await req.payload.auth({ headers: req.headers })
-      if (user?.role === 'admin') return true
-      if (user?.id === id) return true
+    create: ({ req: { user } }) => {
+      if (!user) return false
+      return (user as any).role === 'admin'
+    },
+    update: ({ req: { user }, id }) => {
+      if (!user) return false
+      if ((user as any).role === 'admin') return true
+      if (String((user as any).id) === String(id)) return true
       return false
     },
-    delete: async ({ req }) => isAdmin(req),
+    delete: ({ req: { user } }) => {
+      if (!user) return false
+      return (user as any).role === 'admin'
+    },
+    admin: ({ req: { user } }) => {
+      if (!user) return false
+      return (user as any).role === 'admin'
+    },
   },
   fields: [
     {
