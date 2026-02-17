@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
+import { LoginModal } from "@/components/login-modal";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -48,9 +49,11 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="sm">
-              Войти
-            </Button>
+            <LoginModal>
+              <Button variant="ghost" size="sm">
+                Войти
+              </Button>
+            </LoginModal>
             <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 transition-all">Записаться</Button>
           </div>
 
@@ -92,9 +95,11 @@ export function Header() {
                 Как это работает
               </Link>
               <div className="flex gap-2 pt-4 border-t border-border">
-                <Button variant="ghost" size="sm" className="flex-1">
-                  Войти
-                </Button>
+                <LoginModal>
+                  <Button variant="ghost" size="sm" className="flex-1">
+                    Войти
+                  </Button>
+                </LoginModal>
                 <Button variant="outline" size="sm" className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all">
                   Записаться
                 </Button>
