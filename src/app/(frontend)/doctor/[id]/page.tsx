@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   fetchDoctorById,
-  getDoctorPhotoUrl,
   getDoctorSpecialty,
   getDoctorEducation,
   getDoctorServices,
@@ -23,7 +22,8 @@ import {
   Award,
   CheckCircle,
 } from "lucide-react";
-import { getBasePath } from "@/lib/basePath";
+import { resolveImageUrl } from "@/lib/image";
+import { Media } from "@/payload-types";
 
 interface DoctorPageProps {
   params: Promise<{ id: string }>;
@@ -79,7 +79,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
     );
   }
 
-  const photoUrl = getDoctorPhotoUrl(doctor);
+  const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
   const specialty = getDoctorSpecialty(doctor);
   const education = getDoctorEducation(doctor);
   const services = getDoctorServices(doctor);
@@ -104,7 +104,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
               <div className="flex flex-col py-0 md:flex-row md:items-stretch">
                 <div className="w-full md:w-80 h-72 md:h-auto flex-shrink-0 relative">
                   <img
-                    src={photoUrl || `${getBasePath()}/placeholder.svg`}
+                    src={photoUrl}
                     alt={doctor.name || "Врач"}
                     className="w-full h-full object-cover absolute inset-0"
                   />

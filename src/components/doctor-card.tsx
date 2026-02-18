@@ -4,8 +4,8 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
-import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api/index";
-import { getBasePath } from "@/lib/basePath";
+import { getDoctorSpecialty } from "@/lib/api/index";
+import { resolveImageUrl } from "@/lib/image";
 import { Media, User } from "@/payload-types";
 import { useRouter } from "next/navigation";
 
@@ -24,7 +24,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
               <img
-                src={(doctor?.photo as Media)?.url || `${getBasePath()}/placeholder.svg`}
+                src={resolveImageUrl((doctor?.photo as Media)?.url)}
                 alt={doctor.name || "Врач"}
                 className="w-full h-full object-cover absolute inset-0"
               />

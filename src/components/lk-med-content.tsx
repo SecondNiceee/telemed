@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getBasePath } from "@/lib/basePath"
+import { resolveImageUrl } from "@/lib/image"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiCategory, ApiDoctor } from "@/lib/api/types"
@@ -328,7 +329,7 @@ export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
                         <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
                           {doctor.photo ? (
                             <img
-                              src={(doctor.photo as Media).url || ""}
+                              src={resolveImageUrl((doctor.photo as Media).url)}
                               alt={doctor.name || "Врач"}
                               className="w-full h-full object-cover"
                             />
