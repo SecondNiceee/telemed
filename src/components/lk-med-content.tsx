@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getBasePath } from "@/lib/basePath"
-import { fetchCategoriesAction } from "@/lib/api/actions"
+import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import type { ApiCategory } from "@/lib/api/types"
 import {
   Plus,
@@ -198,6 +198,9 @@ export function LkMedContent({ userName }: { userName: string }) {
             "Ошибка создания врача",
         )
       }
+
+      // Revalidate doctors cache so lists reflect the new doctor
+      await revalidateDoctorsAction()
 
       setSuccess(`Врач "${data.name || data.email}" успешно создан!`)
       reset(defaultValues)

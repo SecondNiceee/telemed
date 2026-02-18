@@ -1,5 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
+import { revalidateTag } from 'next/cache'
 import jwt from 'jsonwebtoken'
+import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
 /**
  * Extract the real logged-in user from the JWT cookie directly,
@@ -122,6 +124,20 @@ export const Users: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [ensureReqUser],
+    afterChange: [
+      ({ doc }) => {
+        if (doc?.role === 'doctor') {
+          revalidateTag(DOCTORS_CACHE_TAG)
+        }
+      },
+    ],
+    afterDelete: [
+      ({ doc }) => {
+        if (doc?.role === 'doctor') {
+          revalidateTag(DOCTORS_CACHE_TAG)
+        }
+      },
+    ],
     beforeChange: [
       ({ data, operation, req }) => {
         if (operation === 'create') {
