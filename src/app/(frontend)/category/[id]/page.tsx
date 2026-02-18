@@ -100,7 +100,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           </div>
 
           {doctors.length > 0 ? (
-            <div className="grid gap-6">
+            <div className="grid gap-3">
               {doctors.map((doctor) => (
                 <DoctorCard key={doctor.id} doctor={doctor} />
               ))}

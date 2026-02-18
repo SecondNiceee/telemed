@@ -111,15 +111,15 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                   />
                 </div>
 
-                <div className="flex-1 p-6 text-center md:text-left flex flex-col justify-center">
-                  <div className="mb-3">
+                <div className="flex-1 px-6 py-3 text-center md:text-left flex flex-col justify-center">
+                  <div className="mb-1">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {doctor.name}
                     </h1>
                     <p className="text-lg text-primary">{specialty}</p>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 text-sm mb-4">
+                  <div className="flex flex-col gap-0.5 text-sm mb-2">
                     {doctor.experience != null && (
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">Стаж:</span>
@@ -152,12 +152,12 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* About */}
           {doctor.bio && (
-            <Card className="mb-3">
-              <CardContent className="px-6 py-3">
-                <h2 className="text-xl font-semibold text-foreground mb-1">
+            <Card className="mb-2">
+              <CardContent className="px-6 py-2">
+                <h2 className="text-lg font-semibold text-foreground mb-0.5">
                   О враче
                 </h2>
-                <p className="text-muted-foreground leading-relaxed">
+                <p className="text-muted-foreground text-sm leading-relaxed">
                   {doctor.bio}
                 </p>
               </CardContent>
@@ -166,39 +166,39 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* Education */}
           {education.length > 0 && (
-            <Card className="mb-3">
-              <CardContent className="px-6 py-3">
-                <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
+            <Card className="mb-2">
+              <CardContent className="px-6 py-2">
+                <h2 className="text-lg font-semibold text-foreground mb-0.5 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-primary" />
                   Образование
                 </h2>
-                <ul className="space-y-1.5">
+                <div className="flex flex-wrap gap-2">
                   {education.map((edu, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                    <div key={index} className="flex items-center gap-1.5 px-3 py-1 bg-secondary/50 rounded-full text-sm">
+                      <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
                       <span className="text-muted-foreground">{edu}</span>
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </CardContent>
             </Card>
           )}
 
           {/* Services */}
           {services.length > 0 && (
-            <Card className="mb-3">
-              <CardContent className="px-6 py-3">
-                <h2 className="text-xl font-semibold text-foreground mb-2">
+            <Card className="mb-2">
+              <CardContent className="px-6 py-2">
+                <h2 className="text-lg font-semibold text-foreground mb-1">
                   Услуги
                 </h2>
-                <div className="grid sm:grid-cols-2 gap-2">
+                <div className="grid sm:grid-cols-2 gap-1.5">
                   {services.map((service, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-3 p-3 bg-secondary/50 rounded-lg"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg"
                     >
-                      <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                      <span className="text-foreground">{service}</span>
+                      <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-foreground text-sm">{service}</span>
                     </div>
                   ))}
                 </div>
@@ -207,37 +207,37 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           )}
 
           {/* Features */}
-          <div className="grid sm:grid-cols-3 gap-2 mb-3">
+          <div className="grid sm:grid-cols-3 gap-1.5 mb-2">
             <Card>
-              <CardContent className="px-3 py-2 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Video className="w-4 h-4 text-primary" />
+              <CardContent className="px-3 py-1.5 flex items-center gap-2">
+                <div className="w-7 h-7 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Video className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm text-foreground">Видеоконсультация</p>
-                  <p className="text-xs text-muted-foreground">HD качество</p>
+                  <p className="font-medium text-sm text-foreground leading-tight">Видеоконсультация</p>
+                  <p className="text-xs text-muted-foreground leading-tight">HD качество</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="px-3 py-2 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-4 h-4 text-primary" />
+              <CardContent className="px-3 py-1.5 flex items-center gap-2">
+                <div className="w-7 h-7 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm text-foreground">Конфиденциально</p>
-                  <p className="text-xs text-muted-foreground">Защита данных</p>
+                  <p className="font-medium text-sm text-foreground leading-tight">Конфиденциально</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Защита данных</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="px-3 py-2 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 text-primary" />
+              <CardContent className="px-3 py-1.5 flex items-center gap-2">
+                <div className="w-7 h-7 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Award className="w-3.5 h-3.5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm text-foreground">Сертифицирован</p>
-                  <p className="text-xs text-muted-foreground">Все лицензии</p>
+                  <p className="font-medium text-sm text-foreground leading-tight">Сертифицирован</p>
+                  <p className="text-xs text-muted-foreground leading-tight">Все лицензии</p>
                 </div>
               </CardContent>
             </Card>
