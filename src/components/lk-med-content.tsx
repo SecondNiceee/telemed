@@ -134,6 +134,11 @@ export function LkMedContent({ userName }: { userName: string }) {
 
         if (!uploadRes.ok) {
           const body = await uploadRes.json().catch(() => null)
+          console.error("[lk-med] Photo upload failed:", {
+            status: uploadRes.status,
+            statusText: uploadRes.statusText,
+            body,
+          })
           throw new Error(body?.errors?.[0]?.message || "Ошибка загрузки фото")
         }
 
@@ -179,6 +184,12 @@ export function LkMedContent({ userName }: { userName: string }) {
 
       if (!createRes.ok) {
         const body = await createRes.json().catch(() => null)
+        console.error("[lk-med] Doctor creation failed:", {
+          status: createRes.status,
+          statusText: createRes.statusText,
+          body,
+          payload,
+        })
         throw new Error(
           body?.errors?.[0]?.message ||
             body?.message ||
@@ -190,6 +201,7 @@ export function LkMedContent({ userName }: { userName: string }) {
       reset(defaultValues)
       removePhoto()
     } catch (err) {
+      console.error("[lk-med] onSubmit error:", err)
       setError(err instanceof Error ? err.message : "Произошла ошибка")
     }
   }
