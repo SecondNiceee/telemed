@@ -62,7 +62,7 @@ export function LkMedContent({ userName }: { userName: string }) {
     reset,
     watch,
     setValue,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<DoctorFormValues>({ defaultValues })
 
   const {
@@ -126,7 +126,6 @@ export function LkMedContent({ userName }: { userName: string }) {
         formData.append("file", photo)
         formData.append("alt", data.name || "Doctor photo")
 
-        console.log("[v0] Upload URL:", `${basePath}/api/media`, "basePath:", basePath)
         const uploadRes = await fetch(`${basePath}/api/media`, {
           method: "POST",
           credentials: "include",
@@ -176,7 +175,6 @@ export function LkMedContent({ userName }: { userName: string }) {
         payload.services = servicesFiltered.map((v) => ({ value: v }))
       }
 
-      console.log("[v0] Create doctor URL:", `${basePath}/api/users`, "basePath:", basePath)
       const createRes = await fetch(`${basePath}/api/users`, {
         method: "POST",
         credentials: "include",
@@ -190,8 +188,10 @@ export function LkMedContent({ userName }: { userName: string }) {
           status: createRes.status,
           statusText: createRes.statusText,
           body,
-          payload,
         })
+        if (createRes.status === 400) {
+          throw new Error("Пользователь с таким именем или email уже существует")
+        }
         throw new Error(
           body?.errors?.[0]?.message ||
             body?.message ||
@@ -282,8 +282,12 @@ export function LkMedContent({ userName }: { userName: string }) {
                 <Input
                   id="doctor-name"
                   placeholder="Иванов Иван Иванович"
-                  {...register("name", { required: true })}
+                  aria-invalid={!!errors.name}
+                  {...register("name", { required: "Обязательное поле" })}
                 />
+                {errors.name && (
+                  <p className="text-sm text-destructive">{errors.name.message}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -293,8 +297,18 @@ export function LkMedContent({ userName }: { userName: string }) {
                     id="doctor-email"
                     type="email"
                     placeholder="doctor@clinic.ru"
-                    {...register("email", { required: true })}
+                    aria-invalid={!!errors.email}
+                    {...register("email", {
+                      required: "Обязательное поле",
+                      pattern: {
+                        value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                        message: "Введите корректный email",
+                      },
+                    })}
                   />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="doctor-password">Пароль *</Label>
@@ -302,11 +316,18 @@ export function LkMedContent({ userName }: { userName: string }) {
                     id="doctor-password"
                     type="password"
                     placeholder="Минимум 6 символов"
+                    aria-invalid={!!errors.password}
                     {...register("password", {
-                      required: true,
-                      minLength: 6,
+                      required: "Обязательное поле",
+                      minLength: {
+                        value: 6,
+                        message: "Минимум 6 символов",
+                      },
                     })}
                   />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  )}
                 </div>
               </div>
             </fieldset>
@@ -319,56 +340,75 @@ export function LkMedContent({ userName }: { userName: string }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="doctor-experience">Стаж (лет)</Label>
+                  <Label htmlFor="doctor-experience">Стаж (лет) *</Label>
                   <Input
                     id="doctor-experience"
                     type="number"
                     min="0"
                     placeholder="10"
-                    {...register("experience")}
+                    aria-invalid={!!errors.experience}
+                    {...register("experience", { required: "Обязательное поле" })}
                   />
+                  {errors.experience && (
+                    <p className="text-sm text-destructive">{errors.experience.message}</p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="doctor-price">
-                    Цена консультации (руб.)
+                    Цена консультации (руб.) *
                   </Label>
                   <Input
                     id="doctor-price"
                     type="number"
                     min="0"
                     placeholder="3000"
-                    {...register("price")}
+                    aria-invalid={!!errors.price}
+                    {...register("price", { required: "Обязательное поле" })}
                   />
+                  {errors.price && (
+                    <p className="text-sm text-destructive">{errors.price.message}</p>
+                  )}
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="doctor-degree">Степень / Категория</Label>
+                <Label htmlFor="doctor-degree">Степень / Категория *</Label>
                 <Input
                   id="doctor-degree"
                   placeholder="Врач высшей категории, Кандидат медицинских наук"
-                  {...register("degree")}
+                  aria-invalid={!!errors.degree}
+                  {...register("degree", { required: "Обязательное поле" })}
                 />
+                {errors.degree && (
+                  <p className="text-sm text-destructive">{errors.degree.message}</p>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="doctor-bio">О враче</Label>
+                <Label htmlFor="doctor-bio">О враче *</Label>
                 <Controller
                   control={control}
                   name="bio"
-                  render={({ field }) => (
-                    <textarea
-                      id="doctor-bio"
-                      rows={4}
-                      placeholder="Расскажите о враче, его опыте и квалификации..."
-                      className={cn(
-                        "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm",
-                        "placeholder:text-muted-foreground focus-visible:outline-none",
-                        "focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-                        "resize-y min-h-[100px]",
+                  rules={{ required: "Обязательное поле" }}
+                  render={({ field, fieldState }) => (
+                    <>
+                      <textarea
+                        id="doctor-bio"
+                        rows={4}
+                        placeholder="Расскажите о враче, его опыте и квалификации..."
+                        aria-invalid={!!fieldState.error}
+                        className={cn(
+                          "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm",
+                          "placeholder:text-muted-foreground focus-visible:outline-none",
+                          "focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                          "resize-y min-h-[100px]",
+                        )}
+                        {...field}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
                       )}
-                      {...field}
-                    />
+                    </>
                   )}
                 />
               </div>
@@ -378,8 +418,15 @@ export function LkMedContent({ userName }: { userName: string }) {
             {categories.length > 0 && (
               <fieldset className="flex flex-col gap-3">
                 <legend className="text-sm font-semibold text-foreground mb-2">
-                  Специализации
+                  Специализации *
                 </legend>
+                {/* Hidden registered field for validation */}
+                <input
+                  type="hidden"
+                  {...register("categories", {
+                    validate: (v) => v.length > 0 || "Выберите хотя бы одну специализацию",
+                  })}
+                />
                 <div className="flex flex-wrap gap-2">
                   {categories.map((cat) => {
                     const isSelected = selectedCategories.includes(cat.id)
@@ -403,6 +450,9 @@ export function LkMedContent({ userName }: { userName: string }) {
                     )
                   })}
                 </div>
+                {errors.categories && (
+                  <p className="text-sm text-destructive">{errors.categories.message}</p>
+                )}
               </fieldset>
             )}
 
@@ -464,7 +514,7 @@ export function LkMedContent({ userName }: { userName: string }) {
             <fieldset className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <legend className="text-sm font-semibold text-foreground">
-                  Образование
+                  Образование *
                 </legend>
                 <button
                   type="button"
@@ -480,7 +530,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                   <div key={field.id} className="flex items-center gap-2">
                     <Input
                       placeholder="Учебное заведение / Курс"
-                      {...register(`education.${index}.value`)}
+                      {...register(`education.${index}.value`, { required: "Обязательное поле" })}
                     />
                     {educationFields.length > 1 && (
                       <button
@@ -501,7 +551,7 @@ export function LkMedContent({ userName }: { userName: string }) {
             <fieldset className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <legend className="text-sm font-semibold text-foreground">
-                  Услуги
+                  Услуги *
                 </legend>
                 <button
                   type="button"
@@ -517,7 +567,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                   <div key={field.id} className="flex items-center gap-2">
                     <Input
                       placeholder="Название услуги"
-                      {...register(`services.${index}.value`)}
+                      {...register(`services.${index}.value`, { required: "Обязательное поле" })}
                     />
                     {serviceFields.length > 1 && (
                       <button
