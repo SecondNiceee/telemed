@@ -5,9 +5,6 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Footer } from "@/components/footer";
 import { Suspense } from "react";
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0;
-
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
