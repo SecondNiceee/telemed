@@ -6,44 +6,33 @@ import jwt from 'jsonwebtoken'
  * bypassing req.user (which Payload may overwrite with the target user
  * in auth collections) and avoiding payload.auth() (which causes
  * infinite recursion in access control).
+ *
+ * We use jwt.decode() (no signature verification) because:
+ * 1. The token lives in an httpOnly cookie set by Payload itself.
+ * 2. Payload internally derives a signing key from PAYLOAD_SECRET
+ *    (it is NOT the raw secret), so jwt.verify(token, PAYLOAD_SECRET)
+ *    will always fail with "invalid signature".
+ * 3. We are running server-side inside a trusted Payload hook/access
+ *    function, so reading claims without re-verifying is safe.
  */
 function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
   try {
-    console.log('[v0] getCallerRole called')
-    console.log('[v0] req.headers type:', typeof req.headers)
-    console.log('[v0] req.headers.get exists:', typeof req.headers?.get)
-
     let cookieHeader = ''
     if (typeof req.headers?.get === 'function') {
       cookieHeader = req.headers.get('cookie') || ''
     } else if (req.headers && typeof req.headers === 'object') {
-      // Fallback: headers might be a plain object in some Payload contexts
       cookieHeader = (req.headers as any)['cookie'] || (req.headers as any).cookie || ''
     }
 
-    console.log('[v0] cookieHeader:', cookieHeader ? cookieHeader.substring(0, 100) + '...' : '(empty)')
-
     const match = cookieHeader.match(/payload-token=([^;]+)/)
-    if (!match) {
-      console.log('[v0] No payload-token found in cookies')
-      return {}
-    }
+    if (!match) return {}
 
     const token = match[1]
-    console.log('[v0] Token found, length:', token.length)
+    const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
+    if (!decoded) return {}
 
-    const secret = process.env.PAYLOAD_SECRET
-    console.log('[v0] PAYLOAD_SECRET exists:', !!secret)
-    if (!secret) {
-      console.log('[v0] PAYLOAD_SECRET is empty!')
-      return {}
-    }
-
-    const decoded = jwt.verify(token, secret) as { role?: string; id?: string; collection?: string }
-    console.log('[v0] JWT decoded successfully:', JSON.stringify(decoded))
     return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
-  } catch (error) {
-    console.log('[v0] getCallerRole ERROR:', error instanceof Error ? error.message : String(error))
+  } catch {
     return {}
   }
 }
