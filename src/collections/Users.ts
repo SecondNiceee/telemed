@@ -28,14 +28,10 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
       cookieHeader = (req.headers as any)['cookie'] || (req.headers as any).cookie || ''
     }
 
-    console.log('[v0] getCallerRole: cookieHeader length:', cookieHeader.length)
-    console.log('[v0] getCallerRole: has payload-token:', cookieHeader.includes('payload-token'))
-
     const match = cookieHeader.match(/payload-token=([^;]+)/)
     if (match) {
       const token = match[1]
       const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
-      console.log('[v0] getCallerRole: JWT decoded:', JSON.stringify(decoded))
       if (decoded) {
         return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
       }
@@ -45,16 +41,12 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     //    admin access checks) where cookie headers may not be forwarded.
     //    In these contexts req.user is still the real logged-in admin.
     const user = req.user as { role?: string; id?: string | number } | undefined
-    console.log('[v0] getCallerRole: req.user exists:', !!user, 'role:', user?.role, 'id:', user?.id)
-    console.log('[v0] getCallerRole: req.user full:', JSON.stringify(user ? { id: user.id, role: user.role } : null))
     if (user) {
       return { role: user.role, id: user.id ? String(user.id) : undefined }
     }
 
-    console.log('[v0] getCallerRole: returning empty - no cookie, no req.user')
     return {}
-  } catch (error) {
-    console.log('[v0] getCallerRole ERROR:', error instanceof Error ? error.message : String(error))
+  } catch {
     return {}
   }
 }
@@ -69,6 +61,14 @@ export const Users: CollectionConfig = {
   auth: {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
+    cookies: {
+      // When Next.js basePath is set (e.g. /telemed-dev), Payload defaults
+      // the cookie path to the basePath. Server Actions (buildFormState etc.)
+      // may run on a different internal path, so the browser doesn't send the
+      // cookie and req.user ends up null → "Unauthorized".
+      // Setting the cookie path to "/" ensures the token is sent on ALL requests.
+      path: '/',
+    },
   },
   hooks: {
     beforeChange: [
@@ -83,29 +83,21 @@ export const Users: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      console.log('[v0] access.create called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.create caller:', JSON.stringify(caller))
       return caller.role === 'admin'
     },
     update: ({ req, id }) => {
-      console.log('[v0] access.update called, target id:', id)
       const caller = getCallerRole(req)
-      console.log('[v0] access.update caller:', JSON.stringify(caller))
       if (caller.role === 'admin') return true
       if (caller.id && String(caller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
-      console.log('[v0] access.delete called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.delete caller:', JSON.stringify(caller))
       return caller.role === 'admin'
     },
     admin: ({ req }) => {
-      console.log('[v0] access.admin called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.admin caller:', JSON.stringify(caller), '=> result:', caller.role === 'admin')
       return caller.role === 'admin'
     },
   },
