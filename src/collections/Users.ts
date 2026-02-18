@@ -17,6 +17,10 @@ import jwt from 'jsonwebtoken'
  */
 function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
   try {
+    // 1. Try to extract the caller from the JWT cookie directly.
+    //    This is the most reliable source in create/update operations
+    //    on auth collections, because req.user can be overwritten with
+    //    the *target* user being created or edited.
     let cookieHeader = ''
     if (typeof req.headers?.get === 'function') {
       cookieHeader = req.headers.get('cookie') || ''
@@ -25,13 +29,23 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     }
 
     const match = cookieHeader.match(/payload-token=([^;]+)/)
-    if (!match) return {}
+    if (match) {
+      const token = match[1]
+      const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
+      if (decoded) {
+        return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
+      }
+    }
 
-    const token = match[1]
-    const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
-    if (!decoded) return {}
+    // 2. Fallback to req.user for internal Payload calls (e.g. buildFormState,
+    //    admin access checks) where cookie headers may not be forwarded.
+    //    In these contexts req.user is still the real logged-in admin.
+    const user = req.user as { role?: string; id?: string | number } | undefined
+    if (user) {
+      return { role: user.role, id: user.id ? String(user.id) : undefined }
+    }
 
-    return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
+    return {}
   } catch {
     return {}
   }
