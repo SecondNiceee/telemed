@@ -24,6 +24,7 @@ import {
   Award,
   CheckCircle,
 } from "lucide-react";
+import { getBasePath } from "@/lib/basePath";
 
 interface DoctorPageProps {
   params: Promise<{ id: string }>;
@@ -104,7 +105,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
               <div className="flex flex-col md:flex-row md:items-stretch">
                 <div className="w-full md:w-80 h-72 md:h-auto flex-shrink-0 relative">
                   <img
-                    src={photoUrl || "/placeholder.svg"}
+                    src={photoUrl || `${getBasePath()}/placeholder.svg`}
                     alt={doctor.name || "Врач"}
                     className="w-full h-full object-cover absolute inset-0"
                   />

@@ -14,6 +14,7 @@ import {
   Clock,
   Calendar,
 } from "lucide-react";
+import { getBasePath } from "@/lib/basePath";
 
 const timeSlots = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00",
@@ -198,7 +199,7 @@ export function BookingClient({
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                   <img
-                    src={doctorPhoto || "/placeholder.svg"}
+                    src={doctorPhoto || `${getBasePath()}/placeholder.svg`}
                     alt={doctorName}
                     className="w-full h-full object-cover"
                   />

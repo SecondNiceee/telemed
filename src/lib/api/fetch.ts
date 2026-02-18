@@ -1,27 +1,18 @@
 import { ApiError } from './errors'
-
-// export function getBaseUrl(): string {
-//   if (typeof window !== 'undefined') {
-//     return '' // client-side: relative URLs
-//   }
-//   return process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-// }
+import { getBasePath } from '../basePath'
 
 export function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    return '' // client-side: relative URLs
+    return getBasePath() // client-side: prepend basePath for relative URLs
   }
   
-  // Server-side: use full URL for fetch
-  return  process.env.SERVER_URL || "http://localhost:3000"
+  // Server-side: use full URL for fetch (basePath is handled by Next.js server)
+  return process.env.SERVER_URL || 'http://localhost:3000'
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  console.log("Тут нет ошибок")
   const baseUrl = getBaseUrl()
-  console.log(baseUrl);
-  const url = `${baseUrl}${path}`;
-  console.log(url);
+  const url = `${baseUrl}${path}`
 
   let response: Response
 
