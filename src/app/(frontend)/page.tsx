@@ -5,7 +5,7 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Footer } from "@/components/footer";
 import { Suspense } from "react";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   return (
