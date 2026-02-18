@@ -26,6 +26,7 @@ import {
   Users,
   User,
 } from "lucide-react"
+import { Media } from "@/payload-types"
 
 interface DoctorFormValues {
   name: string
@@ -315,7 +316,6 @@ export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
             ) : (
               <div className="flex flex-col gap-3">
                 {initialDoctors.map((doctor) => {
-                  const photoUrl = DoctorsApi.getPhotoUrl(doctor)
                   const specialty = DoctorsApi.getSpecialty(doctor)
 
                   return (
@@ -326,9 +326,9 @@ export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
                     >
                       <div className="flex items-center gap-4 p-4">
                         <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
-                          {photoUrl ? (
+                          {doctor.photo ? (
                             <img
-                              src={photoUrl}
+                              src={(doctor.photo as Media).url || ""}
                               alt={doctor.name || "Врач"}
                               className="w-full h-full object-cover"
                             />

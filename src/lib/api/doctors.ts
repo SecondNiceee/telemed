@@ -37,16 +37,6 @@ export class DoctorsApi {
     })
   }
 
-  /**
-   * Get the photo URL from a doctor's photo field (which may be a Media object or just an ID)
-   */
-  static getPhotoUrl(doctor: ApiDoctor): string | null {
-    if (!doctor.photo) return null
-    if (typeof doctor.photo === 'number') return null
-    const url = doctor.photo.url ?? null
-    if (!url) return null
-    return `${getBasePath()}${url}`
-  }
 
   /**
    * Get resolved category objects from a doctor's categories field

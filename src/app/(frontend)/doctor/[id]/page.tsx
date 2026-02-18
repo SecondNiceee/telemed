@@ -111,7 +111,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                 </div>
 
                 <div className="flex-1 px-6 py-1 text-center md:text-left flex flex-col justify-center">
-                  <div className="mb-1">
+                  <div className="mb-1 gap-2 flex flex-col">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {doctor.name}
                     </h1>
@@ -206,10 +206,10 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* Features */}
           <div className="grid sm:grid-cols-3 gap-1.5 mb-2">
-            <Card>
-              <CardContent className="px-3 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Video className="w-4 h-4 text-primary" />
+            <Card className="py-4 sm:py-6">
+              <CardContent className="px-5 py-0 flex items-center gap-2">
+                <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Video className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-foreground leading-tight">Видеоконсультация</p>
@@ -217,10 +217,10 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="px-3 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-4 h-4 text-primary" />
+            <Card className="py-4 sm:py-6">
+              <CardContent className="px-5 py-0 flex items-center gap-2">
+                <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-foreground leading-tight">Конфиденциально</p>
@@ -228,10 +228,10 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="px-3 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 text-primary" />
+            <Card className="py-4 sm:py-6">
+              <CardContent className="px-5 py-0 flex items-center gap-2">
+                <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                  <Award className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-sm text-foreground leading-tight">Сертифицирован</p>

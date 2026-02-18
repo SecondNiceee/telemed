@@ -4,32 +4,33 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
-import type { ApiDoctor } from "@/lib/api/index";
 import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api/index";
 import { getBasePath } from "@/lib/basePath";
+import { Media, User } from "@/payload-types";
+import { useRouter } from "next/navigation";
 
 interface DoctorCardProps {
-  doctor: ApiDoctor;
+  doctor: User;
 }
 
 export function DoctorCard({ doctor }: DoctorCardProps) {
-  const photoUrl = getDoctorPhotoUrl(doctor);
   const specialty = getDoctorSpecialty(doctor);
+  const router = useRouter();
 
   return (
-    <Link href={`/doctor/${doctor.id}`} className="block">
+    <div onClick = {(e) => router.push(`/doctor/${doctor.id}`)} className="block">
       <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
               <img
-                src={photoUrl || `${getBasePath()}/placeholder.svg`}
+                src={(doctor?.photo as Media)?.url || `${getBasePath()}/placeholder.svg`}
                 alt={doctor.name || "Врач"}
                 className="w-full h-full object-cover absolute inset-0"
               />
             </div>
             
-            <div className="flex-1 flex flex-col px-5 py-4 justify-center">
+            <div className="flex-1 flex flex-col px-5 py-1 justify-center">
               <div className="flex-1 flex flex-col justify-center">
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -86,6 +87,6 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 }

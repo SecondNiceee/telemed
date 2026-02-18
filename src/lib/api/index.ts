@@ -25,7 +25,6 @@ export const fetchDoctors = () => DoctorsApi.fetchAll()
 export const fetchDoctorsByCategory = (categoryId: number) => DoctorsApi.fetchByCategory(categoryId)
 export const fetchDoctorById = (id: number | string) => DoctorsApi.fetchById(id)
 
-export const getDoctorPhotoUrl = (doctor: any) => DoctorsApi.getPhotoUrl(doctor)
 export const getDoctorCategories = (doctor: any) => DoctorsApi.getCategories(doctor)
 export const getDoctorSpecialty = (doctor: any) => DoctorsApi.getSpecialty(doctor)
 export const getDoctorEducation = (doctor: any) => DoctorsApi.getEducation(doctor)
