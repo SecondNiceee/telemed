@@ -15,12 +15,17 @@ import jwt from 'jsonwebtoken'
  * 3. We are running server-side inside a trusted Payload hook/access
  *    function, so reading claims without re-verifying is safe.
  */
-function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
+/**
+ * Decode the JWT from the payload-token cookie.
+ * Returns the decoded claims or null.
+ */
+function decodeTokenFromCookie(req: PayloadRequest): {
+  role?: string
+  id?: string
+  collection?: string
+  email?: string
+} | null {
   try {
-    // 1. Try to extract the caller from the JWT cookie directly.
-    //    This is the most reliable source in create/update operations
-    //    on auth collections, because req.user can be overwritten with
-    //    the *target* user being created or edited.
     let cookieHeader = ''
     if (typeof req.headers?.get === 'function') {
       cookieHeader = req.headers.get('cookie') || ''
@@ -29,34 +34,77 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     }
 
     const match = cookieHeader.match(/payload-token=([^;]+)/)
-    console.log('[v0] getCallerRole: cookieHeader.length=', cookieHeader.length,
-      'has payload-token=', !!match,
-      'req.user exists=', !!req.user,
-      'req.user.role=', (req.user as any)?.role,
-      'req.user.id=', (req.user as any)?.id)
-    if (match) {
-      const token = match[1]
-      const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
-      console.log('[v0] getCallerRole: JWT decoded=', JSON.stringify(decoded))
-      if (decoded) {
-        return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
-      }
-    }
+    if (!match) return null
 
-    // 2. Fallback to req.user for internal Payload calls (e.g. buildFormState,
-    //    admin access checks) where cookie headers may not be forwarded.
-    //    In these contexts req.user is still the real logged-in admin.
-    const user = req.user as { role?: string; id?: string | number } | undefined
+    const decoded = jwt.decode(match[1]) as {
+      role?: string
+      id?: string
+      collection?: string
+      email?: string
+    } | null
+    return decoded
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Get the real caller's role and id.
+ * Prefers the JWT cookie (immune to req.user being overwritten on auth
+ * collections), then falls back to req.user for internal Payload calls.
+ */
+function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
+  const decoded = decodeTokenFromCookie(req)
+  if (decoded) {
+    return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
+  }
+
+  const user = req.user as { role?: string; id?: string | number } | undefined
+  if (user) {
+    return { role: user.role, id: user.id ? String(user.id) : undefined }
+  }
+
+  return {}
+}
+
+/**
+ * Payload's internal `canAccessAdmin` checks `req.user` BEFORE calling
+ * our `access.admin` function. During certain Server Actions (buildFormState
+ * for array/tab fields), Payload fails to populate `req.user` even though
+ * the JWT cookie is present. This causes an instant "Unauthorized" error.
+ *
+ * This beforeOperation hook detects that situation and manually populates
+ * `req.user` from the JWT cookie so that `canAccessAdmin` finds a user
+ * and proceeds to call our access functions normally.
+ */
+async function ensureReqUser({
+  req,
+  operation,
+}: {
+  req: PayloadRequest
+  operation: string
+}) {
+  if (req.user) return // already populated, nothing to do
+
+  const decoded = decodeTokenFromCookie(req)
+  if (!decoded?.id || !decoded?.collection) return
+
+  try {
+    const user = await req.payload.findByID({
+      collection: decoded.collection as 'users',
+      id: decoded.id,
+      depth: 0,
+      overrideAccess: true, // bypass access control to avoid recursion
+    })
+
     if (user) {
-      console.log('[v0] getCallerRole: using req.user fallback, role=', user.role)
-      return { role: user.role, id: user.id ? String(user.id) : undefined }
+      req.user = {
+        ...user,
+        collection: decoded.collection,
+      } as any
     }
-
-    console.log('[v0] getCallerRole: NO SOURCE - returning empty')
-    return {}
-  } catch (err) {
-    console.log('[v0] getCallerRole ERROR:', err instanceof Error ? err.message : String(err))
-    return {}
+  } catch {
+    // silently fail — access functions will handle the missing user
   }
 }
 
@@ -73,6 +121,7 @@ export const Users: CollectionConfig = {
 
   },
   hooks: {
+    beforeOperation: [ensureReqUser],
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create') {
@@ -100,11 +149,6 @@ export const Users: CollectionConfig = {
     },
     admin: ({ req }) => {
       const caller = getCallerRole(req)
-      console.log('[v0] access.admin: req.user?.id=', (req.user as any)?.id,
-        'req.user?.role=', (req.user as any)?.role,
-        'req.user?.collection=', (req.user as any)?.collection,
-        'caller=', JSON.stringify(caller),
-        'result=', caller.role === 'admin')
       return caller.role === 'admin'
     },
   },
