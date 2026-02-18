@@ -123,9 +123,17 @@ export const Users: CollectionConfig = {
   hooks: {
     beforeOperation: [ensureReqUser],
     beforeChange: [
-      ({ data, operation }) => {
+      ({ data, operation, req }) => {
         if (operation === 'create') {
           data._verified = true
+
+          // Organisation users can ONLY create doctors
+          const caller = getCallerRole(req)
+          if (caller.role === 'organisation') {
+            if (data.role !== 'doctor') {
+              throw new Error('Организация может создавать только врачей')
+            }
+          }
         }
         return data
       },
@@ -135,7 +143,7 @@ export const Users: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       const caller = getCallerRole(req)
-      return caller.role === 'admin'
+      return caller.role === 'admin' || caller.role === 'organisation'
     },
     update: ({ req, id }) => {
       const caller = getCallerRole(req)
@@ -164,6 +172,7 @@ export const Users: CollectionConfig = {
         { label: 'Пользователь', value: 'user' },
         { label: 'Врач', value: 'doctor' },
         { label: 'Администратор', value: 'admin' },
+        { label: 'Организация', value: 'organisation' },
       ],
       admin: {
         position: 'sidebar',

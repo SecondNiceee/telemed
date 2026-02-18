@@ -74,7 +74,11 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
         setOpen(false)
         handleReset()
         onSuccess?.()
-        router.refresh()
+        if (user.role === "organisation") {
+          router.push("/lk-med")
+        } else {
+          router.refresh()
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")

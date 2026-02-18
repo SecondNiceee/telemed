@@ -17,9 +17,12 @@ export function Header() {
     fetchUser();
   }, [fetchUser]);
 
-  const accountHref = user?.role === "doctor" || user?.role === "admin"
-    ? "/doctor-dashboard"
-    : "/";
+  const accountHref =
+    user?.role === "organisation"
+      ? "/lk-med"
+      : user?.role === "doctor" || user?.role === "admin"
+        ? "/doctor-dashboard"
+        : "/";
 
 
   return (
