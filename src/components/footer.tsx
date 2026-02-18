@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Phone, Mail, MapPin } from "lucide-react";
+import { resolveImageUrl } from "@/lib/image";
 
 export function Footer() {
   return (
@@ -9,8 +9,8 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
-              <Image
-                src="/images/logo.jpg"
+              <img
+                src={`${resolveImageUrl("/images/logo.jpg")}`}
                 alt="smartcardio"
                 width={40}
                 height={40}

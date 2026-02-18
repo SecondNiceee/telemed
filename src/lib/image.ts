@@ -29,7 +29,9 @@ export function resolveImageUrl(
   const payloadMediaRegex = /\/api\/media\/file\//
   if (payloadMediaRegex.test(url)) {
     // Replace `/api/media/file/` with `/media/`
-    return url.replace(/\/api\/media\/file\//, '/media/')
+    // Пока что оставляю так
+    // return url.replace(/\/api\/media\/file\//, '/media/')
+    return url;
   }
 
   // --- Local static asset (starts with `/`) ---

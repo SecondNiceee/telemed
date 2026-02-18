@@ -13,6 +13,7 @@ import {
   type ApiCategory,
 } from "@/lib/api/index";
 import { ArrowLeft } from "lucide-react";
+import { User } from "@/payload-types";
 
 interface CategoryPageProps {
   params: Promise<{ id: string }>;

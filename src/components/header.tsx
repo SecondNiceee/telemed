@@ -7,6 +7,7 @@ import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
+import { resolveImageUrl } from "@/lib/image";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -30,8 +31,8 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/images/logo.jpg"
+            <img
+              src={`${resolveImageUrl("/images/logo.jpg")}`}
               alt="smartcardio"
               width={40}
               height={40}

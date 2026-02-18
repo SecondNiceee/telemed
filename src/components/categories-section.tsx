@@ -42,7 +42,7 @@ export async function CategoriesSection() {
             {categories.map((category) => (
               <Link key={category.id} href={`/category/${category.slug}`}>
                 <Card className="group h-full hover:shadow-lg transition-all duration-300 hover:border-primary/50 cursor-pointer">
-                  <CardContent className="p-4">
+                  <CardContent className="px-5 py-0">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-lg font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">

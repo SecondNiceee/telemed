@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { UserSearch, CalendarCheck, Video, FileText } from "lucide-react";
+import { resolveImageUrl } from "@/lib/image";
 
 const steps = [
   {
@@ -28,15 +29,15 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="py-8 sm:py-10 bg-secondary/30 relative overflow-hidden">
       {/* Decorative blurred logo marks */}
-      <Image
-        src="/images/logo.jpg"
+      <img
+        src={resolveImageUrl(`/images/logo.jpg`)}
         alt=""
         width={1200}
         height={1006}
         className="pointer-events-none absolute blur-[25px] opacity-30 w-[15%] h-auto left-[5%] top-[10%] hidden md:block"
         aria-hidden="true"
       />
-      <Image
+      <img
         src="/images/logo.jpg"
         alt=""
         width={1200}

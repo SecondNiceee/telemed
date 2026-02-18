@@ -4,13 +4,13 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
-import { getDoctorSpecialty } from "@/lib/api/index";
+import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { resolveImageUrl } from "@/lib/image";
 import { Media, User } from "@/payload-types";
 import { useRouter } from "next/navigation";
 
 interface DoctorCardProps {
-  doctor: User;
+  doctor: ApiDoctor;
 }
 
 export function DoctorCard({ doctor }: DoctorCardProps) {
@@ -19,7 +19,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
 
   return (
     <div onClick = {(e) => router.push(`/doctor/${doctor.id}`)} className="block">
-      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
+      <Card className="group py-5 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
