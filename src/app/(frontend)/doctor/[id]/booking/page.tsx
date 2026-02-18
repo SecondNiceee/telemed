@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import {
   fetchDoctorById,
-  getDoctorPhotoUrl,
   getDoctorSpecialty,
   ApiError,
   getErrorMessage,
   type ApiDoctor,
 } from "@/lib/api/index";
+import { resolveImageUrl } from "@/lib/image";
+import { Media } from "@/payload-types";
 import { BookingClient } from "./booking-client";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -49,7 +50,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
     );
   }
 
-  const photoUrl = getDoctorPhotoUrl(doctor);
+  const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
   const specialty = getDoctorSpecialty(doctor);
 
   return (
