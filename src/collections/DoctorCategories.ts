@@ -1,4 +1,10 @@
 import type { CollectionConfig } from 'payload'
+import { revalidateTag } from 'next/cache'
+import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
+
+const revalidateCategories = () => {
+  revalidateTag(CATEGORIES_CACHE_TAG)
+}
 
 export const DoctorCategories: CollectionConfig = {
   slug: 'doctor-categories',
@@ -12,6 +18,18 @@ export const DoctorCategories: CollectionConfig = {
     create: ({ req: { user } }) => user?.role === 'admin',
     update: ({ req: { user } }) => user?.role === 'admin',
     delete: ({ req: { user } }) => user?.role === 'admin',
+  },
+  hooks: {
+    afterChange: [
+      () => {
+        revalidateCategories()
+      },
+    ],
+    afterDelete: [
+      () => {
+        revalidateCategories()
+      },
+    ],
   },
   fields: [
     {
