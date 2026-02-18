@@ -29,9 +29,15 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     }
 
     const match = cookieHeader.match(/payload-token=([^;]+)/)
+    console.log('[v0] getCallerRole: cookieHeader.length=', cookieHeader.length,
+      'has payload-token=', !!match,
+      'req.user exists=', !!req.user,
+      'req.user.role=', (req.user as any)?.role,
+      'req.user.id=', (req.user as any)?.id)
     if (match) {
       const token = match[1]
       const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
+      console.log('[v0] getCallerRole: JWT decoded=', JSON.stringify(decoded))
       if (decoded) {
         return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
       }
@@ -42,11 +48,14 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     //    In these contexts req.user is still the real logged-in admin.
     const user = req.user as { role?: string; id?: string | number } | undefined
     if (user) {
+      console.log('[v0] getCallerRole: using req.user fallback, role=', user.role)
       return { role: user.role, id: user.id ? String(user.id) : undefined }
     }
 
+    console.log('[v0] getCallerRole: NO SOURCE - returning empty')
     return {}
-  } catch {
+  } catch (err) {
+    console.log('[v0] getCallerRole ERROR:', err instanceof Error ? err.message : String(err))
     return {}
   }
 }
@@ -61,14 +70,7 @@ export const Users: CollectionConfig = {
   auth: {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
-    cookies: {
-      // When Next.js basePath is set (e.g. /telemed-dev), Payload defaults
-      // the cookie path to the basePath. Server Actions (buildFormState etc.)
-      // may run on a different internal path, so the browser doesn't send the
-      // cookie and req.user ends up null → "Unauthorized".
-      // Setting the cookie path to "/" ensures the token is sent on ALL requests.
-      path: '/',
-    },
+
   },
   hooks: {
     beforeChange: [
@@ -98,6 +100,11 @@ export const Users: CollectionConfig = {
     },
     admin: ({ req }) => {
       const caller = getCallerRole(req)
+      console.log('[v0] access.admin: req.user?.id=', (req.user as any)?.id,
+        'req.user?.role=', (req.user as any)?.role,
+        'req.user?.collection=', (req.user as any)?.collection,
+        'caller=', JSON.stringify(caller),
+        'result=', caller.role === 'admin')
       return caller.role === 'admin'
     },
   },
