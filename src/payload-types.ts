@@ -122,7 +122,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
-  role: 'user' | 'doctor' | 'admin';
+  role: 'user' | 'doctor' | 'admin' | 'organisation';
   name?: string | null;
   categories?: (number | DoctorCategory)[] | null;
   experience?: number | null;
