@@ -183,6 +183,7 @@ export function LkMedContent({ userName }: { userName: string }) {
       })
 
       if (!createRes.ok) {
+        console.log(createRes);
         const body = await createRes.json().catch(() => null)
         console.error("[lk-med] Doctor creation failed:", {
           status: createRes.status,

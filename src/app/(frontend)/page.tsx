@@ -5,6 +5,8 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Footer } from "@/components/footer";
 import { Suspense } from "react";
 
+export const revalidate = 3600;
+
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
