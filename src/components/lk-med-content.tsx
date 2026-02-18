@@ -126,6 +126,7 @@ export function LkMedContent({ userName }: { userName: string }) {
         formData.append("file", photo)
         formData.append("alt", data.name || "Doctor photo")
 
+        console.log("[v0] Upload URL:", `${basePath}/api/media`, "basePath:", basePath)
         const uploadRes = await fetch(`${basePath}/api/media`, {
           method: "POST",
           credentials: "include",
@@ -175,6 +176,7 @@ export function LkMedContent({ userName }: { userName: string }) {
         payload.services = servicesFiltered.map((v) => ({ value: v }))
       }
 
+      console.log("[v0] Create doctor URL:", `${basePath}/api/users`, "basePath:", basePath)
       const createRes = await fetch(`${basePath}/api/users`, {
         method: "POST",
         credentials: "include",
