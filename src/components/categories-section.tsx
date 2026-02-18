@@ -14,11 +14,14 @@ export async function CategoriesSection() {
   }
 
   if (error) {
+    // При ошибке fetch (например, при билде, когда API ещё не запущен)
+    // показываем нейтральный fallback вместо красной ошибки.
+    // ISR перегенерирует страницу через revalidate секунд.
     return (
       <section id="categories" className="py-8 sm:py-10 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-destructive">{error}</p>
+            <p className="text-muted-foreground">Загрузка категорий...</p>
           </div>
         </div>
       </section>

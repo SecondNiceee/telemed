@@ -5,10 +5,11 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Footer } from "@/components/footer";
 import { Suspense } from "react";
 
-// Use dynamic rendering so the page is never statically generated at build time
-// (when the API server is not yet running). Caching is handled at the fetch level
-// via next: { tags: [...] } — categories are revalidated on-demand via revalidateTag().
-export const dynamic = "force-dynamic";
+// ISR: страница кэшируется и ревалидируется каждые 60 секунд.
+// Если при билде API недоступен, CategoriesSection поймает ошибку
+// и покажет fallback, а через ≤60 сек страница перегенерируется с данными.
+// Точечная ревалидация по тегам (revalidateTag) тоже продолжает работать.
+export const revalidate = 60;
 
 export default function HomePage() {
   return (
