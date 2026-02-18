@@ -125,6 +125,7 @@ export function LkMedContent({ userName }: { userName: string }) {
         const formData = new FormData()
         formData.append("file", photo)
         formData.append("alt", data.name || "Doctor photo")
+        formData.append("_payload", JSON.stringify({ alt: data.name || "Doctor photo" }))
 
         const uploadRes = await fetch(`${basePath}/api/media`, {
           method: "POST",
