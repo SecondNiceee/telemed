@@ -112,46 +112,39 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                 </div>
 
                 <div className="flex-1 p-6 text-center md:text-left flex flex-col justify-center">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 mb-2">
-                    <div>
-                      <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                        {doctor.name}
-                      </h1>
-                      <p className="text-lg text-primary">{specialty}</p>
-                      {doctor.degree && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {doctor.degree}
-                        </p>
-                      )}
-                    </div>
+                  <div className="mb-3">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                      {doctor.name}
+                    </h1>
+                    <p className="text-lg text-primary">{specialty}</p>
                   </div>
 
-                  <div className="flex flex-wrap justify-center md:justify-start gap-4 mt-4">
+                  <div className="flex flex-col gap-1.5 text-sm mb-4">
                     {doctor.experience != null && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-5 h-5" />
-                        <span>Стаж {doctor.experience} лет</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Стаж:</span>
+                        <span className="font-medium text-foreground">{doctor.experience} лет</span>
+                      </div>
+                    )}
+                    {doctor.degree && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Степень:</span>
+                        <span className="font-medium text-foreground">{doctor.degree}</span>
+                      </div>
+                    )}
+                    {doctor.price != null && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Цена:</span>
+                        <span className="font-medium text-foreground">{doctor.price.toLocaleString("ru-RU")} ₽</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-center gap-4 mt-6">
-                    {doctor.price != null && (
-                      <div>
-                        <span className="text-2xl font-bold text-foreground">
-                          {doctor.price.toLocaleString("ru-RU")} ₽
-                        </span>
-                        <span className="text-muted-foreground ml-2">
-                          за консультацию
-                        </span>
-                      </div>
-                    )}
-                    <Button variant="outline" asChild size="lg" className="border-primary text-primary hover:bg-primary/5 transition-all">
-                      <Link href={`/doctor/${doctor.id}/booking`}>
-                        Записаться на прием
-                      </Link>
-                    </Button>
-                  </div>
+                  <Button variant="outline" asChild size="lg" className="border-primary text-primary hover:bg-primary/5 transition-all w-fit">
+                    <Link href={`/doctor/${doctor.id}/booking`}>
+                      Записаться на прием
+                    </Link>
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -159,9 +152,9 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* About */}
           {doctor.bio && (
-            <Card className="mb-4">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">
+            <Card className="mb-3">
+              <CardContent className="px-6 py-3">
+                <h2 className="text-xl font-semibold text-foreground mb-1">
                   О враче
                 </h2>
                 <p className="text-muted-foreground leading-relaxed">
@@ -173,13 +166,13 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* Education */}
           {education.length > 0 && (
-            <Card className="mb-4">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Card className="mb-3">
+              <CardContent className="px-6 py-3">
+                <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
                   <GraduationCap className="w-5 h-5 text-primary" />
                   Образование
                 </h2>
-                <ul className="space-y-3">
+                <ul className="space-y-1.5">
                   {education.map((edu, index) => (
                     <li key={index} className="flex items-start gap-3">
                       <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
@@ -193,12 +186,12 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
           {/* Services */}
           {services.length > 0 && (
-            <Card className="mb-4">
-              <CardContent className="p-6">
-                <h2 className="text-xl font-semibold text-foreground mb-4">
+            <Card className="mb-3">
+              <CardContent className="px-6 py-3">
+                <h2 className="text-xl font-semibold text-foreground mb-2">
                   Услуги
                 </h2>
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid sm:grid-cols-2 gap-2">
                   {services.map((service, index) => (
                     <div
                       key={index}
@@ -214,37 +207,37 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           )}
 
           {/* Features */}
-          <div className="grid sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid sm:grid-cols-3 gap-2 mb-3">
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Video className="w-5 h-5 text-primary" />
+              <CardContent className="px-3 py-2 flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Video className="w-4 h-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Видеоконсультация</p>
-                  <p className="text-sm text-muted-foreground">HD качество</p>
+                  <p className="font-medium text-sm text-foreground">Видеоконсультация</p>
+                  <p className="text-xs text-muted-foreground">HD качество</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary" />
+              <CardContent className="px-3 py-2 flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Shield className="w-4 h-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Конфиденциально</p>
-                  <p className="text-sm text-muted-foreground">Защита данных</p>
+                  <p className="font-medium text-sm text-foreground">Конфиденциально</p>
+                  <p className="text-xs text-muted-foreground">Защита данных</p>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Award className="w-5 h-5 text-primary" />
+              <CardContent className="px-3 py-2 flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Award className="w-4 h-4 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Сертифицирован</p>
-                  <p className="text-sm text-muted-foreground">Все лицензии</p>
+                  <p className="font-medium text-sm text-foreground">Сертифицирован</p>
+                  <p className="text-xs text-muted-foreground">Все лицензии</p>
                 </div>
               </CardContent>
             </Card>
