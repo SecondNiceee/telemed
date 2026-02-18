@@ -5,6 +5,7 @@ import config from "@payload-config"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
+import { DoctorsApi } from "@/lib/api/doctors"
 
 export const metadata = {
   title: "Кабинет организации | smartcardio",
@@ -27,10 +28,12 @@ export default async function LkMedPage() {
     redirect("/")
   }
 
+  const doctors = await DoctorsApi.fetchAll()
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <LkMedContent userName={user.name || user.email} />
+      <LkMedContent userName={user.name || user.email} initialDoctors={doctors} />
       <Footer />
     </div>
   )
