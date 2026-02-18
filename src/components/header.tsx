@@ -4,36 +4,18 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { LoginModal } from "@/components/login-modal";
-import { AuthApi } from "@/lib/api/auth";
-import type { User } from "@/payload-types";
+import { useUserStore } from "@/stores/user-store";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  const checkAuth = useCallback(async () => {
-    try {
-      const currentUser = await AuthApi.me();
-      setUser(currentUser);
-    } catch {
-      setUser(null);
-    } finally {
-      setAuthLoading(false);
-    }
-  }, []);
+  const { user, loading, fetched, fetchUser, logout: handleLogout } = useUserStore();
+  const authLoading = loading || !fetched;
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-
-  const handleLogout = async () => {
-    await AuthApi.logout();
-    setUser(null);
-    window.location.href = "/";
-  };
+    fetchUser();
+  }, [fetchUser]);
 
   const accountHref = user?.role === "doctor" || user?.role === "admin"
     ? "/doctor-dashboard"
@@ -101,7 +83,7 @@ export function Header() {
               </>
             ) : (
               <>
-                <LoginModal onSuccess={checkAuth}>
+                <LoginModal onSuccess={() => { useUserStore.setState({ fetched: false }); fetchUser(); }}>
                   <Button variant="ghost" size="sm">
                     Войти
                   </Button>
@@ -174,7 +156,7 @@ export function Header() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    <LoginModal onSuccess={checkAuth}>
+                    <LoginModal onSuccess={() => { useUserStore.setState({ fetched: false }); fetchUser(); }}>
                       <Button variant="ghost" size="sm" className="flex-1">
                         Войти
                       </Button>
