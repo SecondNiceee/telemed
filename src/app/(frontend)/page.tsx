@@ -5,7 +5,10 @@ import { HowItWorks } from "@/components/how-it-works";
 import { Footer } from "@/components/footer";
 import { Suspense } from "react";
 
-export const revalidate = 3600;
+// Use dynamic rendering so the page is never statically generated at build time
+// (when the API server is not yet running). Caching is handled at the fetch level
+// via next: { tags: [...] } — categories are revalidated on-demand via revalidateTag().
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   return (
