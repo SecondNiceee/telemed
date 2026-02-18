@@ -38,6 +38,7 @@
     "payload": "3.76.1",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "react-hook-form": "^7.54.0",
     "sharp": "0.34.2",
     "tailwind-merge": "^2.6.0",
     "zustand": "^5.0.0"

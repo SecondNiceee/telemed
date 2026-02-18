@@ -1,11 +1,14 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { getBasePath } from "@/lib/basePath"
+import { fetchCategoriesAction } from "@/lib/api/actions"
+import type { ApiCategory } from "@/lib/api/types"
 import {
   Plus,
   Trash2,
@@ -17,13 +20,7 @@ import {
   X,
 } from "lucide-react"
 
-interface Category {
-  id: number
-  name: string
-  slug: string
-}
-
-interface FormData {
+interface DoctorFormValues {
   name: string
   email: string
   password: string
@@ -32,11 +29,11 @@ interface FormData {
   degree: string
   price: string
   bio: string
-  education: string[]
-  services: string[]
+  education: { value: string }[]
+  services: { value: string }[]
 }
 
-const initialFormData: FormData = {
+const defaultValues: DoctorFormValues = {
   name: "",
   email: "",
   password: "",
@@ -45,48 +42,67 @@ const initialFormData: FormData = {
   degree: "",
   price: "",
   bio: "",
-  education: [""],
-  services: [""],
+  education: [{ value: "" }],
+  services: [{ value: "" }],
 }
 
 export function LkMedContent({ userName }: { userName: string }) {
-  const [form, setForm] = useState<FormData>(initialFormData)
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const basePath = getBasePath()
 
-  useEffect(() => {
-    async function loadCategories() {
-      try {
-        const res = await fetch(`${basePath}/api/doctor-categories?limit=100&sort=name`, {
-          credentials: "include",
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setCategories(data.docs || [])
-        }
-      } catch {
-        // silently fail
-      }
-    }
-    loadCategories()
-  }, [basePath])
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { isSubmitting },
+  } = useForm<DoctorFormValues>({ defaultValues })
 
-  function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
+  const {
+    fields: educationFields,
+    append: appendEducation,
+    remove: removeEducation,
+  } = useFieldArray({ control, name: "education" })
+
+  const {
+    fields: serviceFields,
+    append: appendService,
+    remove: removeService,
+  } = useFieldArray({ control, name: "services" })
+
+  const selectedCategories = watch("categories")
+
+  useEffect(() => {
+    fetchCategoriesAction().then(setCategories).catch(() => {})
+  }, [])
+
+  const toggleCategory = useCallback(
+    (id: number) => {
+      const current = selectedCategories
+      if (current.includes(id)) {
+        setValue(
+          "categories",
+          current.filter((c) => c !== id),
+        )
+      } else {
+        setValue("categories", [...current, id])
+      }
+    },
+    [selectedCategories, setValue],
+  )
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
       setPhoto(file)
-      const url = URL.createObjectURL(file)
-      setPhotoPreview(url)
+      setPhotoPreview(URL.createObjectURL(file))
     }
   }
 
@@ -98,46 +114,17 @@ export function LkMedContent({ userName }: { userName: string }) {
     }
   }
 
-  function toggleCategory(id: number) {
-    setForm((prev) => ({
-      ...prev,
-      categories: prev.categories.includes(id)
-        ? prev.categories.filter((c) => c !== id)
-        : [...prev.categories, id],
-    }))
-  }
-
-  function addArrayItem(key: "education" | "services") {
-    setForm((prev) => ({ ...prev, [key]: [...prev[key], ""] }))
-  }
-
-  function removeArrayItem(key: "education" | "services", index: number) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: prev[key].filter((_, i) => i !== index),
-    }))
-  }
-
-  function updateArrayItem(key: "education" | "services", index: number, value: string) {
-    setForm((prev) => ({
-      ...prev,
-      [key]: prev[key].map((item, i) => (i === index ? value : item)),
-    }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function onSubmit(data: DoctorFormValues) {
     setError(null)
     setSuccess(null)
-    setLoading(true)
 
     try {
       // 1. Upload photo if selected
       let photoId: number | null = null
       if (photo) {
-        const formData = new window.FormData()
+        const formData = new FormData()
         formData.append("file", photo)
-        formData.append("alt", form.name || "Doctor photo")
+        formData.append("alt", data.name || "Doctor photo")
 
         const uploadRes = await fetch(`${basePath}/api/media`, {
           method: "POST",
@@ -156,27 +143,31 @@ export function LkMedContent({ userName }: { userName: string }) {
 
       // 2. Create the doctor user
       const payload: Record<string, unknown> = {
-        email: form.email,
-        password: form.password,
-        name: form.name,
+        email: data.email,
+        password: data.password,
+        name: data.name,
         role: "doctor",
       }
 
-      if (form.categories.length > 0) payload.categories = form.categories
-      if (form.experience) payload.experience = Number(form.experience)
-      if (form.degree) payload.degree = form.degree
-      if (form.price) payload.price = Number(form.price)
-      if (form.bio) payload.bio = form.bio
+      if (data.categories.length > 0) payload.categories = data.categories
+      if (data.experience) payload.experience = Number(data.experience)
+      if (data.degree) payload.degree = data.degree
+      if (data.price) payload.price = Number(data.price)
+      if (data.bio) payload.bio = data.bio
       if (photoId) payload.photo = photoId
 
-      const educationFiltered = form.education.filter((v) => v.trim())
+      const educationFiltered = data.education
+        .map((e) => e.value.trim())
+        .filter(Boolean)
       if (educationFiltered.length > 0) {
-        payload.education = educationFiltered.map((value) => ({ value }))
+        payload.education = educationFiltered.map((v) => ({ value: v }))
       }
 
-      const servicesFiltered = form.services.filter((v) => v.trim())
+      const servicesFiltered = data.services
+        .map((s) => s.value.trim())
+        .filter(Boolean)
       if (servicesFiltered.length > 0) {
-        payload.services = servicesFiltered.map((value) => ({ value }))
+        payload.services = servicesFiltered.map((v) => ({ value: v }))
       }
 
       const createRes = await fetch(`${basePath}/api/users`, {
@@ -189,17 +180,17 @@ export function LkMedContent({ userName }: { userName: string }) {
       if (!createRes.ok) {
         const body = await createRes.json().catch(() => null)
         throw new Error(
-          body?.errors?.[0]?.message || body?.message || "Ошибка создания врача"
+          body?.errors?.[0]?.message ||
+            body?.message ||
+            "Ошибка создания врача",
         )
       }
 
-      setSuccess(`Врач "${form.name || form.email}" успешно создан!`)
-      setForm(initialFormData)
+      setSuccess(`Врач "${data.name || data.email}" успешно создан!`)
+      reset(defaultValues)
       removePhoto()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Произошла ошибка")
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -262,7 +253,10 @@ export function LkMedContent({ userName }: { userName: string }) {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-6"
+          >
             {/* Basic info section */}
             <fieldset className="flex flex-col gap-4">
               <legend className="text-sm font-semibold text-foreground mb-2">
@@ -274,9 +268,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                 <Input
                   id="doctor-name"
                   placeholder="Иванов Иван Иванович"
-                  value={form.name}
-                  onChange={(e) => updateField("name", e.target.value)}
-                  required
+                  {...register("name", { required: true })}
                 />
               </div>
 
@@ -287,9 +279,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                     id="doctor-email"
                     type="email"
                     placeholder="doctor@clinic.ru"
-                    value={form.email}
-                    onChange={(e) => updateField("email", e.target.value)}
-                    required
+                    {...register("email", { required: true })}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -298,10 +288,10 @@ export function LkMedContent({ userName }: { userName: string }) {
                     id="doctor-password"
                     type="password"
                     placeholder="Минимум 6 символов"
-                    value={form.password}
-                    onChange={(e) => updateField("password", e.target.value)}
-                    required
-                    minLength={6}
+                    {...register("password", {
+                      required: true,
+                      minLength: 6,
+                    })}
                   />
                 </div>
               </div>
@@ -321,19 +311,19 @@ export function LkMedContent({ userName }: { userName: string }) {
                     type="number"
                     min="0"
                     placeholder="10"
-                    value={form.experience}
-                    onChange={(e) => updateField("experience", e.target.value)}
+                    {...register("experience")}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="doctor-price">Цена консультации (руб.)</Label>
+                  <Label htmlFor="doctor-price">
+                    Цена консультации (руб.)
+                  </Label>
                   <Input
                     id="doctor-price"
                     type="number"
                     min="0"
                     placeholder="3000"
-                    value={form.price}
-                    onChange={(e) => updateField("price", e.target.value)}
+                    {...register("price")}
                   />
                 </div>
               </div>
@@ -343,24 +333,28 @@ export function LkMedContent({ userName }: { userName: string }) {
                 <Input
                   id="doctor-degree"
                   placeholder="Врач высшей категории, Кандидат медицинских наук"
-                  value={form.degree}
-                  onChange={(e) => updateField("degree", e.target.value)}
+                  {...register("degree")}
                 />
               </div>
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="doctor-bio">О враче</Label>
-                <textarea
-                  id="doctor-bio"
-                  rows={4}
-                  placeholder="Расскажите о враче, его опыте и квалификации..."
-                  value={form.bio}
-                  onChange={(e) => updateField("bio", e.target.value)}
-                  className={cn(
-                    "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm",
-                    "placeholder:text-muted-foreground focus-visible:outline-none",
-                    "focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-                    "resize-y min-h-[100px]"
+                <Controller
+                  control={control}
+                  name="bio"
+                  render={({ field }) => (
+                    <textarea
+                      id="doctor-bio"
+                      rows={4}
+                      placeholder="Расскажите о враче, его опыте и квалификации..."
+                      className={cn(
+                        "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm",
+                        "placeholder:text-muted-foreground focus-visible:outline-none",
+                        "focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                        "resize-y min-h-[100px]",
+                      )}
+                      {...field}
+                    />
                   )}
                 />
               </div>
@@ -374,7 +368,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((cat) => {
-                    const isSelected = form.categories.includes(cat.id)
+                    const isSelected = selectedCategories.includes(cat.id)
                     return (
                       <button
                         key={cat.id}
@@ -384,10 +378,12 @@ export function LkMedContent({ userName }: { userName: string }) {
                           "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all border",
                           isSelected
                             ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-transparent text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                            : "bg-transparent text-muted-foreground border-border hover:border-primary/40 hover:text-foreground",
                         )}
                       >
-                        {isSelected && <CheckCircle className="w-3.5 h-3.5" />}
+                        {isSelected && (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        )}
                         {cat.name}
                       </button>
                     )
@@ -429,7 +425,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                   htmlFor="doctor-photo"
                   className={cn(
                     "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border",
-                    "py-8 px-4 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all"
+                    "py-8 px-4 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all",
                   )}
                 >
                   <Upload className="w-6 h-6 text-muted-foreground" />
@@ -458,7 +454,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                 </legend>
                 <button
                   type="button"
-                  onClick={() => addArrayItem("education")}
+                  onClick={() => appendEducation({ value: "" })}
                   className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
                 >
                   <Plus className="w-4 h-4" />
@@ -466,19 +462,16 @@ export function LkMedContent({ userName }: { userName: string }) {
                 </button>
               </div>
               <div className="flex flex-col gap-2">
-                {form.education.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                {educationFields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
                     <Input
                       placeholder="Учебное заведение / Курс"
-                      value={item}
-                      onChange={(e) =>
-                        updateArrayItem("education", index, e.target.value)
-                      }
+                      {...register(`education.${index}.value`)}
                     />
-                    {form.education.length > 1 && (
+                    {educationFields.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeArrayItem("education", index)}
+                        onClick={() => removeEducation(index)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
                         aria-label="Удалить"
                       >
@@ -498,7 +491,7 @@ export function LkMedContent({ userName }: { userName: string }) {
                 </legend>
                 <button
                   type="button"
-                  onClick={() => addArrayItem("services")}
+                  onClick={() => appendService({ value: "" })}
                   className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
                 >
                   <Plus className="w-4 h-4" />
@@ -506,19 +499,16 @@ export function LkMedContent({ userName }: { userName: string }) {
                 </button>
               </div>
               <div className="flex flex-col gap-2">
-                {form.services.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
+                {serviceFields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
                     <Input
                       placeholder="Название услуги"
-                      value={item}
-                      onChange={(e) =>
-                        updateArrayItem("services", index, e.target.value)
-                      }
+                      {...register(`services.${index}.value`)}
                     />
-                    {form.services.length > 1 && (
+                    {serviceFields.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeArrayItem("services", index)}
+                        onClick={() => removeService(index)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
                         aria-label="Удалить"
                       >
@@ -535,10 +525,10 @@ export function LkMedContent({ userName }: { userName: string }) {
               <Button
                 type="submit"
                 className="w-full sm:w-auto"
-                disabled={loading}
+                disabled={isSubmitting}
                 size="lg"
               >
-                {loading ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="animate-spin" />
                     <span>Создание...</span>
