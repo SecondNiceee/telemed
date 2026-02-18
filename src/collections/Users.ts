@@ -28,14 +28,16 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
       cookieHeader = (req.headers as any)['cookie'] || (req.headers as any).cookie || ''
     }
 
-    console.log('[v0] getCallerRole: cookieHeader length:', cookieHeader.length)
-    console.log('[v0] getCallerRole: has payload-token:', cookieHeader.includes('payload-token'))
-
     const match = cookieHeader.match(/payload-token=([^;]+)/)
+    console.log('[v0] getCallerRole: cookieHeader.length=', cookieHeader.length,
+      'has payload-token=', !!match,
+      'req.user exists=', !!req.user,
+      'req.user.role=', (req.user as any)?.role,
+      'req.user.id=', (req.user as any)?.id)
     if (match) {
       const token = match[1]
       const decoded = jwt.decode(token) as { role?: string; id?: string; collection?: string } | null
-      console.log('[v0] getCallerRole: JWT decoded:', JSON.stringify(decoded))
+      console.log('[v0] getCallerRole: JWT decoded=', JSON.stringify(decoded))
       if (decoded) {
         return { role: decoded.role, id: decoded.id ? String(decoded.id) : undefined }
       }
@@ -45,16 +47,15 @@ function getCallerRole(req: PayloadRequest): { role?: string; id?: string } {
     //    admin access checks) where cookie headers may not be forwarded.
     //    In these contexts req.user is still the real logged-in admin.
     const user = req.user as { role?: string; id?: string | number } | undefined
-    console.log('[v0] getCallerRole: req.user exists:', !!user, 'role:', user?.role, 'id:', user?.id)
-    console.log('[v0] getCallerRole: req.user full:', JSON.stringify(user ? { id: user.id, role: user.role } : null))
     if (user) {
+      console.log('[v0] getCallerRole: using req.user fallback, role=', user.role)
       return { role: user.role, id: user.id ? String(user.id) : undefined }
     }
 
-    console.log('[v0] getCallerRole: returning empty - no cookie, no req.user')
+    console.log('[v0] getCallerRole: NO SOURCE - returning empty')
     return {}
-  } catch (error) {
-    console.log('[v0] getCallerRole ERROR:', error instanceof Error ? error.message : String(error))
+  } catch (err) {
+    console.log('[v0] getCallerRole ERROR:', err instanceof Error ? err.message : String(err))
     return {}
   }
 }
@@ -69,6 +70,7 @@ export const Users: CollectionConfig = {
   auth: {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
+
   },
   hooks: {
     beforeChange: [
@@ -83,29 +85,26 @@ export const Users: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      console.log('[v0] access.create called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.create caller:', JSON.stringify(caller))
       return caller.role === 'admin'
     },
     update: ({ req, id }) => {
-      console.log('[v0] access.update called, target id:', id)
       const caller = getCallerRole(req)
-      console.log('[v0] access.update caller:', JSON.stringify(caller))
       if (caller.role === 'admin') return true
       if (caller.id && String(caller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
-      console.log('[v0] access.delete called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.delete caller:', JSON.stringify(caller))
       return caller.role === 'admin'
     },
     admin: ({ req }) => {
-      console.log('[v0] access.admin called')
       const caller = getCallerRole(req)
-      console.log('[v0] access.admin caller:', JSON.stringify(caller), '=> result:', caller.role === 'admin')
+      console.log('[v0] access.admin: req.user?.id=', (req.user as any)?.id,
+        'req.user?.role=', (req.user as any)?.role,
+        'req.user?.collection=', (req.user as any)?.collection,
+        'caller=', JSON.stringify(caller),
+        'result=', caller.role === 'admin')
       return caller.role === 'admin'
     },
   },
