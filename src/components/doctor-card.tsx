@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 import type { ApiDoctor } from "@/lib/api/index";
 import { getDoctorPhotoUrl, getDoctorSpecialty } from "@/lib/api/index";
+import { getBasePath } from "@/lib/basePath";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;
@@ -19,7 +20,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
         <div className="flex flex-col sm:flex-row sm:items-stretch">
           <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
             <img
-              src={photoUrl || "/placeholder.svg"}
+              src={photoUrl || `${getBasePath()}/placeholder.svg`}
               alt={doctor.name || "Врач"}
               className="w-full h-full object-cover absolute inset-0"
             />

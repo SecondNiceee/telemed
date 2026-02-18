@@ -1,4 +1,5 @@
 import { apiFetch } from './fetch'
+import { getBasePath } from '../basePath'
 import { ApiDoctor, ApiCategory, PayloadListResponse } from './types'
 
 export class DoctorsApi {
@@ -35,7 +36,9 @@ export class DoctorsApi {
   static getPhotoUrl(doctor: ApiDoctor): string | null {
     if (!doctor.photo) return null
     if (typeof doctor.photo === 'number') return null
-    return doctor.photo.url ?? null
+    const url = doctor.photo.url ?? null
+    if (!url) return null
+    return `${getBasePath()}${url}`
   }
 
   /**
