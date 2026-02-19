@@ -6,7 +6,7 @@ import {
   getErrorMessage,
   type ApiDoctor,
 } from "@/lib/api/index";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
 import { BookingClient } from "./booking-client";
 import { Header } from "@/components/header";

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { UserSearch, CalendarCheck, Video, FileText } from "lucide-react";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl } from "@/lib/utils/image";
 
 const steps = [
   {

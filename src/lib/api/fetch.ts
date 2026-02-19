@@ -1,5 +1,5 @@
 import { ApiError } from './errors'
-import { getBasePath } from '../basePath'
+import { getBasePath } from '../utils/basePath'
 
 export function getBaseUrl(): string {
   if (typeof window !== 'undefined') {

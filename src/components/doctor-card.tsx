@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl } from "@/lib/utils/image";
 import { Media, User } from "@/payload-types";
 import { useRouter } from "next/navigation";
 
