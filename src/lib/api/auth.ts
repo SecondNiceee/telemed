@@ -1,4 +1,5 @@
 import type { User } from '@/payload-types'
+import { apiFetch } from './fetch'
 
 interface LoginResponse {
   token: string
@@ -11,43 +12,39 @@ interface MeResponse {
   user: User | null
 }
 
-export const AuthApi = {
-  async login(email: string, password: string): Promise<LoginResponse> {
-    const res = await fetch('/api/users/login', {
+export class AuthApi {
+  /**
+   * Login with email and password
+   */
+  static async login(email: string, password: string): Promise<LoginResponse> {
+    return apiFetch<LoginResponse>('/api/users/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ email, password }),
     })
+  }
 
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      const message =
-        body?.errors?.[0]?.message ||
-        body?.message ||
-        'Неверный email или пароль'
-      throw new Error(message)
+  /**
+   * Get current authenticated user
+   */
+  static async me(): Promise<User | null> {
+    try {
+      const data = await apiFetch<MeResponse>('/api/users/me', {
+        credentials: 'include',
+      })
+      return data.user ?? null
+    } catch {
+      return null
     }
+  }
 
-    return res.json()
-  },
-
-  async me(): Promise<User | null> {
-    const res = await fetch('/api/users/me', {
-      method: 'GET',
-      credentials: 'include',
-    })
-
-    if (!res.ok) return null
-
-    const data: MeResponse = await res.json()
-    return data.user ?? null
-  },
-
-  async logout(): Promise<void> {
-    await fetch('/api/users/logout', {
+  /**
+   * Logout current user
+   */
+  static async logout(): Promise<void> {
+    await apiFetch<{ message: string }>('/api/users/logout', {
       method: 'POST',
       credentials: 'include',
     })
-  },
+  }
 }
