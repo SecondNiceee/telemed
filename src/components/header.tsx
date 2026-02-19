@@ -11,7 +11,7 @@ import { resolveImageUrl } from "@/lib/utils/image";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, loading, fetched, fetchUser, logout: handleLogout } = useUserStore();
+  const { user, loading, fetched, fetchUser, refetchUser, logout: handleLogout } = useUserStore();
   const authLoading = loading || !fetched;
 
   useEffect(() => {
@@ -87,7 +87,7 @@ export function Header() {
               </>
             ) : (
               <>
-                <LoginModal onSuccess={() => { useUserStore.setState({ fetched: false }); fetchUser(); }}>
+                <LoginModal onSuccess={refetchUser}>
                   <Button variant="ghost" size="sm">
                     Войти
                   </Button>
@@ -160,7 +160,7 @@ export function Header() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    <LoginModal onSuccess={() => { useUserStore.setState({ fetched: false }); fetchUser(); }}>
+                    <LoginModal onSuccess={refetchUser}>
                       <Button variant="ghost" size="sm" className="flex-1">
                         Войти
                       </Button>
