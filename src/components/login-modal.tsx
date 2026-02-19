@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
-import { AuthApi } from "@/lib/api/auth"
+import { useUserStore } from "@/stores/user-store"
 import { Loader2 } from "lucide-react"
 
 type LoginMode = "user" | "doctor"
@@ -25,18 +25,17 @@ interface LoginModalProps {
 
 export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const router = useRouter()
+  const { login, loading } = useUserStore()
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<LoginMode>("user")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
 
   const handleReset = () => {
     setEmail("")
     setPassword("")
     setError("")
-    setLoading(false)
   }
 
   const handleOpenChange = (value: boolean) => {
@@ -49,16 +48,13 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setLoading(true)
 
     try {
-      const result = await AuthApi.login(email, password)
-      const user = result.user
+      const user = await login(email, password)
 
       if (mode === "doctor") {
         if (user.role !== "doctor" && user.role !== "admin") {
           setError("Этот аккаунт не является аккаунтом врача")
-          setLoading(false)
           return
         }
         setOpen(false)
@@ -68,7 +64,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       } else {
         if (user.role === "doctor") {
           setError("Этот аккаунт является аккаунтом врача. Переключитесь в режим \"Для врачей\"")
-          setLoading(false)
           return
         }
         setOpen(false)
@@ -82,7 +77,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")
-      setLoading(false)
     }
   }
 

@@ -14,8 +14,13 @@ export type {
 } from './types'
 
 // Legacy support: export functions as top-level exports for backward compatibility
+import { AuthApi } from './auth'
 import { CategoriesApi } from './categories'
 import { DoctorsApi } from './doctors'
+
+export const login = (email: string, password: string) => AuthApi.login(email, password)
+export const me = () => AuthApi.me()
+export const logout = () => AuthApi.logout()
 
 export const fetchCategories = () => CategoriesApi.fetchAll()
 export const fetchCategoryBySlug = (slug: string) => CategoriesApi.fetchBySlug(slug)
