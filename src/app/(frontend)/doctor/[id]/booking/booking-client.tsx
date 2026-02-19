@@ -14,7 +14,7 @@ import {
   Clock,
   Calendar,
 } from "lucide-react";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl } from "@/lib/utils/image";
 
 const timeSlots = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00",

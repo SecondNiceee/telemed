@@ -22,7 +22,7 @@ import {
   Award,
   CheckCircle,
 } from "lucide-react";
-import { resolveImageUrl } from "@/lib/image";
+import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
 
 interface DoctorPageProps {

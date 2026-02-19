@@ -1,5 +1,5 @@
 import { apiFetch } from './fetch'
-import { getBasePath } from '../basePath'
+import { getBasePath } from '../utils/basePath'
 import { ApiDoctor, ApiCategory, PayloadListResponse } from './types'
 
 /** Cache tag used for all doctor queries. Revalidated via Users hooks when role=doctor. */
