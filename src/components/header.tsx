@@ -1,30 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
+import { useOrgStore } from "@/stores/org-store";
+import { useDoctorStore } from "@/stores/doctor-store";
 import { resolveImageUrl } from "@/lib/utils/image";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, loading, fetched, fetchUser, refetchUser, logout: handleLogout } = useUserStore();
-  const authLoading = loading || !fetched;
+
+  const { user, loading: userLoading, fetched: userFetched, fetchUser, refetchUser, logout: logoutUser } = useUserStore();
+  const { org, loading: orgLoading, fetched: orgFetched, fetchOrg, logout: logoutOrg } = useOrgStore();
+  const { doctor, loading: doctorLoading, fetched: doctorFetched, fetchDoctor, logout: logoutDoctor } = useDoctorStore();
+
+  const allFetched = userFetched && orgFetched && doctorFetched;
+  const anyLoading = userLoading || orgLoading || doctorLoading;
+  const authLoading = anyLoading || !allFetched;
 
   useEffect(() => {
     fetchUser();
-  }, [fetchUser]);
+    fetchOrg();
+    fetchDoctor();
+  }, [fetchUser, fetchOrg, fetchDoctor]);
 
-  const accountHref =
-    user?.role === "organisation"
-      ? "/lk-med"
-      : user?.role === "doctor" || user?.role === "admin"
-        ? "/doctor-dashboard"
-        : "/";
-
+  // Determine which entity is logged in (priority: org > doctor > user)
+  const activeEntity = org
+    ? { label: org.name || org.email, href: "/lk-med", handleLogout: logoutOrg }
+    : doctor
+      ? { label: doctor.name || doctor.email, href: "/doctor-dashboard", handleLogout: logoutDoctor }
+      : user
+        ? { label: user.name || user.email, href: "/", handleLogout: logoutUser }
+        : null;
 
   return (
     <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
@@ -67,17 +77,17 @@ export function Header() {
           <div className="hidden md:flex items-center gap-4">
             {authLoading ? (
               <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
-            ) : user ? (
+            ) : activeEntity ? (
               <>
                 <Link
-                  href={accountHref}
+                  href={activeEntity.href}
                   className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors font-medium"
                 >
                   <UserIcon className="w-4 h-4" />
-                  <span className="max-w-[180px] truncate">{user.email}</span>
+                  <span className="max-w-[180px] truncate">{activeEntity.label}</span>
                 </Link>
                 <button
-                  onClick={handleLogout}
+                  onClick={activeEntity.handleLogout}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
                   aria-label="Выйти"
                 >
@@ -137,20 +147,20 @@ export function Header() {
               <div className="flex flex-col gap-2 pt-4 border-t border-border">
                 {authLoading ? (
                   <div className="h-9 rounded-md bg-muted animate-pulse" />
-                ) : user ? (
+                ) : activeEntity ? (
                   <>
                     <Link
-                      href={accountHref}
+                      href={activeEntity.href}
                       className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors font-medium py-2"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <UserIcon className="w-4 h-4" />
-                      <span className="truncate">{user.email}</span>
+                      <span className="truncate">{activeEntity.label}</span>
                     </Link>
                     <button
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        handleLogout();
+                        activeEntity.handleLogout();
                       }}
                       className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors py-2"
                     >

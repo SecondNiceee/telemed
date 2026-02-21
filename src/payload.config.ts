@@ -6,6 +6,8 @@ import { fileURLToPath } from 'url'
 import sharp from 'sharp'
 
 import { Users } from './collections/Users'
+import { Doctors } from './collections/Doctors'
+import { Organisations } from './collections/Organisations'
 import { Media } from './collections/Media'
 import { DoctorCategories } from './collections/DoctorCategories'
 
@@ -22,7 +24,7 @@ export default buildConfig({
     },
   },
 
-  collections: [Users, Media, DoctorCategories],
+  collections: [Users, Doctors, Organisations, Media, DoctorCategories],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

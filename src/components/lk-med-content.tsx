@@ -58,9 +58,10 @@ const defaultValues: DoctorFormValues = {
 interface LkMedContentProps {
   userName: string
   initialDoctors: ApiDoctor[]
+  orgId: number
 }
 
-export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
+export function LkMedContent({ userName, initialDoctors, orgId }: LkMedContentProps) {
   const router = useRouter()
   const [showForm, setShowForm] = useState(false)
   const [photo, setPhoto] = useState<File | null>(null)
@@ -163,12 +164,12 @@ export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
         photoId = uploadData.doc?.id ?? null
       }
 
-      // 2. Create the doctor user
+      // 2. Create the doctor in the doctors collection
       const payload: Record<string, unknown> = {
         email: data.email,
         password: data.password,
         name: data.name,
-        role: "doctor",
+        organisation: orgId,
       }
 
       if (data.categories.length > 0) payload.categories = data.categories
@@ -192,7 +193,7 @@ export function LkMedContent({ userName, initialDoctors }: LkMedContentProps) {
         payload.services = servicesFiltered.map((v) => ({ value: v }))
       }
 
-      const createRes = await fetch(`${basePath}/api/users`, {
+      const createRes = await fetch(`${basePath}/api/doctors`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

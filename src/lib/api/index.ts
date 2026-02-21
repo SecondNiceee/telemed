@@ -2,6 +2,8 @@
 export { ApiError, getErrorCode, getErrorMessage } from './errors'
 export { apiFetch, getBaseUrl } from './fetch'
 export { AuthApi } from './auth'
+export { OrgAuthApi } from './org-auth'
+export { DoctorAuthApi } from './doctor-auth'
 export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
 export type {
@@ -10,6 +12,7 @@ export type {
   ApiEducationItem,
   ApiServiceItem,
   ApiDoctor,
+  ApiOrganisation,
   PayloadListResponse,
 } from './types'
 

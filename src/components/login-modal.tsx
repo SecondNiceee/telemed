@@ -46,22 +46,12 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setError("")
 
     try {
-      const user = await login(email, password)
-
-      if (user.role === "doctor") {
-        setError("Этот аккаунт является аккаунтом врача. Вход для врачей недоступен здесь.")
-        return
-      }
+      await login(email, password)
 
       setOpen(false)
       handleReset()
       onSuccess?.()
-
-      if (user.role === "organisation") {
-        router.push("/lk-med")
-      } else {
-        router.refresh()
-      }
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")
     }

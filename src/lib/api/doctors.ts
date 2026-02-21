@@ -1,8 +1,7 @@
 import { apiFetch } from './fetch'
-import { getBasePath } from '../utils/basePath'
 import { ApiDoctor, ApiCategory, PayloadListResponse } from './types'
 
-/** Cache tag used for all doctor queries. Revalidated via Users hooks when role=doctor. */
+/** Cache tag used for all doctor queries. Revalidated via Doctors collection hooks. */
 export const DOCTORS_CACHE_TAG = 'doctors'
 
 export class DoctorsApi {
@@ -11,7 +10,7 @@ export class DoctorsApi {
    */
   static async fetchAll(): Promise<ApiDoctor[]> {
     const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
-      '/api/users?where[role][equals]=doctor&limit=100&depth=1&sort=name',
+      '/api/doctors?limit=100&depth=1&sort=name',
       { next: { tags: [DOCTORS_CACHE_TAG] } },
     )
     return data.docs
@@ -22,7 +21,18 @@ export class DoctorsApi {
    */
   static async fetchByCategory(categoryId: number): Promise<ApiDoctor[]> {
     const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
-      `/api/users?where[role][equals]=doctor&where[categories][in]=${categoryId}&limit=100&depth=1&sort=name`,
+      `/api/doctors?where[categories][in]=${categoryId}&limit=100&depth=1&sort=name`,
+      { next: { tags: [DOCTORS_CACHE_TAG] } },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch doctors by organisation ID
+   */
+  static async fetchByOrganisation(orgId: number): Promise<ApiDoctor[]> {
+    const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
+      `/api/doctors?where[organisation][equals]=${orgId}&limit=100&depth=1&sort=name`,
       { next: { tags: [DOCTORS_CACHE_TAG] } },
     )
     return data.docs
@@ -32,11 +42,10 @@ export class DoctorsApi {
    * Fetch doctor by ID
    */
   static async fetchById(id: number | string): Promise<ApiDoctor> {
-    return apiFetch<ApiDoctor>(`/api/users/${id}?depth=1`, {
+    return apiFetch<ApiDoctor>(`/api/doctors/${id}?depth=1`, {
       next: { tags: [DOCTORS_CACHE_TAG] },
     })
   }
-
 
   /**
    * Get resolved category objects from a doctor's categories field
