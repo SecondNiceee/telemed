@@ -1,10 +1,9 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { getPayload } from "payload"
-import config from "@payload-config"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { DoctorDashboardContent } from "@/components/doctor-dashboard-content"
+import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Личный кабинет врача | smartcardio",
@@ -12,25 +11,23 @@ export const metadata = {
 }
 
 export default async function DoctorDashboardPage() {
-  const payload = await getPayload({ config })
   const requestHeaders = await headers()
 
-  let user = null
-  try {
-    const authResult = await payload.auth({ headers: requestHeaders })
-    user = authResult.user
-  } catch {
-    redirect("/")
-  }
+  // Check doctors-token cookie for doctor auth
+  const doctor = await getSessionFromCookie<{ id: number; name?: string; email: string }>(
+    requestHeaders,
+    'doctors-token',
+    'doctors',
+  )
 
-  if (!user || (user.role !== "doctor" && user.role !== "admin")) {
+  if (!doctor) {
     redirect("/")
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <DoctorDashboardContent userName={user.name || user.email} />
+      <DoctorDashboardContent userName={doctor.name || doctor.email} />
       <Footer />
     </div>
   )

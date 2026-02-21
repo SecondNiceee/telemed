@@ -29,11 +29,19 @@ export interface ApiServiceItem {
   id?: string
 }
 
+export interface ApiOrganisation {
+  id: number
+  name: string
+  email: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ApiDoctor {
   id: number
   email: string
-  role: 'doctor'
   name?: string | null
+  organisation?: ApiOrganisation | number | null
   categories?: (ApiCategory | number)[] | null
   experience?: number | null
   degree?: string | null

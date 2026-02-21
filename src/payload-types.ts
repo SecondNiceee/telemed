@@ -64,10 +64,14 @@ export type SupportedTimezones =
 export interface Config {
   auth: {
     users: UserAuthOperations;
+    doctors: DoctorAuthOperations;
+    organisations: OrganisationAuthOperations;
   };
   blocks: {};
   collections: {
     users: User;
+    doctors: Doctor;
+    organisations: Organisation;
     media: Media;
     'doctor-categories': DoctorCategory;
     'payload-kv': PayloadKv;
@@ -78,6 +82,8 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    doctors: DoctorsSelect<false> | DoctorsSelect<true>;
+    organisations: OrganisationsSelect<false> | OrganisationsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'doctor-categories': DoctorCategoriesSelect<false> | DoctorCategoriesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -116,19 +122,77 @@ export interface UserAuthOperations {
     password: string;
   };
 }
+export interface DoctorAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
+export interface OrganisationAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
 /**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * Users collection - regular users + admin for Payload Admin Panel
  */
 export interface User {
   id: number;
-  role: 'user' | 'doctor' | 'admin' | 'organisation';
+  role: 'user' | 'admin';
   name?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'users';
+}
+/**
+ * Doctors collection - separate auth collection for doctors
+ */
+export interface Doctor {
+  id: number;
+  name?: string | null;
+  organisation: number | Organisation;
   categories?: (number | DoctorCategory)[] | null;
   experience?: number | null;
-  /**
-   * Например: Врач высшей категории, Кандидат медицинских наук
-   */
   degree?: string | null;
   price?: number | null;
   photo?: (number | null) | Media;
@@ -162,7 +226,32 @@ export interface User {
       }[]
     | null;
   password?: string | null;
-  collection: 'users';
+  collection: 'doctors';
+}
+/**
+ * Organisations collection - separate auth collection for clinic admins
+ */
+export interface Organisation {
+  id: number;
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'organisations';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -171,14 +260,8 @@ export interface User {
 export interface DoctorCategory {
   id: number;
   name: string;
-  /**
-   * Уникальный идентификатор для URL (например: therapist)
-   */
   slug: string;
   description?: string | null;
-  /**
-   * Название иконки из библиотеки Lucide (например: stethoscope, heart, brain)
-   */
   icon?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -231,6 +314,14 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
+        relationTo: 'doctors';
+        value: number | Doctor;
+      } | null)
+    | ({
+        relationTo: 'organisations';
+        value: number | Organisation;
+      } | null)
+    | ({
         relationTo: 'media';
         value: number | Media;
       } | null)
@@ -239,10 +330,19 @@ export interface PayloadLockedDocument {
         value: number | DoctorCategory;
       } | null);
   globalSlug?: string | null;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'doctors';
+        value: number | Doctor;
+      }
+    | {
+        relationTo: 'organisations';
+        value: number | Organisation;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -252,10 +352,19 @@ export interface PayloadLockedDocument {
  */
 export interface PayloadPreference {
   id: number;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'doctors';
+        value: number | Doctor;
+      }
+    | {
+        relationTo: 'organisations';
+        value: number | Organisation;
+      };
   key?: string | null;
   value?:
     | {
@@ -287,6 +396,30 @@ export interface PayloadMigration {
 export interface UsersSelect<T extends boolean = true> {
   role?: T;
   name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  email?: T;
+  resetPasswordToken?: T;
+  resetPasswordExpiration?: T;
+  salt?: T;
+  hash?: T;
+  loginAttempts?: T;
+  lockUntil?: T;
+  sessions?:
+    | T
+    | {
+        id?: T;
+        createdAt?: T;
+        expiresAt?: T;
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doctors_select".
+ */
+export interface DoctorsSelect<T extends boolean = true> {
+  name?: T;
+  organisation?: T;
   categories?: T;
   experience?: T;
   degree?: T;
@@ -305,6 +438,29 @@ export interface UsersSelect<T extends boolean = true> {
         value?: T;
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  email?: T;
+  resetPasswordToken?: T;
+  resetPasswordExpiration?: T;
+  salt?: T;
+  hash?: T;
+  loginAttempts?: T;
+  lockUntil?: T;
+  sessions?:
+    | T
+    | {
+        id?: T;
+        createdAt?: T;
+        expiresAt?: T;
+      };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "organisations_select".
+ */
+export interface OrganisationsSelect<T extends boolean = true> {
+  name?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

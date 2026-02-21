@@ -1,11 +1,10 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { getPayload } from "payload"
-import config from "@payload-config"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
 import { DoctorsApi } from "@/lib/api/doctors"
+import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Кабинет организации | smartcardio",
@@ -13,27 +12,26 @@ export const metadata = {
 }
 
 export default async function LkMedPage() {
-  const payload = await getPayload({ config })
   const requestHeaders = await headers()
 
-  let user = null
-  try {
-    const authResult = await payload.auth({ headers: requestHeaders })
-    user = authResult.user
-  } catch {
+  // Check organisations-token cookie for org auth
+  const org = await getSessionFromCookie<{ id: number; name?: string; email: string }>(
+    requestHeaders,
+    'organisations-token',
+    'organisations',
+  )
+
+  if (!org) {
     redirect("/")
   }
 
-  if (!user || (user.role !== "organisation" && user.role !== "admin")) {
-    redirect("/")
-  }
-
-  const doctors = await DoctorsApi.fetchAll()
+  // Fetch only this organisation's doctors
+  const doctors = await DoctorsApi.fetchByOrganisation(org.id)
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <LkMedContent userName={user.name || user.email} initialDoctors={doctors} />
+      <LkMedContent userName={org.name || org.email} initialDoctors={doctors} orgId={org.id} />
       <Footer />
     </div>
   )

@@ -12,11 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
 import { useUserStore } from "@/stores/user-store"
 import { Loader2 } from "lucide-react"
-
-type LoginMode = "user" | "doctor"
 
 interface LoginModalProps {
   children: React.ReactNode
@@ -27,7 +24,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const router = useRouter()
   const { login, loading } = useUserStore()
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<LoginMode>("user")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -50,31 +46,12 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setError("")
 
     try {
-      const user = await login(email, password)
+      await login(email, password)
 
-      if (mode === "doctor") {
-        if (user.role !== "doctor" && user.role !== "admin") {
-          setError("Этот аккаунт не является аккаунтом врача")
-          return
-        }
-        setOpen(false)
-        handleReset()
-        onSuccess?.()
-        router.push("/doctor-dashboard")
-      } else {
-        if (user.role === "doctor") {
-          setError("Этот аккаунт является аккаунтом врача. Переключитесь в режим \"Для врачей\"")
-          return
-        }
-        setOpen(false)
-        handleReset()
-        onSuccess?.()
-        if (user.role === "organisation") {
-          router.push("/lk-med")
-        } else {
-          router.refresh()
-        }
-      }
+      setOpen(false)
+      handleReset()
+      onSuccess?.()
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")
     }
@@ -89,41 +66,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
         </DialogHeader>
 
         <div className="flex flex-col gap-6 pt-2">
-          {/* Mode toggle */}
-          <div className="flex rounded-lg bg-muted p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("user")
-                setError("")
-              }}
-              className={cn(
-                "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all",
-                mode === "user"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Для пользователей
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("doctor")
-                setError("")
-              }}
-              className={cn(
-                "flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all",
-                mode === "doctor"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Для врачей
-            </button>
-          </div>
-
-          {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="login-email">Электронная почта</Label>
@@ -167,11 +109,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
             </Button>
           </form>
 
-          {mode === "doctor" && (
-            <p className="text-xs text-muted-foreground text-center">
-              Учетная запись врача создается администратором клиники
-            </p>
-          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -277,7 +277,6 @@ async function seed() {
   const categoryMap = new Map<string, number>()
 
   for (const cat of categoriesData) {
-    // Check if already exists
     const existing = await payload.find({
       collection: 'doctor-categories',
       where: { slug: { equals: cat.slug } },
@@ -297,13 +296,39 @@ async function seed() {
     }
   }
 
-  // -------- 2. Seed doctors --------
+  // -------- 2. Seed test organisation --------
+  console.log('Seeding test organisation...')
+
+  let orgId: number
+  const existingOrg = await payload.find({
+    collection: 'organisations',
+    where: { email: { equals: 'clinic@smartcardio.ru' } },
+    limit: 1,
+  })
+
+  if (existingOrg.docs.length > 0) {
+    console.log(`  Organisation already exists (id: ${existingOrg.docs[0].id})`)
+    orgId = existingOrg.docs[0].id
+  } else {
+    const createdOrg = await payload.create({
+      collection: 'organisations',
+      data: {
+        email: 'clinic@smartcardio.ru',
+        password: 'clinic123456',
+        name: 'Клиника Smartcardio',
+      },
+      overrideAccess: true,
+    })
+    console.log(`  Created organisation (id: ${createdOrg.id})`)
+    orgId = createdOrg.id
+  }
+
+  // -------- 3. Seed doctors (in the doctors collection) --------
   console.log('Seeding doctors...')
 
   for (const doc of doctorsData) {
-    // Check if already exists by email
     const existing = await payload.find({
-      collection: 'users',
+      collection: 'doctors',
       where: { email: { equals: doc.email } },
       limit: 1,
     })
@@ -318,12 +343,12 @@ async function seed() {
       .filter((id): id is number => id !== undefined)
 
     await payload.create({
-      collection: 'users',
+      collection: 'doctors',
       data: {
         email: doc.email,
         password: doc.password,
-        role: 'doctor',
         name: doc.name,
+        organisation: orgId,
         categories: categoryIds,
         experience: doc.experience,
         degree: doc.degree,
@@ -332,6 +357,7 @@ async function seed() {
         education: doc.education.map((value) => ({ value })),
         services: doc.services.map((value) => ({ value })),
       },
+      overrideAccess: true,
     })
     console.log(`  Created doctor "${doc.name}"`)
   }

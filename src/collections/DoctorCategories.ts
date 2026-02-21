@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
+import { getCallerFromRequest } from './helpers/auth'
 
 const revalidateCategories = () => {
   revalidateTag(CATEGORIES_CACHE_TAG)
@@ -15,9 +16,9 @@ export const DoctorCategories: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req: { user } }) => user?.role === 'admin',
-    update: ({ req: { user } }) => user?.role === 'admin',
-    delete: ({ req: { user } }) => user?.role === 'admin',
+    create: ({ req }) => getCallerFromRequest(req).role === 'admin',
+    update: ({ req }) => getCallerFromRequest(req).role === 'admin',
+    delete: ({ req }) => getCallerFromRequest(req).role === 'admin',
   },
   hooks: {
     afterChange: [

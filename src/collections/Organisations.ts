@@ -32,11 +32,11 @@ async function ensureReqUser({
   }
 }
 
-export const Users: CollectionConfig = {
-  slug: 'users',
+export const Organisations: CollectionConfig = {
+  slug: 'organisations',
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'email', 'role'],
+    defaultColumns: ['name', 'email'],
     group: 'Пользователи',
   },
   auth: {
@@ -63,38 +63,22 @@ export const Users: CollectionConfig = {
     update: ({ req, id }) => {
       const caller = getCallerFromRequest(req)
       if (caller.role === 'admin') return true
-      if (caller.id && String(caller.id) === String(id)) return true
+      // Organisation can update itself
+      if (caller.collection === 'organisations' && caller.id && String(caller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req)
       return caller.role === 'admin'
     },
-    admin: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      return caller.role === 'admin'
-    },
+    admin: () => false, // Organisations don't access Payload Admin Panel
   },
   fields: [
     {
-      name: 'role',
-      type: 'select',
-      required: true,
-      defaultValue: 'user',
-      label: 'Роль',
-      saveToJWT: true,
-      options: [
-        { label: 'Пользователь', value: 'user' },
-        { label: 'Администратор', value: 'admin' },
-      ],
-      admin: {
-        position: 'sidebar',
-      },
-    },
-    {
       name: 'name',
       type: 'text',
-      label: 'Имя',
+      label: 'Название организации',
+      required: true,
     },
   ],
 }
