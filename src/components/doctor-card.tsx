@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { resolveImageUrl } from "@/lib/utils/image";
-import { Media, User } from "@/payload-types";
+import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
 
 interface DoctorCardProps {
