@@ -63,10 +63,6 @@ function decodeCookie(cookieHeader: string, cookieName: string): Record<string, 
  */
 export function decodeAnyCookie(req: PayloadRequest): DecodedCaller | null {
   const cookieHeader = getCookieHeader(req)
-  console.log('[v0] decodeAnyCookie cookieHeader length:', cookieHeader.length)
-  console.log('[v0] decodeAnyCookie has organisations-token:', cookieHeader.includes('organisations-token'))
-  console.log('[v0] decodeAnyCookie has payload-token:', cookieHeader.includes('payload-token'))
-  console.log('[v0] decodeAnyCookie has doctors-token:', cookieHeader.includes('doctors-token'))
   if (!cookieHeader) return null
 
   for (const { name, collection } of AUTH_COOKIES) {
@@ -125,21 +121,24 @@ export function decodeSpecificCookie(
 }
 
 /**
- * Get the caller's role and id. Checks all 3 auth cookies, falls back to req.user.
+ * Get the caller's role and id. Checks req.user first (populated by Payload from DB,
+ * includes real role), then falls back to cookie decode.
  */
 export function getCallerFromRequest(req: PayloadRequest): { role?: string; id?: string; collection?: AuthCollection } {
+  // 1. Prefer req.user — Payload populates it from the DB, so it has the real role.
+  const user = req.user as { role?: string; id?: string | number; collection?: string } | undefined
+  if (user?.id) {
+    return {
+      role: user.role || (user.collection === 'doctors' ? 'doctor' : user.collection === 'organisations' ? 'organisation' : 'user'),
+      id: String(user.id),
+      collection: (user.collection as AuthCollection) || 'users',
+    }
+  }
+
+  // 2. Fallback: decode JWT from cookies (e.g. when req.user is not yet populated).
   const decoded = decodeAnyCookie(req)
   if (decoded) {
     return { role: decoded.role, id: decoded.id, collection: decoded.collection }
-  }
-
-  const user = req.user as { role?: string; id?: string | number; collection?: string } | undefined
-  if (user) {
-    return {
-      role: user.role || (user.collection === 'doctors' ? 'doctor' : user.collection === 'organisations' ? 'organisation' : 'user'),
-      id: user.id ? String(user.id) : undefined,
-      collection: user.collection as AuthCollection | undefined,
-    }
   }
 
   return {}

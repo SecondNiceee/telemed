@@ -202,10 +202,10 @@ export function LkOrgContent({ userName, initialDoctors, orgId }: LkOrgContentPr
 
       if (!createRes.ok) {
         const body = await createRes.json().catch(() => null)
-        console.log("[v0] Doctor creation failed:", {
+        console.error("[lk-org] Doctor creation failed:", {
           status: createRes.status,
           statusText: createRes.statusText,
-          body: JSON.stringify(body),
+          body,
         })
         if (createRes.status === 400) {
           throw new Error("Пользователь с таким именем или email уже существует")
