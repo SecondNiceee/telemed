@@ -44,6 +44,9 @@ export const Doctors: CollectionConfig = {
   auth: {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
+    cookies: {
+      name: 'doctors-token',
+    },
   },
   hooks: {
     beforeOperation: [ensureReqUser],
