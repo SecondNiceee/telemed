@@ -46,12 +46,18 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setError("")
 
     try {
-      await login(email, password)
+      const loggedInUser = await login(email, password)
 
       setOpen(false)
       handleReset()
       onSuccess?.()
-      router.refresh()
+
+      // Redirect user/admin to /lk
+      if (loggedInUser.role === 'user' || loggedInUser.role === 'admin') {
+        router.push('/lk')
+      } else {
+        router.refresh()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")
     }

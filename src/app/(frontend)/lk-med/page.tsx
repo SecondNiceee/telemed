@@ -1,37 +1,29 @@
 import { headers } from "next/headers"
-import { redirect } from "next/navigation"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
-import { DoctorsApi } from "@/lib/api/doctors"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
+import type { ApiDoctor } from "@/lib/api/types"
 
 export const metadata = {
-  title: "Кабинет организации | smartcardio",
-  description: "Управление врачами организации на платформе smartcardio Телемедицина",
+  title: "Кабинет врача | smartcardio",
+  description: "Личный кабинет врача на платформе smartcardio Телемедицина",
 }
 
 export default async function LkMedPage() {
   const requestHeaders = await headers()
 
-  // Check organisations-token cookie for org auth
-  const org = await getSessionFromCookie<{ id: number; name?: string; email: string }>(
+  // Check doctors-token cookie for doctor auth on server
+  const doctor = await getSessionFromCookie<ApiDoctor>(
     requestHeaders,
-    'organisations-token',
-    'organisations',
+    'doctors-token',
+    'doctors',
   )
-
-  if (!org) {
-    redirect("/")
-  }
-
-  // Fetch only this organisation's doctors
-  const doctors = await DoctorsApi.fetchByOrganisation(org.id)
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <LkMedContent userName={org.name || org.email} initialDoctors={doctors} orgId={org.id} />
+      <LkMedContent initialDoctor={doctor} />
       <Footer />
     </div>
   )
