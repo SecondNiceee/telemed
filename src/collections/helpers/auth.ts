@@ -63,6 +63,10 @@ function decodeCookie(cookieHeader: string, cookieName: string): Record<string, 
  */
 export function decodeAnyCookie(req: PayloadRequest): DecodedCaller | null {
   const cookieHeader = getCookieHeader(req)
+  console.log('[v0] decodeAnyCookie cookieHeader length:', cookieHeader.length)
+  console.log('[v0] decodeAnyCookie has organisations-token:', cookieHeader.includes('organisations-token'))
+  console.log('[v0] decodeAnyCookie has payload-token:', cookieHeader.includes('payload-token'))
+  console.log('[v0] decodeAnyCookie has doctors-token:', cookieHeader.includes('doctors-token'))
   if (!cookieHeader) return null
 
   for (const { name, collection } of AUTH_COOKIES) {

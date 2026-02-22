@@ -76,6 +76,8 @@ export const Doctors: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       const caller = getCallerFromRequest(req)
+      console.log('[v0] Doctors.access.create caller:', JSON.stringify(caller))
+      console.log('[v0] Doctors.access.create req.user:', req.user ? JSON.stringify({ id: (req.user as any).id, collection: (req.user as any).collection, role: (req.user as any).role }) : 'null')
       return caller.role === 'admin' || caller.collection === 'organisations'
     },
     update: ({ req, id }) => {
