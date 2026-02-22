@@ -1,5 +1,4 @@
 import { headers } from "next/headers"
-import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkOrgGate } from "@/components/lk-org-gate"
 import { DoctorsApi } from "@/lib/api/doctors"
@@ -24,7 +23,6 @@ export default async function LkOrgPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
       <LkOrgGate initialOrg={org} initialDoctors={doctors} />
       <Footer />
     </div>

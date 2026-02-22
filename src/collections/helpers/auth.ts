@@ -90,6 +90,25 @@ export function decodeAnyCookie(req: PayloadRequest): DecodedCaller | null {
 }
 
 /**
+ * Decode ONLY the users collection cookie (payload-token).
+ * Used by ensureReqUser to avoid overriding req.user with non-user entities.
+ */
+export function decodeUsersCookie(req: PayloadRequest): DecodedCaller | null {
+  const cookieHeader = getCookieHeader(req)
+  if (!cookieHeader) return null
+
+  const decoded = decodeCookie(cookieHeader, 'payload-token')
+  if (!decoded?.id) return null
+
+  return {
+    id: String(decoded.id),
+    collection: 'users',
+    role: decoded.role || 'user',
+    email: decoded.email,
+  }
+}
+
+/**
  * Decode JWT from a SPECIFIC cookie.
  */
 export function decodeSpecificCookie(

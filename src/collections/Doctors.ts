@@ -1,11 +1,11 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
-import { getCallerFromRequest, decodeAnyCookie } from './helpers/auth'
+import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
 
 /**
- * Populate req.user from any of the 3 auth cookies when Payload
- * fails to do so (e.g. during buildFormState Server Actions).
+ * Populate req.user ONLY from the doctors cookie (doctors-token).
+ * This ensures doctor hooks never accidentally adopt a user/org identity.
  */
 async function ensureReqUser({
   req,
@@ -15,8 +15,8 @@ async function ensureReqUser({
 }) {
   if (req.user) return
 
-  const decoded = decodeAnyCookie(req)
-  if (!decoded?.id || !decoded?.collection) return
+  const decoded = decodeSpecificCookie(req, 'doctors-token', 'doctors')
+  if (!decoded?.id) return
 
   try {
     const user = await req.payload.findByID({

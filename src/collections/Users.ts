@@ -1,9 +1,10 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
-import { getCallerFromRequest, decodeAnyCookie } from './helpers/auth'
+import { getCallerFromRequest, decodeUsersCookie } from './helpers/auth'
 
 /**
- * Populate req.user from any of the 3 auth cookies when Payload
- * fails to do so (e.g. during buildFormState Server Actions).
+ * Populate req.user ONLY from the users cookie (payload-token).
+ * This ensures that org/doctor cookies never override the admin user
+ * in the Payload Admin Panel.
  */
 async function ensureReqUser({
   req,
@@ -13,8 +14,8 @@ async function ensureReqUser({
 }) {
   if (req.user) return
 
-  const decoded = decodeAnyCookie(req)
-  if (!decoded?.id || !decoded?.collection) return
+  const decoded = decodeUsersCookie(req)
+  if (!decoded?.id) return
 
   try {
     const user = await req.payload.findByID({
