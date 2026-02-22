@@ -1,5 +1,4 @@
 import { headers } from "next/headers"
-import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
@@ -22,7 +21,6 @@ export default async function LkMedPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
       <LkMedContent initialDoctor={doctor} />
       <Footer />
     </div>

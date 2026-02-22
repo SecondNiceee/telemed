@@ -1,6 +1,5 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkOrgDoctorCreate } from "@/components/lk-org-doctor-create"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
@@ -26,7 +25,6 @@ export default async function DoctorCreatePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
       <LkOrgDoctorCreate orgId={org.id} />
       <Footer />
     </div>
