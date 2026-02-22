@@ -33,7 +33,7 @@ export function Header() {
     : doctor
       ? { label: doctor.name || doctor.email, href: "/doctor-dashboard", handleLogout: logoutDoctor }
       : user
-        ? { label: user.name || user.email, href: "/", handleLogout: logoutUser }
+        ? { label: user.name || user.email, href: "/lk", handleLogout: logoutUser }
         : null;
 
   return (
