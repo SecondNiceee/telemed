@@ -37,7 +37,7 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
   // Not logged in as doctor -- show login form
   if (!doctor) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center py-10">
         <div className="w-full max-w-sm mx-auto px-4">
           <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
             <div className="text-center mb-6">
