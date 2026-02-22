@@ -29,9 +29,9 @@ export function Header() {
 
   // Determine which entity is logged in (priority: org > doctor > user)
   const activeEntity = org
-    ? { label: org.name || org.email, href: "/lk-med", handleLogout: logoutOrg }
+    ? { label: org.name || org.email, href: "/lk-org", handleLogout: logoutOrg }
     : doctor
-      ? { label: doctor.name || doctor.email, href: "/doctor-dashboard", handleLogout: logoutDoctor }
+      ? { label: doctor.name || doctor.email, href: "/lk-med", handleLogout: logoutDoctor }
       : user
         ? { label: user.name || user.email, href: "/lk", handleLogout: logoutUser }
         : null;
