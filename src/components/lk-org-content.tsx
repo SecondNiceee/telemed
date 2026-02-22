@@ -201,12 +201,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId }: LkOrgContentPr
       })
 
       if (!createRes.ok) {
-        console.log(createRes);
         const body = await createRes.json().catch(() => null)
-        console.error("[lk-org] Doctor creation failed:", {
+        console.log("[v0] Doctor creation failed:", {
           status: createRes.status,
           statusText: createRes.statusText,
-          body,
+          body: JSON.stringify(body),
         })
         if (createRes.status === 400) {
           throw new Error("Пользователь с таким именем или email уже существует")
@@ -434,7 +433,7 @@ export function LkOrgContent({ userName, initialDoctors, orgId }: LkOrgContentPr
                 <Label htmlFor="doctor-name">ФИО врача *</Label>
                 <Input
                   id="doctor-name"
-                  placeholder="Иванов ��ван Иванович"
+                  placeholder="Иванов ����ван Иванович"
                   aria-invalid={!!errors.name}
                   {...register("name", { required: "Обязательное поле" })}
                 />
