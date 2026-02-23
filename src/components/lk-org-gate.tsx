@@ -12,10 +12,11 @@ import type { ApiDoctor } from "@/lib/api/types"
 
 interface LkOrgGateProps {
   initialOrg: { id: number; name?: string; email: string } | null
-  initialDoctors: ApiDoctor[]
+  initialDoctors?: ApiDoctor[]
+  children?: React.ReactNode
 }
 
-export function LkOrgGate({ initialOrg, initialDoctors }: LkOrgGateProps) {
+export function LkOrgGate({ initialOrg, initialDoctors, children }: LkOrgGateProps) {
   const router = useRouter()
   const { org: storeOrg, login, loading } = useOrgStore()
   const [email, setEmail] = useState("")
@@ -99,11 +100,15 @@ export function LkOrgGate({ initialOrg, initialDoctors }: LkOrgGateProps) {
     )
   }
 
-  // Logged in -- show organisation dashboard
+  // Logged in -- show children or organisation dashboard
+  if (children) {
+    return <>{children}</>
+  }
+
   return (
     <LkOrgContent
       userName={org.name || org.email}
-      initialDoctors={initialDoctors}
+      initialDoctors={initialDoctors ?? []}
       orgId={org.id}
     />
   )
