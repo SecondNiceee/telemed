@@ -79,3 +79,17 @@ export interface PayloadListResponse<T> {
   prevPage: number | null
   nextPage: number | null
 }
+
+export interface ApiAppointment {
+  id: number
+  user: { id: number; name?: string | null; email: string } | number
+  doctor: ApiDoctor | number
+  date: string
+  time: string
+  status: 'scheduled' | 'completed' | 'cancelled'
+  doctorName?: string | null
+  userName?: string | null
+  price?: number | null
+  createdAt: string
+  updatedAt: string
+}

@@ -27,7 +27,7 @@ export default async function DoctorDashboardPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <DoctorDashboardContent userName={doctor.name || doctor.email} />
+      <DoctorDashboardContent userName={doctor.name || doctor.email} doctorId={doctor.id} />
       <Footer />
     </div>
   )

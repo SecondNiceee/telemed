@@ -13,6 +13,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import type { DoctorScheduleDate } from "@/lib/api/types";
 
 interface BookingPageProps {
   params: Promise<{ id: string }>;
@@ -53,6 +54,16 @@ export default async function BookingPage({ params }: BookingPageProps) {
   const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
   const specialty = getDoctorSpecialty(doctor);
 
+  // Filter schedule to only include future dates with slots
+  const today = new Date().toISOString().split("T")[0];
+  const schedule: DoctorScheduleDate[] = (doctor.schedule || [])
+    .filter((s) => s.date >= today && s.slots && s.slots.length > 0)
+    .map((s) => ({
+      date: s.date,
+      slots: s.slots || [],
+      id: s.id,
+    }));
+
   return (
     <BookingClient
       doctorId={doctor.id}
@@ -60,6 +71,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
       doctorPhoto={photoUrl}
       doctorSpecialty={specialty}
       doctorPrice={doctor.price ?? 0}
+      schedule={schedule}
     />
   );
 }

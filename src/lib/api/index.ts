@@ -6,6 +6,7 @@ export { OrgAuthApi } from './org-auth'
 export { DoctorAuthApi } from './doctor-auth'
 export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
+export { AppointmentsApi } from './appointments'
 export type {
   ApiCategory,
   ApiMedia,
@@ -14,6 +15,7 @@ export type {
   ApiDoctor,
   ApiOrganisation,
   PayloadListResponse,
+  ApiAppointment,
 } from './types'
 export type { CreateCategoryPayload } from './categories'
 
