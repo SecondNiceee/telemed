@@ -3,7 +3,6 @@
 import React, { useEffect } from "react"
 import Link from "next/link"
 import { useCategoriesStore } from "@/stores/categories-store"
-import type { ApiCategory } from "@/lib/api/types"
 import {
   Plus,
   Stethoscope,

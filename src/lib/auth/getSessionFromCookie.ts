@@ -13,7 +13,7 @@ type AuthCollection = 'users' | 'doctors' | 'organisations'
  * Usage in RSC:
  *   const org = await getSessionFromCookie(await headers(), 'organisations-token', 'organisations')
  */
-export async function getSessionFromCookie<T = any>(
+export async function getSessionFromCookie<T = unknown>(
   requestHeaders: Headers,
   cookieName: string,
   collection: AuthCollection,

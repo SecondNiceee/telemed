@@ -20,10 +20,10 @@ export async function POST(req: NextRequest) {
 
     const payload = await getPayload({ config: configPromise })
 
-    let decoded: any
+    let decoded: { id?: string | number; collection?: string; email?: string } | null = null
     try {
-      decoded = jwt.verify(token, payload.secret)
-    } catch (err) {
+      decoded = jwt.verify(token, payload.secret) as { id?: string | number; collection?: string; email?: string }
+    } catch (_ignore) {
       return NextResponse.json(
         { error: 'Unauthorized: Invalid token' },
         { status: 401 }
@@ -66,24 +66,25 @@ export async function POST(req: NextRequest) {
         collection: 'organisations',
         role: 'organisation',
         email: decoded.email,
-      } as any,
+      } as unknown as Record<string, unknown>,
     })
 
     console.log('[v0] Category created successfully:', category)
 
     return NextResponse.json(category)
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('[v0] Category creation error:', err)
     
     // Check for duplicate slug error
-    if (err?.message?.includes('unique')) {
+    const errMsg = err instanceof Error ? err.message : ''
+    if (errMsg.includes('unique')) {
       return NextResponse.json(
         { error: 'Слаг должен быть уникальным' },
         { status: 400 }
       )
     }
 
-    const message = err?.message || 'Failed to create category'
+    const message = errMsg || 'Failed to create category'
     return NextResponse.json(
       { error: message },
       { status: 500 }

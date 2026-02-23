@@ -18,7 +18,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
   const router = useRouter();
 
   return (
-    <div onClick = {(e) => router.push(`/doctor/${doctor.id}`)} className="block">
+    <div onClick={() => router.push(`/doctor/${doctor.id}`)} className="block">
       <Card className="group py-5 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">

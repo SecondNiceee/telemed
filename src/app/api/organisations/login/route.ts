@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
     response.headers.append('Set-Cookie', buildSetCookie(COOKIE_NAME, token))
 
     return response
-  } catch (err: any) {
-    const message = err?.message || 'Invalid credentials'
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Invalid credentials'
     return NextResponse.json({ message }, { status: 401 })
   }
 }

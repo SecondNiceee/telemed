@@ -23,6 +23,7 @@ export type { CreateCategoryPayload } from './categories'
 import { AuthApi } from './auth'
 import { CategoriesApi } from './categories'
 import { DoctorsApi } from './doctors'
+import type { ApiDoctor } from './types'
 
 export const login = (email: string, password: string) => AuthApi.login(email, password)
 export const me = () => AuthApi.me()
@@ -36,7 +37,7 @@ export const fetchDoctors = () => DoctorsApi.fetchAll()
 export const fetchDoctorsByCategory = (categoryId: number) => DoctorsApi.fetchByCategory(categoryId)
 export const fetchDoctorById = (id: number | string) => DoctorsApi.fetchById(id)
 
-export const getDoctorCategories = (doctor: any) => DoctorsApi.getCategories(doctor)
-export const getDoctorSpecialty = (doctor: any) => DoctorsApi.getSpecialty(doctor)
-export const getDoctorEducation = (doctor: any) => DoctorsApi.getEducation(doctor)
-export const getDoctorServices = (doctor: any) => DoctorsApi.getServices(doctor)
+export const getDoctorCategories = (doctor: ApiDoctor) => DoctorsApi.getCategories(doctor)
+export const getDoctorSpecialty = (doctor: ApiDoctor) => DoctorsApi.getSpecialty(doctor)
+export const getDoctorEducation = (doctor: ApiDoctor) => DoctorsApi.getEducation(doctor)
+export const getDoctorServices = (doctor: ApiDoctor) => DoctorsApi.getServices(doctor)
