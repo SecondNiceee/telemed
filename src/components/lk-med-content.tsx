@@ -1,26 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useDoctorStore } from "@/stores/doctor-store"
+import { useAppointmentStore } from "@/stores/appointment-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, CalendarX } from "lucide-react"
-import type { ApiDoctor } from "@/lib/api/types"
+import { Loader2, CalendarX, Calendar, Clock, User as UserIcon } from "lucide-react"
+import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor | null
 }
 
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr + "T00:00:00")
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+}
+
+function getStatusLabel(status: ApiAppointment["status"]) {
+  switch (status) {
+    case "confirmed":
+      return "Подтверждена"
+    case "completed":
+      return "Завершена"
+    case "cancelled":
+      return "Отменена"
+  }
+}
+
+function getStatusColor(status: ApiAppointment["status"]) {
+  switch (status) {
+    case "confirmed":
+      return "bg-green-100 text-green-700"
+    case "completed":
+      return "bg-muted text-muted-foreground"
+    case "cancelled":
+      return "bg-destructive/10 text-destructive"
+  }
+}
+
 export function LkMedContent({ initialDoctor }: LkMedContentProps) {
   const router = useRouter()
   const { doctor: storeDoctor, login, loading } = useDoctorStore()
+  const {
+    appointments,
+    loading: apptLoading,
+    fetched: apptFetched,
+    fetchAppointments,
+  } = useAppointmentStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
 
   const doctor = storeDoctor || initialDoctor
+
+  useEffect(() => {
+    if (doctor) {
+      fetchAppointments()
+    }
+  }, [doctor, fetchAppointments])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,6 +141,8 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
     )
   }
 
+  const isLoading = apptLoading && !apptFetched
+
   // Logged in as doctor -- show personal cabinet
   return (
     <div className="flex-1">
@@ -109,19 +155,70 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
           <p className="text-muted-foreground mt-1">{doctor.email}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-            <CalendarX className="w-7 h-7 text-muted-foreground" />
+        <h2 className="text-lg font-semibold text-foreground mb-4">
+          Мои консультации
+        </h2>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-          <div>
-            <p className="text-lg font-medium text-foreground">
-              У вас нет консультаций
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Новые консультации появятся здесь, когда пациенты запишутся к вам
-            </p>
+        ) : appointments.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+              <CalendarX className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-lg font-medium text-foreground">
+                У вас нет консультаций
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Новые консультации появятся здесь, когда пациенты запишутся к вам
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {appointments.map((appt) => (
+              <div
+                key={appt.id}
+                className="rounded-xl border border-border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+              >
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-primary" />
+                    <span className="font-semibold text-foreground">
+                      {appt.userName || "Пациент"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {formatDate(appt.date)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {appt.time}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {appt.price != null && (
+                    <span className="text-lg font-bold text-foreground">
+                      {appt.price.toLocaleString("ru-RU")} ₽
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
+                  >
+                    {getStatusLabel(appt.status)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
