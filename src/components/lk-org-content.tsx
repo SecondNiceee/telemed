@@ -170,8 +170,6 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                             )}
                           </div>
                         </div>
-
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                       </Link>
 
                       <div className="flex items-center gap-2 ml-4">
@@ -196,6 +194,10 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                           <span className="hidden sm:inline">Удалить</span>
                         </Button>
                       </div>
+
+                      <Link href={`/doctor/${doctor.id}`} className="shrink-0 ml-2">
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </Link>
                     </div>
                   </div>
                 )
