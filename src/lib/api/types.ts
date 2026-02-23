@@ -37,6 +37,20 @@ export interface ApiOrganisation {
   updatedAt: string
 }
 
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+
+export interface DoctorScheduleSlot {
+  time: string
+  id?: string
+}
+
+export interface DoctorScheduleDay {
+  day: DayOfWeek
+  enabled: boolean
+  slots: DoctorScheduleSlot[]
+  id?: string
+}
+
 export interface ApiDoctor {
   id: number
   email: string
@@ -50,6 +64,7 @@ export interface ApiDoctor {
   bio?: string | null
   education?: ApiEducationItem[] | null
   services?: ApiServiceItem[] | null
+  schedule?: DoctorScheduleDay[] | null
   createdAt: string
   updatedAt: string
 }

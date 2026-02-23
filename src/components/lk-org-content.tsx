@@ -14,6 +14,7 @@ import {
   Stethoscope,
   Edit2,
   Trash2,
+  CalendarDays,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Media } from "@/payload-types"
@@ -173,6 +174,17 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                       </Link>
 
                       <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="gap-2"
+                        >
+                          <Link href={`/lk-org/doctor-schedule/${doctor.id}`}>
+                            <CalendarDays className="w-4 h-4" />
+                            <span className="hidden sm:inline">Расписание</span>
+                          </Link>
+                        </Button>
                         <Button
                           asChild
                           size="sm"
