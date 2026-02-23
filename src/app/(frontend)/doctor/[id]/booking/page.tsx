@@ -60,6 +60,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
       doctorPhoto={photoUrl}
       doctorSpecialty={specialty}
       doctorPrice={doctor.price ?? 0}
+      schedule={doctor.schedule ?? []}
     />
   );
 }

@@ -67,6 +67,21 @@ export interface ApiDoctor {
   updatedAt: string
 }
 
+export interface ApiAppointment {
+  id: number
+  doctor: ApiDoctor | number
+  user: { id: number; name?: string | null; email: string } | number
+  doctorName?: string | null
+  userName?: string | null
+  specialty?: string | null
+  date: string // YYYY-MM-DD
+  time: string // HH:MM
+  price?: number | null
+  status: 'confirmed' | 'completed' | 'cancelled'
+  createdAt: string
+  updatedAt: string
+}
+
 export interface PayloadListResponse<T> {
   docs: T[]
   totalDocs: number

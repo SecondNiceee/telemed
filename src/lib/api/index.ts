@@ -6,12 +6,14 @@ export { OrgAuthApi } from './org-auth'
 export { DoctorAuthApi } from './doctor-auth'
 export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
+export { AppointmentsApi } from './appointments'
 export type {
   ApiCategory,
   ApiMedia,
   ApiEducationItem,
   ApiServiceItem,
   ApiDoctor,
+  ApiAppointment,
   ApiOrganisation,
   PayloadListResponse,
 } from './types'

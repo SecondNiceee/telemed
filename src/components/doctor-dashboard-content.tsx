@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import {
   ChevronLeft,
@@ -9,8 +9,12 @@ import {
   Video,
   Clock,
   X,
+  Calendar,
+  User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useAppointmentStore } from "@/stores/appointment-store"
+import type { ApiAppointment } from "@/lib/api/types"
 
 type ConsultationTab = "active" | "completed"
 type FilterMode = "all" | "day" | "range"
@@ -230,11 +234,53 @@ function FilterLabel({ selection }: { selection: DateSelection }) {
   return null
 }
 
+function formatAppointmentDate(dateStr: string) {
+  const date = new Date(dateStr + "T00:00:00")
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+}
+
+function getStatusLabel(status: ApiAppointment["status"]) {
+  switch (status) {
+    case "confirmed":
+      return "Подтверждена"
+    case "completed":
+      return "Завершена"
+    case "cancelled":
+      return "Отменена"
+  }
+}
+
+function getStatusColor(status: ApiAppointment["status"]) {
+  switch (status) {
+    case "confirmed":
+      return "bg-green-100 text-green-700"
+    case "completed":
+      return "bg-muted text-muted-foreground"
+    case "cancelled":
+      return "bg-destructive/10 text-destructive"
+  }
+}
+
 export function DoctorDashboardContent({
   userName,
 }: {
   userName: string
 }) {
+  const {
+    appointments,
+    loading: apptLoading,
+    fetched: apptFetched,
+    fetchAppointments,
+  } = useAppointmentStore()
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [fetchAppointments])
+
   const [tab, setTab] = useState<ConsultationTab>("active")
   const [selection, setSelection] = useState<DateSelection>({
     mode: "all",
@@ -255,6 +301,25 @@ export function DoctorDashboardContent({
   const clearFilter = () => {
     setSelection({ mode: "all", day: null, rangeStart: null, rangeEnd: null })
   }
+
+  // Filter appointments by tab and date selection
+  const filteredAppointments = appointments.filter((appt) => {
+    // Tab filter
+    if (tab === "active" && appt.status !== "confirmed") return false
+    if (tab === "completed" && appt.status !== "completed") return false
+
+    // Date filter
+    if (selection.mode === "day" && selection.day) {
+      const apptDate = new Date(appt.date + "T00:00:00")
+      if (!isSameDay(apptDate, selection.day)) return false
+    }
+    if (selection.mode === "range" && selection.rangeStart && selection.rangeEnd) {
+      const apptDate = new Date(appt.date + "T00:00:00")
+      if (!isInRange(apptDate, selection.rangeStart, selection.rangeEnd)) return false
+    }
+
+    return true
+  })
 
   return (
     <div className="flex-1">
@@ -340,22 +405,69 @@ export function DoctorDashboardContent({
               </div>
             )}
 
-            {/* Empty state */}
-            <div className="rounded-xl border border-border bg-card p-12 flex flex-col items-center justify-center text-center">
-              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-5">
-                <Video className="w-7 h-7 text-muted-foreground" />
+            {/* Appointments List */}
+            {apptLoading && !apptFetched ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                {tab === "active"
-                  ? "Нет активных консультаций"
-                  : "Нет завершенных консультаций"}
-              </h3>
-              <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
-                {tab === "active"
-                  ? "Когда пациенты запишутся на консультацию, они появятся здесь"
-                  : "Завершенные консультации будут отображаться в этом разделе"}
-              </p>
-            </div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-12 flex flex-col items-center justify-center text-center">
+                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-5">
+                  <Video className="w-7 h-7 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  {tab === "active"
+                    ? "Нет активных консультаций"
+                    : "Нет завершенных консультаций"}
+                </h3>
+                <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
+                  {tab === "active"
+                    ? "Когда пациенты запишутся на консультацию, они появятся здесь"
+                    : "Завершенные консультации будут отображаться в этом разделе"}
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {filteredAppointments.map((appt) => (
+                  <div
+                    key={appt.id}
+                    className="rounded-xl border border-border bg-card p-5 flex flex-col sm:flex-row sm:items-center gap-4"
+                  >
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <UserIcon className="w-4 h-4 text-primary" />
+                        <span className="font-semibold text-foreground">
+                          {appt.userName || "Пациент"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatAppointmentDate(appt.date)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {appt.time}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {appt.price != null && (
+                        <span className="text-lg font-bold text-foreground">
+                          {appt.price.toLocaleString("ru-RU")} ₽
+                        </span>
+                      )}
+                      <span
+                        className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
+                      >
+                        {getStatusLabel(appt.status)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Sidebar - Calendar & Filter */}
