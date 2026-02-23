@@ -1,10 +1,33 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
-import { getCallerFromRequest } from './helpers/auth'
+import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
 
 const revalidateCategories = () => {
   revalidateTag(CATEGORIES_CACHE_TAG)
+}
+
+/**
+ * Populate req.user from the organisations cookie (organisations-token) without a DB query.
+ * JWT already contains id, email, collection -- enough for all access checks.
+ */
+function ensureReqUser({
+  req,
+}: {
+  req: PayloadRequest
+  operation: string
+}) {
+  if (req.user) return
+
+  const decoded = decodeSpecificCookie(req, 'organisations-token', 'organisations')
+  if (!decoded?.id) return
+
+  req.user = {
+    id: decoded.id,
+    email: decoded.email,
+    role: 'organisation',
+    collection: decoded.collection,
+  } as any
 }
 
 export const DoctorCategories: CollectionConfig = {
@@ -16,11 +39,21 @@ export const DoctorCategories: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => getCallerFromRequest(req).role === 'admin',
-    update: ({ req }) => getCallerFromRequest(req).role === 'admin',
-    delete: ({ req }) => getCallerFromRequest(req).role === 'admin',
+    create: ({ req }) => {
+      const caller = getCallerFromRequest(req)
+      return caller.role === 'admin' || caller.collection === 'organisations'
+    },
+    update: ({ req }) => {
+      const caller = getCallerFromRequest(req)
+      return caller.role === 'admin'
+    },
+    delete: ({ req }) => {
+      const caller = getCallerFromRequest(req)
+      return caller.role === 'admin'
+    },
   },
   hooks: {
+    beforeOperation: [ensureReqUser],
     afterChange: [
       () => {
         revalidateCategories()

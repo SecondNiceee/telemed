@@ -15,6 +15,7 @@ export type {
   ApiOrganisation,
   PayloadListResponse,
 } from './types'
+export type { CreateCategoryPayload } from './categories'
 
 // Legacy support: export functions as top-level exports for backward compatibility
 import { AuthApi } from './auth'

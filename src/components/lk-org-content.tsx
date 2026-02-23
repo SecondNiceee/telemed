@@ -11,6 +11,7 @@ import {
   Users,
   User,
   UserPlus,
+  Stethoscope,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Media } from "@/payload-types"
@@ -35,12 +36,20 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
               Добро пожаловать, {userName}
             </p>
           </div>
-          <Button asChild className="gap-2">
-            <Link href="/lk-org/doctor-create">
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Создать врача</span>
-            </Link>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button asChild variant="outline" className="gap-2">
+              <Link href="/lk-org/categories">
+                <Stethoscope className="w-4 h-4" />
+                <span className="hidden sm:inline">Специальности</span>
+              </Link>
+            </Button>
+            <Button asChild className="gap-2">
+              <Link href="/lk-org/doctor-create">
+                <UserPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">Создать врача</span>
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Doctors list */}
