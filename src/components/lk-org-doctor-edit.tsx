@@ -21,6 +21,7 @@ import {
   Loader2,
   ArrowLeft,
   X,
+  Save,
 } from "lucide-react"
 
 interface DoctorFormValues {
@@ -46,6 +47,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   const [doctor, setDoctor] = useState<ApiDoctor | null>(null)
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [existingPhotoId, setExistingPhotoId] = useState<number | null>(null)
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +63,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     watch,
     setValue,
     formState: { isSubmitting, errors },
-  } = useForm<DoctorFormValues>({ 
+  } = useForm<DoctorFormValues>({
     defaultValues: {
       name: "",
       email: "",
@@ -73,7 +75,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       bio: "",
       education: [{ value: "" }],
       services: [{ value: "" }],
-    }
+    },
   })
 
   const {
@@ -104,7 +106,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
 
         // Populate form with doctor data
         const categoryIds = (doctorData.categories || [])
-          .map((cat) => (typeof cat === 'number' ? cat : cat.id))
+          .map((cat) => (typeof cat === "number" ? cat : cat.id))
           .filter((id): id is number => id != null)
 
         const educationList = DoctorsApi.getEducation(doctorData)
@@ -119,17 +121,24 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
           degree: doctorData.degree || "",
           price: doctorData.price?.toString() || "",
           bio: doctorData.bio || "",
-          education: educationList.length > 0 
-            ? educationList.map(v => ({ value: v }))
-            : [{ value: "" }],
-          services: servicesList.length > 0
-            ? servicesList.map(v => ({ value: v }))
-            : [{ value: "" }],
+          education:
+            educationList.length > 0
+              ? educationList.map((v) => ({ value: v }))
+              : [{ value: "" }],
+          services:
+            servicesList.length > 0
+              ? servicesList.map((v) => ({ value: v }))
+              : [{ value: "" }],
         })
 
         // Set photo preview
-        if (doctorData.photo && typeof doctorData.photo === 'object' && 'url' in doctorData.photo) {
+        if (
+          doctorData.photo &&
+          typeof doctorData.photo === "object" &&
+          "url" in doctorData.photo
+        ) {
           setPhotoPreview(doctorData.photo.url as string)
+          setExistingPhotoId(doctorData.photo.id)
         }
       } catch (err) {
         console.error("[lk-org] Failed to load doctor:", err)
@@ -157,89 +166,143 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     [selectedCategories, setValue],
   )
 
-  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) {
       setPhoto(file)
-      const preview = URL.createObjectURL(file)
-      setPhotoPreview(preview)
+      setPhotoPreview(URL.createObjectURL(file))
     }
   }
 
-  const onSubmit = async (data: DoctorFormValues) => {
+  function removePhoto() {
+    setPhoto(null)
+    setExistingPhotoId(null)
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview)
+      setPhotoPreview(null)
+    }
+  }
+
+  async function onSubmit(data: DoctorFormValues) {
     setError(null)
     setSuccess(null)
 
     try {
-      const formData = new FormData()
-
-      // Add fields
-      formData.append("name", data.name)
-      formData.append("email", data.email)
-      if (data.password) {
-        formData.append("password", data.password)
-      }
-      formData.append("experience", data.experience ? parseInt(data.experience) : "")
-      formData.append("degree", data.degree)
-      formData.append("price", data.price ? parseInt(data.price) : "")
-      formData.append("bio", data.bio)
-
-      // Add categories as JSON
-      formData.append("categories", JSON.stringify(data.categories))
-
-      // Add education as JSON
-      const educationList = data.education
-        .map((e) => e.value)
-        .filter(Boolean)
-      formData.append("education", JSON.stringify(educationList.map(v => ({ value: v }))))
-
-      // Add services as JSON
-      const servicesList = data.services
-        .map((s) => s.value)
-        .filter(Boolean)
-      formData.append("services", JSON.stringify(servicesList.map(v => ({ value: v }))))
-
-      // Add photo if selected
+      // 1. Upload new photo if selected
+      let photoId: number | null = existingPhotoId
       if (photo) {
-        formData.append("photo", photo)
+        const formData = new FormData()
+        formData.append("file", photo)
+        formData.append("alt", data.name || "Doctor photo")
+        formData.append(
+          "_payload",
+          JSON.stringify({ alt: data.name || "Doctor photo" }),
+        )
+
+        const uploadRes = await fetch(`${basePath}/api/media`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        })
+
+        if (!uploadRes.ok) {
+          const body = await uploadRes.json().catch(() => null)
+          console.error("[lk-org] Photo upload failed:", body)
+          throw new Error(
+            body?.errors?.[0]?.message || "Ошибка загрузки фото",
+          )
+        }
+
+        const uploadData = await uploadRes.json()
+        photoId = uploadData.doc?.id ?? null
       }
 
-      const response = await fetch(`${basePath}/api/doctors/${doctorId}`, {
+      // 2. Update doctor via JSON PATCH (same approach as create uses POST with JSON)
+      const payload: Record<string, unknown> = {
+        name: data.name,
+        email: data.email,
+        organisation: orgId,
+      }
+
+      if (data.password && data.password.trim().length > 0) {
+        payload.password = data.password
+      }
+
+      if (data.categories.length > 0) {
+        payload.categories = data.categories
+      } else {
+        payload.categories = []
+      }
+
+      if (data.experience) payload.experience = Number(data.experience)
+      if (data.degree) payload.degree = data.degree
+      if (data.price) payload.price = Number(data.price)
+      if (data.bio) payload.bio = data.bio
+
+      if (photoId) {
+        payload.photo = photoId
+      } else {
+        payload.photo = null
+      }
+
+      const educationFiltered = data.education
+        .map((e) => e.value.trim())
+        .filter(Boolean)
+      payload.education =
+        educationFiltered.length > 0
+          ? educationFiltered.map((v) => ({ value: v }))
+          : []
+
+      const servicesFiltered = data.services
+        .map((s) => s.value.trim())
+        .filter(Boolean)
+      payload.services =
+        servicesFiltered.length > 0
+          ? servicesFiltered.map((v) => ({ value: v }))
+          : []
+
+      const updateRes = await fetch(`${basePath}/api/doctors/${doctorId}`, {
         method: "PATCH",
         credentials: "include",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
+      if (!updateRes.ok) {
+        const body = await updateRes.json().catch(() => null)
+        console.error("[lk-org] Doctor update failed:", body)
+        if (updateRes.status === 400) {
+          throw new Error(
+            "Пользователь с таким именем или email уже существует",
+          )
+        }
         throw new Error(
-          errorData.message || `HTTP ${response.status}`,
+          body?.errors?.[0]?.message ||
+            body?.message ||
+            "Ошибка обновления врача",
         )
       }
 
-      const updatedDoctor = await response.json()
-
-      setSuccess(`Врач "${data.name}" успешно обновлен!`)
-      setDoctor(updatedDoctor)
-
-      // Revalidate cache
+      // Revalidate doctors cache
       await revalidateDoctorsAction()
 
-      // Redirect back to main page after short delay
+      setSuccess(`Врач "${data.name || data.email}" успешно обновлен!`)
+
+      // Redirect back to org dashboard after short delay
       setTimeout(() => {
         router.push("/lk-org")
         router.refresh()
       }, 1500)
     } catch (err) {
-      console.error("[lk-org] Doctor update error:", err)
-      setError(err instanceof Error ? err.message : "Произошла ошибка при обновлении врача")
+      console.error("[lk-org] onSubmit error:", err)
+      setError(err instanceof Error ? err.message : "Произошла ошибка")
     }
   }
 
   if (isLoading) {
     return (
       <div className="flex-1">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
           </div>
@@ -251,10 +314,12 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   if (!doctor) {
     return (
       <div className="flex-1">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-20">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Врач не найден</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Врач не найден
+            </h2>
             <Button asChild>
               <Link href="/lk-org">Вернуться в кабинет</Link>
             </Button>
@@ -266,362 +331,429 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
 
   return (
     <div className="flex-1">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back button */}
-        <div className="mb-6">
-          <Button asChild variant="ghost" size="sm" className="gap-2">
-            <Link href="/lk-org">
-              <ArrowLeft className="w-4 h-4" />
-              <span>Назад</span>
-            </Link>
-          </Button>
-        </div>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back link */}
+        <Link
+          href="/lk-org"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Назад к кабинету
+        </Link>
 
-        {/* Page header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">
-            Редактирование врача
-          </h1>
-          <p className="text-muted-foreground">
-            Обновите информацию о враче
-          </p>
-        </div>
-
-        {/* Success message */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />
+        {/* Form card */}
+        <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Save className="w-5 h-5 text-primary" />
+            </div>
             <div>
-              <p className="font-medium text-green-900">{success}</p>
+              <h1 className="text-lg font-semibold text-foreground">
+                Редактирование врача
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Обновите данные врача
+              </p>
             </div>
           </div>
-        )}
 
-        {/* Error message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="font-medium text-red-900">{error}</p>
+          {/* Success message */}
+          {success && (
+            <div className="flex items-center gap-3 rounded-lg bg-green-500/10 border border-green-500/20 p-4 mb-6">
+              <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+              <p className="text-sm text-green-500 font-medium">{success}</p>
+              <button
+                type="button"
+                onClick={() => setSuccess(null)}
+                className="ml-auto p-1 rounded hover:bg-green-500/10 transition-colors"
+              >
+                <X className="w-4 h-4 text-green-500" />
+              </button>
             </div>
-          </div>
-        )}
+          )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          {/* Basic Info Section */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground mb-4">
+          {/* Error message */}
+          {error && (
+            <div className="flex items-center gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 mb-6">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+              <p className="text-sm text-destructive font-medium">{error}</p>
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="ml-auto p-1 rounded hover:bg-destructive/10 transition-colors"
+              >
+                <X className="w-4 h-4 text-destructive" />
+              </button>
+            </div>
+          )}
+
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex flex-col gap-6"
+          >
+            {/* Basic info section */}
+            <fieldset className="flex flex-col gap-4">
+              <legend className="text-sm font-semibold text-foreground mb-2">
                 Основная информация
-              </h2>
+              </legend>
 
-              {/* Name */}
-              <div className="mb-4">
-                <Label htmlFor="name" className="text-sm font-medium text-foreground">
-                  Имя врача
-                </Label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="doctor-name">ФИО врача *</Label>
                 <Input
-                  id="name"
-                  placeholder="Иван Иванов"
-                  className={cn(
-                    "mt-2",
-                    errors.name && "border-red-500 focus-visible:ring-red-500",
-                  )}
-                  {...register("name", {
-                    required: "Имя обязательно",
-                  })}
+                  id="doctor-name"
+                  placeholder="Иванов Иван Иванович"
+                  aria-invalid={!!errors.name}
+                  {...register("name", { required: "Обязательное поле" })}
                 />
                 {errors.name && (
-                  <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
                 )}
               </div>
 
-              {/* Email */}
-              <div className="mb-4">
-                <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="doctor@example.com"
-                  className={cn(
-                    "mt-2",
-                    errors.email && "border-red-500 focus-visible:ring-red-500",
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="doctor-email">Электронная почта *</Label>
+                  <Input
+                    id="doctor-email"
+                    type="email"
+                    placeholder="doctor@clinic.ru"
+                    aria-invalid={!!errors.email}
+                    {...register("email", {
+                      required: "Обязательное поле",
+                      pattern: {
+                        value:
+                          /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                        message: "Введите корректный email",
+                      },
+                    })}
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">
+                      {errors.email.message}
+                    </p>
                   )}
-                  {...register("email", {
-                    required: "Email обязателен",
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Некорректный email",
-                    },
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="doctor-password">
+                    Новый пароль (необязательно)
+                  </Label>
+                  <Input
+                    id="doctor-password"
+                    type="password"
+                    placeholder="Оставьте пустым, чтобы не менять"
+                    aria-invalid={!!errors.password}
+                    {...register("password", {
+                      minLength: {
+                        value: 6,
+                        message: "Минимум 6 символов",
+                      },
+                    })}
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">
+                      {errors.password.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </fieldset>
+
+            {/* Professional info */}
+            <fieldset className="flex flex-col gap-4">
+              <legend className="text-sm font-semibold text-foreground mb-2">
+                Профессиональная информация
+              </legend>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="doctor-experience">Стаж (лет) *</Label>
+                  <Input
+                    id="doctor-experience"
+                    type="number"
+                    min="0"
+                    placeholder="10"
+                    aria-invalid={!!errors.experience}
+                    {...register("experience", {
+                      required: "Обязательное поле",
+                    })}
+                  />
+                  {errors.experience && (
+                    <p className="text-sm text-destructive">
+                      {errors.experience.message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="doctor-price">
+                    Цена консультации (руб.) *
+                  </Label>
+                  <Input
+                    id="doctor-price"
+                    type="number"
+                    min="0"
+                    placeholder="3000"
+                    aria-invalid={!!errors.price}
+                    {...register("price", { required: "Обязательное поле" })}
+                  />
+                  {errors.price && (
+                    <p className="text-sm text-destructive">
+                      {errors.price.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="doctor-degree">Степень / Категория *</Label>
+                <Input
+                  id="doctor-degree"
+                  placeholder="Врач высшей категории, Кандидат медицинских наук"
+                  aria-invalid={!!errors.degree}
+                  {...register("degree", { required: "Обязательное поле" })}
+                />
+                {errors.degree && (
+                  <p className="text-sm text-destructive">
+                    {errors.degree.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="doctor-bio">О враче *</Label>
+                <Controller
+                  control={control}
+                  name="bio"
+                  rules={{ required: "Обязательное поле" }}
+                  render={({ field, fieldState }) => (
+                    <>
+                      <textarea
+                        id="doctor-bio"
+                        rows={4}
+                        placeholder="Расскажите о враче, его опыте и квалификации..."
+                        aria-invalid={!!fieldState.error}
+                        className={cn(
+                          "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm font-medium text-foreground",
+                          "placeholder:text-muted-foreground placeholder:font-normal focus-visible:outline-none",
+                          "focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                          "resize-y min-h-[100px]",
+                        )}
+                        {...field}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">
+                          {fieldState.error.message}
+                        </p>
+                      )}
+                    </>
+                  )}
+                />
+              </div>
+            </fieldset>
+
+            {/* Categories */}
+            {categories.length > 0 && (
+              <fieldset className="flex flex-col gap-3">
+                <legend className="text-sm font-semibold text-foreground mb-2">
+                  Специализации *
+                </legend>
+                <input
+                  type="hidden"
+                  {...register("categories", {
+                    validate: (v) =>
+                      v.length > 0 || "Выберите хотя бы одну специализацию",
                   })}
                 />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategories.includes(cat.id)
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => toggleCategory(cat.id)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all border",
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent text-muted-foreground border-border hover:border-primary/40 hover:text-foreground",
+                        )}
+                      >
+                        {isSelected && (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        )}
+                        {cat.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                {errors.categories && (
+                  <p className="text-sm text-destructive">
+                    {errors.categories.message}
+                  </p>
                 )}
-              </div>
+              </fieldset>
+            )}
 
-              {/* Password */}
-              <div className="mb-4">
-                <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                  Новый пароль (оставьте пусто, чтобы не менять)
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  className="mt-2"
-                  {...register("password")}
-                />
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-500">{errors.password.message}</p>
-                )}
-              </div>
-
-              {/* Photo */}
-              <div className="mb-4">
-                <Label className="text-sm font-medium text-foreground">
-                  Фото врача
-                </Label>
-                <div className="mt-2 flex gap-4">
-                  <div className="w-20 h-20 rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center shrink-0">
-                    {photoPreview ? (
-                      <img
-                        src={photoPreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Upload className="w-6 h-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onPhotoChange}
-                      className="hidden"
-                      id="photo-input"
+            {/* Photo upload */}
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-sm font-semibold text-foreground mb-2">
+                Фото врача
+              </legend>
+              {photoPreview ? (
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden border border-border bg-muted">
+                    <img
+                      src={photoPreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
                     />
-                    <label
-                      htmlFor="photo-input"
-                      className="inline-flex items-center justify-center px-4 py-2 border border-border rounded-lg cursor-pointer hover:bg-muted transition-colors text-sm font-medium"
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-sm text-foreground font-medium">
+                      {photo?.name || "Текущее фото"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
                     >
-                      Загрузить фото
-                    </label>
-                    {photoPreview && (
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Удалить
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="doctor-photo"
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border",
+                    "py-8 px-4 cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all",
+                  )}
+                >
+                  <Upload className="w-6 h-6 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Нажмите для загрузки фото
+                  </span>
+                  <span className="text-xs text-muted-foreground/60">
+                    JPG, PNG до 5 МБ
+                  </span>
+                  <input
+                    id="doctor-photo"
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handlePhotoChange}
+                  />
+                </label>
+              )}
+            </fieldset>
+
+            {/* Education - dynamic array */}
+            <fieldset className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <legend className="text-sm font-semibold text-foreground">
+                  Образование *
+                </legend>
+                <button
+                  type="button"
+                  onClick={() => appendEducation({ value: "" })}
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Добавить
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {educationFields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Учебное заведение / Курс"
+                      {...register(`education.${index}.value`, {
+                        required: "Обязательное поле",
+                      })}
+                    />
+                    {educationFields.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setPhoto(null)
-                          setPhotoPreview(null)
-                        }}
-                        className="ml-2 text-sm text-red-600 hover:text-red-700"
+                        onClick={() => removeEducation(index)}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                        aria-label="Удалить"
                       >
-                        Удалить
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
-                </div>
+                ))}
               </div>
+            </fieldset>
+
+            {/* Services - dynamic array */}
+            <fieldset className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <legend className="text-sm font-semibold text-foreground">
+                  Услуги *
+                </legend>
+                <button
+                  type="button"
+                  onClick={() => appendService({ value: "" })}
+                  className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+                >
+                  <Plus className="w-4 h-4" />
+                  Добавить
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                {serviceFields.map((field, index) => (
+                  <div key={field.id} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Название услуги"
+                      {...register(`services.${index}.value`, {
+                        required: "Обязательное поле",
+                      })}
+                    />
+                    {serviceFields.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeService(index)}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                        aria-label="Удалить"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+
+            {/* Submit */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                type="submit"
+                className="sm:w-auto"
+                disabled={isSubmitting}
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    <span>Сохранение...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Сохранить изменения</span>
+                  </>
+                )}
+              </Button>
+              <Button type="button" variant="outline" size="lg" asChild>
+                <Link href="/lk-org">Отмена</Link>
+              </Button>
             </div>
-          </div>
-
-          {/* Professional Info Section */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground mb-4">
-                Профессиональная информация
-              </h2>
-
-              {/* Categories */}
-              <div className="mb-6">
-                <Label className="text-sm font-medium text-foreground block mb-3">
-                  Специальности
-                </Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      onClick={() => toggleCategory(category.id)}
-                      className={cn(
-                        "p-3 rounded-lg border-2 text-left transition-all",
-                        selectedCategories.includes(category.id)
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/30",
-                      )}
-                    >
-                      <p className="font-medium text-foreground text-sm">
-                        {category.name}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Experience */}
-              <div className="mb-4">
-                <Label htmlFor="experience" className="text-sm font-medium text-foreground">
-                  Стаж (лет)
-                </Label>
-                <Input
-                  id="experience"
-                  type="number"
-                  placeholder="10"
-                  className="mt-2"
-                  {...register("experience")}
-                />
-              </div>
-
-              {/* Degree */}
-              <div className="mb-4">
-                <Label htmlFor="degree" className="text-sm font-medium text-foreground">
-                  Квалификация
-                </Label>
-                <Input
-                  id="degree"
-                  placeholder="Кандидат медицинских наук"
-                  className="mt-2"
-                  {...register("degree")}
-                />
-              </div>
-
-              {/* Price */}
-              <div className="mb-4">
-                <Label htmlFor="price" className="text-sm font-medium text-foreground">
-                  Стоимость консультации (₽)
-                </Label>
-                <Input
-                  id="price"
-                  type="number"
-                  placeholder="500"
-                  className="mt-2"
-                  {...register("price")}
-                />
-              </div>
-
-              {/* Bio */}
-              <div className="mb-4">
-                <Label htmlFor="bio" className="text-sm font-medium text-foreground">
-                  О себе
-                </Label>
-                <textarea
-                  id="bio"
-                  placeholder="Расскажите о себе..."
-                  className="mt-2 w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  rows={4}
-                  {...register("bio")}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Education Section */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Образование
-            </h2>
-            <div className="space-y-3">
-              {educationFields.map((field, index) => (
-                <div key={field.id} className="flex gap-2">
-                  <Input
-                    placeholder="Название учебного заведения"
-                    className="flex-1"
-                    {...register(`education.${index}.value`)}
-                  />
-                  {educationFields.length > 1 && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeEducation(index)}
-                      className="px-3"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() => appendEducation({ value: "" })}
-            >
-              <Plus className="w-4 h-4" />
-              Добавить образование
-            </Button>
-          </div>
-
-          {/* Services Section */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-foreground">
-              Услуги
-            </h2>
-            <div className="space-y-3">
-              {serviceFields.map((field, index) => (
-                <div key={field.id} className="flex gap-2">
-                  <Input
-                    placeholder="Название услуги"
-                    className="flex-1"
-                    {...register(`services.${index}.value`)}
-                  />
-                  {serviceFields.length > 1 && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeService(index)}
-                      className="px-3"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-2"
-              onClick={() => appendService({ value: "" })}
-            >
-              <Plus className="w-4 h-4" />
-              Добавить услугу
-            </Button>
-          </div>
-
-          {/* Submit */}
-          <div className="flex gap-3 pt-4 border-t border-border">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Сохранение...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Сохранить изменения
-                </>
-              )}
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/lk-org">
-                Отмена
-              </Link>
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )
