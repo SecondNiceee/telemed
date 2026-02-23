@@ -9,6 +9,7 @@ import {
   Stethoscope,
   ChevronRight,
   Loader2,
+  ArrowLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -22,6 +23,16 @@ export function LkOrgCategoriesList() {
   return (
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back button */}
+        <div className="mb-6">
+          <Button asChild variant="ghost" size="sm" className="gap-2">
+            <Link href="/lk-org">
+              <ArrowLeft className="w-4 h-4" />
+              <span>Назад</span>
+            </Link>
+          </Button>
+        </div>
+
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div>
