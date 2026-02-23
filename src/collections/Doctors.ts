@@ -82,7 +82,10 @@ export const Doctors: CollectionConfig = {
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req)
-      return caller.role === 'admin'
+      if (caller.role === 'admin') return true
+      // Organisation can delete its own doctors
+      if (caller.collection === 'organisations') return true
+      return false
     },
     admin: () => false, // Doctors don't access Payload Admin Panel
   },
