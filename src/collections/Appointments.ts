@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { decodeUsersCookie, decodeSpecificCookie, getCallerFromRequest } from './helpers/auth'
 
 /**
@@ -119,13 +119,13 @@ export const Appointments: CollectionConfig = {
       if (caller.collection === 'users' && caller.id) {
         return {
           user: { equals: Number(caller.id) },
-        } as Record<string, unknown>
+        } as Where
       }
       // Doctors can read their own appointments
       if (caller.collection === 'doctors' && caller.id) {
         return {
           doctor: { equals: Number(caller.id) },
-        } as Record<string, unknown>
+        } as Where
       }
       return false
     },
