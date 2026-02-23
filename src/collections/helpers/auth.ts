@@ -32,7 +32,8 @@ function getCookieHeader(req: PayloadRequest): string {
       return req.headers.get('cookie') || ''
     }
     if (req.headers && typeof req.headers === 'object') {
-      return (req.headers as any)['cookie'] || (req.headers as any).cookie || ''
+      const headers = req.headers as Record<string, string | undefined>
+      return headers['cookie'] || ''
     }
   } catch {
     // ignore
@@ -45,13 +46,13 @@ function getCookieHeader(req: PayloadRequest): string {
  * Uses jwt.decode() (no signature verification) because we run server-side
  * inside trusted Payload hooks/access functions and the cookie was set by Payload itself.
  */
-function decodeCookie(cookieHeader: string, cookieName: string): Record<string, any> | null {
+function decodeCookie(cookieHeader: string, cookieName: string): { id?: string | number; role?: string; email?: string; collection?: string } | null {
   const regex = new RegExp(`${cookieName}=([^;]+)`)
   const match = cookieHeader.match(regex)
   if (!match) return null
 
   try {
-    return jwt.decode(match[1]) as Record<string, any> | null
+    return jwt.decode(match[1]) as { id?: string | number; role?: string; email?: string; collection?: string } | null
   } catch {
     return null
   }
@@ -145,7 +146,7 @@ export function decodeSpecificCookie(
  * (no DB query needed -- JWT contains id, role, email, collection).
  */
 export function getCallerFromRequest(req: PayloadRequest): { role?: string; id?: string; collection?: AuthCollection } {
-  const user = req.user as { role?: string; id?: string | number; collection?: string } | undefined
+  const user = req.user as unknown as { role?: string; id?: string | number; collection?: string } | undefined
   if (user?.id) {
     return {
       role: user.role || (user.collection === 'doctors' ? 'doctor' : user.collection === 'organisations' ? 'organisation' : 'user'),

@@ -21,7 +21,7 @@ function ensureReqUser({
     email: decoded.email,
     role: decoded.role,
     collection: decoded.collection,
-  } as any
+  } as PayloadRequest['user']
 }
 
 export const Users: CollectionConfig = {

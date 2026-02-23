@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
 
   const payload = await getPayload({ config: configPromise })
 
-  let decoded: any
+  let decoded: { id?: string | number; collection?: string; email?: string } | null = null
   try {
-    decoded = jwt.verify(token, payload.secret)
+    decoded = jwt.verify(token, payload.secret) as { id?: string | number; collection?: string; email?: string }
   } catch {
     return NextResponse.json({ user: null })
   }
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null })
     }
 
-    const { hash, salt, ...safeUser } = user as any
+    const { hash: _hash, salt: _salt, ...safeUser } = user as Record<string, unknown>
     return NextResponse.json({ user: safeUser })
   } catch {
     return NextResponse.json({ user: null })

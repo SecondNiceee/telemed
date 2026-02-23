@@ -225,7 +225,7 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Удалить врача?</AlertDialogTitle>
             <AlertDialogDescription>
-              Вы уверены, что хотите удалить врача "{deleteDoctor?.name}"? Это действие не может быть отменено.
+              Вы уверены, что хотите удалить врача &laquo;{deleteDoctor?.name}&raquo;? Это действие не может быть отменено.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">

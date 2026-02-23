@@ -21,7 +21,7 @@ function ensureReqUser({
       email: userDecoded.email,
       role: userDecoded.role,
       collection: userDecoded.collection,
-    } as any
+    } as PayloadRequest['user']
     return
   }
 
@@ -33,7 +33,7 @@ function ensureReqUser({
       email: doctorDecoded.email,
       role: 'doctor',
       collection: doctorDecoded.collection,
-    } as any
+    } as PayloadRequest['user']
   }
 }
 
@@ -85,18 +85,18 @@ export const Appointments: CollectionConfig = {
             })
 
             if (doctor?.schedule) {
-              const updatedSchedule = doctor.schedule
-                .map((dayEntry: any) => {
+              const updatedSchedule = (doctor.schedule as { date: string; slots?: { time: string }[] }[])
+                .map((dayEntry) => {
                   if (dayEntry.date === doc.date) {
                     const filteredSlots = (dayEntry.slots || []).filter(
-                      (slot: any) => slot.time !== doc.time
+                      (slot) => slot.time !== doc.time
                     )
                     return { ...dayEntry, slots: filteredSlots }
                   }
                   return dayEntry
                 })
                 // Remove days with no slots left
-                .filter((dayEntry: any) => dayEntry.slots && dayEntry.slots.length > 0)
+                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0)
 
               await req.payload.update({
                 collection: 'doctors',
