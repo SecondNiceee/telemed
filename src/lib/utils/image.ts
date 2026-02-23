@@ -36,16 +36,33 @@ export function resolveImageUrl(
 
   // --- Local static asset (starts with `/`) ---
   if (url.startsWith('/')) {
+    const base = getBasePath() // e.g. "/telemed-dev" or ""
+
+    // If the URL already starts with basePath, don't double-prefix
+    if (base && url.startsWith(base)) {
+      const isServer = typeof window === 'undefined'
+      if (isServer) {
+        const serverUrl = (process.env.SERVER_URL || 'http://localhost:3000').replace(
+          /\/$/,
+          '',
+        )
+        return `${serverUrl}${url}`
+      }
+      return url
+    }
+
+    const prefixedUrl = `${base}${url}` // e.g. "/telemed-dev/images/logo.jpg"
+
     const isServer = typeof window === 'undefined'
     if (isServer) {
       const serverUrl = (process.env.SERVER_URL || 'http://localhost:3000').replace(
         /\/$/,
         '',
       )
-      return `${serverUrl}${url}`
+      return `${serverUrl}${prefixedUrl}`
     }
-    // Client-side: keep the path as-is
-    return url
+    // Client-side: return with basePath prefix so the browser resolves correctly
+    return prefixedUrl
   }
 
   // Anything else (full external URL, blob:, data:, etc.) — pass through

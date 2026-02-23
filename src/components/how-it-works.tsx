@@ -37,7 +37,7 @@ export function HowItWorks() {
         aria-hidden="true"
       />
       <img
-        src="/images/logo.jpg"
+        src={resolveImageUrl("/images/logo.jpg")}
         alt=""
         width={1200}
         height={1006}
