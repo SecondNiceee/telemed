@@ -36,6 +36,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     let errorMessage = `Ошибка ${response.status}`
     try {
       const body = await response.json()
+      console.log("[v0] API error response body:", JSON.stringify(body))
       if (body?.errors?.[0]?.message) {
         errorMessage = body.errors[0].message
       } else if (body?.message) {

@@ -202,10 +202,13 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
       setError("")
       // Only send dates that have slots
       const cleanSchedule = schedule.filter((d) => d.slots.length > 0)
-      await DoctorsApi.update(doctorId, { slotDuration, schedule: cleanSchedule } as any)
+      const payload = { slotDuration, schedule: cleanSchedule, weeklyScheduleTemplate: [] }
+      console.log("[v0] Saving schedule, payload:", JSON.stringify(payload))
+      await DoctorsApi.update(doctorId, payload as any)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {
+      console.log("[v0] Save error:", err)
       setError(err instanceof Error ? err.message : "Ошибка при сохранении расписания")
     } finally {
       setSaving(false)
