@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import { resolveImageUrl } from "@/lib/utils/image"
 import { DoctorsApi } from "@/lib/api/doctors"
@@ -12,9 +12,21 @@ import {
   User,
   UserPlus,
   Stethoscope,
+  Edit2,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Media } from "@/payload-types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface LkOrgContentProps {
   userName: string
@@ -23,6 +35,34 @@ interface LkOrgContentProps {
 }
 
 export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
+  const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const { toast } = useToast()
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteDoctor) return
+    
+    setIsDeleting(true)
+    try {
+      await DoctorsApi.delete(deleteDoctor.id)
+      toast({
+        title: "Успешно",
+        description: `Врач "${deleteDoctor.name}" удален`,
+      })
+      setDeleteDoctor(null)
+      // Refresh page to update list
+      window.location.reload()
+    } catch (err) {
+      toast({
+        title: "Ошибка",
+        description: err instanceof Error ? err.message : "Не удалось удалить врача",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -96,57 +136,108 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                 const specialty = DoctorsApi.getSpecialty(doctor)
 
                 return (
-                  <Link
+                  <div
                     key={doctor.id}
-                    href={`/doctor/${doctor.id}`}
                     className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all"
                   >
-                    <div className="flex items-center gap-4 p-4">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
-                        {doctor.photo ? (
-                          <img
-                            src={resolveImageUrl((doctor.photo as Media).url)}
-                            alt={doctor.name || "Врач"}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                          {doctor.name || "Без имени"}
-                        </h3>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {specialty}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          {doctor.experience != null && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              Стаж {doctor.experience} лет
-                            </span>
-                          )}
-                          {doctor.price != null && (
-                            <span className="font-semibold text-foreground">
-                              {doctor.price.toLocaleString("ru-RU")} ₽
-                            </span>
+                    <div className="flex items-center justify-between p-4">
+                      <Link
+                        href={`/doctor/${doctor.id}`}
+                        className="flex-1 flex items-center gap-4 min-w-0"
+                      >
+                        <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
+                          {doctor.photo ? (
+                            <img
+                              src={resolveImageUrl((doctor.photo as Media).url)}
+                              alt={doctor.name || "Врач"}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <User className="w-6 h-6 text-muted-foreground" />
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                            {doctor.name || "Без имени"}
+                          </h3>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {specialty}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            {doctor.experience != null && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                Стаж {doctor.experience} лет
+                              </span>
+                            )}
+                            {doctor.price != null && (
+                              <span className="font-semibold text-foreground">
+                                {doctor.price.toLocaleString("ru-RU")} ₽
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                      </Link>
+
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="gap-2"
+                        >
+                          <Link href={`/lk-org/doctor-edit/${doctor.id}`}>
+                            <Edit2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Изменить</span>
+                          </Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteDoctor(doctor)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Удалить</span>
+                        </Button>
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteDoctor} onOpenChange={(open) => !open && setDeleteDoctor(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить врача?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Вы уверены, что хотите удалить врача "{deleteDoctor?.name}"? Это действие не может быть отменено.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-3 justify-end">
+            <AlertDialogCancel disabled={isDeleting}>
+              Отмена
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isDeleting ? "Удаление..." : "Удалить"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

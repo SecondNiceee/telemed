@@ -81,4 +81,25 @@ export class DoctorsApi {
     if (!doctor.services) return []
     return doctor.services.map((s) => s.value).filter((v): v is string => Boolean(v))
   }
+
+  /**
+   * Update doctor by ID
+   */
+  static async update(id: number | string, data: Partial<ApiDoctor>): Promise<ApiDoctor> {
+    return apiFetch<ApiDoctor>(`/api/doctors/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Delete doctor by ID
+   */
+  static async delete(id: number | string): Promise<void> {
+    await apiFetch<void>(`/api/doctors/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+  }
 }

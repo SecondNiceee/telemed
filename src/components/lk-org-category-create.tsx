@@ -71,7 +71,7 @@ export function LkOrgCategoryCreate() {
 
       // Redirect back to categories list after short delay
       setTimeout(() => {
-        router.push("/lk-org/categories")
+        router.replace("/lk-org/categories")
         router.refresh()
       }, 1500)
     } catch (err) {
