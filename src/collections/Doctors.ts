@@ -24,7 +24,7 @@ function ensureReqUser({
     email: decoded.email,
     role: 'doctor',
     collection: decoded.collection,
-  } as PayloadRequest['user']
+  } as unknown as PayloadRequest['user']
 }
 
 export const Doctors: CollectionConfig = {
