@@ -7,7 +7,7 @@ import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata: Metadata = {
   title: "Расписание врача | smartcardio",
-  description: "Настройка еженедельного расписания врача",
+  description: "Настройка расписания врача по датам",
 }
 
 interface DoctorSchedulePageProps {
