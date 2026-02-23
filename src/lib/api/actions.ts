@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidateTag } from "next/cache"
-import { CategoriesApi } from "./categories"
+import { CategoriesApi, CATEGORIES_CACHE_TAG } from "./categories"
 import { DoctorsApi, DOCTORS_CACHE_TAG } from "./doctors"
 import type { ApiCategory, ApiDoctor } from "./types"
 
@@ -12,6 +12,14 @@ import type { ApiCategory, ApiDoctor } from "./types"
  */
 export async function fetchCategoriesAction(): Promise<ApiCategory[]> {
   return CategoriesApi.fetchAll()
+}
+
+/**
+ * Manually revalidate the categories cache tag.
+ * Useful after creating/updating a category from a client component.
+ */
+export async function revalidateCategoriesAction(): Promise<void> {
+  revalidateTag(CATEGORIES_CACHE_TAG)
 }
 
 /**

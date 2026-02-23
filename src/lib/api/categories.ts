@@ -4,6 +4,13 @@ import { ApiCategory, PayloadListResponse } from './types'
 /** Cache tag used for all category queries. Revalidated via DoctorCategories hooks. */
 export const CATEGORIES_CACHE_TAG = 'categories'
 
+export interface CreateCategoryPayload {
+  name: string
+  slug: string
+  description?: string
+  icon?: string
+}
+
 export class CategoriesApi {
   /**
    * Fetch all doctor categories
@@ -33,6 +40,17 @@ export class CategoriesApi {
   static async fetchById(id: number): Promise<ApiCategory> {
     return apiFetch<ApiCategory>(`/api/doctor-categories/${id}`, {
       next: { tags: [CATEGORIES_CACHE_TAG] },
+    })
+  }
+
+  /**
+   * Create a new category (from organisation)
+   */
+  static async create(data: CreateCategoryPayload): Promise<ApiCategory> {
+    return apiFetch<ApiCategory>('/api/doctor-categories', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(data),
     })
   }
 }
