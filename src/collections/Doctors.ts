@@ -3,6 +3,7 @@ import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
 
+
 /**
  * Populate req.user ONLY from the doctors cookie (doctors-token).
  * This ensures doctor hooks never accidentally adopt a user/org identity.

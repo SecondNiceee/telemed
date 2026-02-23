@@ -1,6 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
 
+
 /**
  * Populate req.user ONLY from the organisations cookie (organisations-token).
  * This ensures org hooks never accidentally adopt a user/doctor identity.
