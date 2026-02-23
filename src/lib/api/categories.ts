@@ -35,4 +35,21 @@ export class CategoriesApi {
       next: { tags: [CATEGORIES_CACHE_TAG] },
     })
   }
+
+  /**
+   * Create a new doctor category
+   */
+  static async create(data: {
+    name: string
+    slug: string
+    description?: string
+    icon?: string
+  }): Promise<ApiCategory> {
+    const res = await apiFetch<{ doc: ApiCategory }>('/api/doctor-categories', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    return res.doc
+  }
 }

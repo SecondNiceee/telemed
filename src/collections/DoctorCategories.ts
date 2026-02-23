@@ -16,8 +16,14 @@ export const DoctorCategories: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => getCallerFromRequest(req).role === 'admin',
-    update: ({ req }) => getCallerFromRequest(req).role === 'admin',
+    create: ({ req }) => {
+      const role = getCallerFromRequest(req).role
+      return role === 'admin' || role === 'organisation'
+    },
+    update: ({ req }) => {
+      const role = getCallerFromRequest(req).role
+      return role === 'admin' || role === 'organisation'
+    },
     delete: ({ req }) => getCallerFromRequest(req).role === 'admin',
   },
   hooks: {
