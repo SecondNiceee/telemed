@@ -29,11 +29,11 @@ import {
 
 interface LkOrgContentProps {
   userName: string
-  initialDoctors: ApiDoctor[]
+  initialDoctors?: ApiDoctor[]
   orgId: number
 }
 
-export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
+export function LkOrgContent({ userName, initialDoctors = [] }: LkOrgContentProps) {
   const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -135,6 +135,8 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                         href={`/doctor/${doctor.id}`}
                         className="flex-1 flex items-center gap-4 min-w-0"
                       >
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+
                         <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
                           {doctor.photo ? (
                             <img
@@ -170,8 +172,6 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
                             )}
                           </div>
                         </div>
-
-                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                       </Link>
 
                       <div className="flex items-center gap-2 ml-4">
