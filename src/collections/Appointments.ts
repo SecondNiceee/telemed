@@ -112,20 +112,20 @@ export const Appointments: CollectionConfig = {
     ],
   },
   access: {
-    read: ({ req }) => {
+    read: ({ req }: { req: PayloadRequest }) => {
       const caller = getCallerFromRequest(req)
       if (caller.role === 'admin') return true
       // Users can read their own appointments
       if (caller.collection === 'users' && caller.id) {
         return {
           user: { equals: Number(caller.id) },
-        }
+        } as Record<string, unknown>
       }
       // Doctors can read their own appointments
       if (caller.collection === 'doctors' && caller.id) {
         return {
           doctor: { equals: Number(caller.id) },
-        }
+        } as Record<string, unknown>
       }
       return false
     },
