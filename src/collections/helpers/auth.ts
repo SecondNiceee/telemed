@@ -32,7 +32,7 @@ function getCookieHeader(req: PayloadRequest): string {
       return req.headers.get('cookie') || ''
     }
     if (req.headers && typeof req.headers === 'object') {
-      const headers = req.headers as Record<string, string | undefined>
+      const headers = req.headers as unknown as Record<string, string | undefined>
       return headers['cookie'] || ''
     }
   } catch {
