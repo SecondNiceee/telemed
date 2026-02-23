@@ -1,6 +1,6 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
-import { createCustomAuthEndpoints } from './helpers/custom-auth-endpoints'
+
 
 /**
  * Populate req.user ONLY from the organisations cookie (organisations-token).
@@ -44,11 +44,6 @@ export const Organisations: CollectionConfig = {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
-  endpoints: createCustomAuthEndpoints({
-    slug: 'organisations',
-    cookieName: 'organisations-token',
-    tokenExpiration: 60 * 60 * 24 * 7,
-  }),
   hooks: {
     beforeOperation: [ensureReqUser],
     beforeChange: [

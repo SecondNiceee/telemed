@@ -21,7 +21,7 @@ interface OrgMeResponse {
 
 export class OrgAuthApi {
   static async login(email: string, password: string): Promise<OrgLoginResponse> {
-    return apiFetch<OrgLoginResponse>('/api/organisations/custom-login', {
+    return apiFetch<OrgLoginResponse>('/api/organisations/login', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ email, password }),
@@ -30,7 +30,7 @@ export class OrgAuthApi {
 
   static async me(): Promise<ApiOrganisation | null> {
     try {
-      const data = await apiFetch<OrgMeResponse>('/api/organisations/custom-me', {
+      const data = await apiFetch<OrgMeResponse>('/api/organisations/me', {
         credentials: 'include',
       })
       return data.user ?? null
@@ -40,7 +40,7 @@ export class OrgAuthApi {
   }
 
   static async logout(): Promise<void> {
-    await apiFetch<{ message: string }>('/api/organisations/custom-logout', {
+    await apiFetch<{ message: string }>('/api/organisations/logout', {
       method: 'POST',
       credentials: 'include',
     })
