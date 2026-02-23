@@ -21,7 +21,7 @@ function ensureReqUser({
       email: userDecoded.email,
       role: userDecoded.role,
       collection: userDecoded.collection,
-    } as PayloadRequest['user']
+    } as unknown as PayloadRequest['user']
     return
   }
 
@@ -33,7 +33,7 @@ function ensureReqUser({
       email: doctorDecoded.email,
       role: 'doctor',
       collection: doctorDecoded.collection,
-    } as PayloadRequest['user']
+    } as unknown as PayloadRequest['user']
   }
 }
 
