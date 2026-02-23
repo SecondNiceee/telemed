@@ -166,34 +166,37 @@ export const Doctors: CollectionConfig = {
       ],
     },
     {
+      name: 'slotDuration',
+      type: 'select',
+      label: 'Длительность слота (мин)',
+      defaultValue: '30',
+      options: [
+        { label: '15 минут', value: '15' },
+        { label: '30 минут', value: '30' },
+        { label: '45 минут', value: '45' },
+        { label: '60 минут', value: '60' },
+        { label: '90 минут', value: '90' },
+      ],
+      admin: {
+        description: 'Длительность одной консультации',
+      },
+    },
+    {
       name: 'schedule',
       type: 'array',
-      label: 'Расписание (еженедельный шаблон)',
-      maxRows: 7,
+      label: 'Расписание по датам',
       admin: {
-        description: 'Шаблон расписания на неделю. Максимум 7 дней (пн-вс).',
+        description: 'Расписание на конкретные даты. Можно ставить на год вперед.',
       },
       fields: [
         {
-          name: 'day',
-          type: 'select',
-          label: 'День недели',
+          name: 'date',
+          type: 'text',
+          label: 'Дата',
           required: true,
-          options: [
-            { label: 'Понедельник', value: 'monday' },
-            { label: 'Вторник', value: 'tuesday' },
-            { label: 'Среда', value: 'wednesday' },
-            { label: 'Четверг', value: 'thursday' },
-            { label: 'Пятница', value: 'friday' },
-            { label: 'Суббота', value: 'saturday' },
-            { label: 'Воскресенье', value: 'sunday' },
-          ],
-        },
-        {
-          name: 'enabled',
-          type: 'checkbox',
-          label: 'Рабочий день',
-          defaultValue: true,
+          admin: {
+            description: 'Формат YYYY-MM-DD',
+          },
         },
         {
           name: 'slots',
