@@ -14,7 +14,7 @@ interface DoctorMeResponse {
 
 export class DoctorAuthApi {
   static async login(email: string, password: string): Promise<DoctorLoginResponse> {
-    return apiFetch<DoctorLoginResponse>('/api/doctors/login', {
+    return apiFetch<DoctorLoginResponse>('/api/doctors/custom-login', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify({ email, password }),
@@ -23,7 +23,7 @@ export class DoctorAuthApi {
 
   static async me(): Promise<ApiDoctor | null> {
     try {
-      const data = await apiFetch<DoctorMeResponse>('/api/doctors/me', {
+      const data = await apiFetch<DoctorMeResponse>('/api/doctors/custom-me', {
         credentials: 'include',
       })
       return data.user ?? null
@@ -33,7 +33,7 @@ export class DoctorAuthApi {
   }
 
   static async logout(): Promise<void> {
-    await apiFetch<{ message: string }>('/api/doctors/logout', {
+    await apiFetch<{ message: string }>('/api/doctors/custom-logout', {
       method: 'POST',
       credentials: 'include',
     })

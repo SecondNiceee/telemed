@@ -2,6 +2,7 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
+import { createCustomAuthEndpoints } from './helpers/custom-auth-endpoints'
 
 /**
  * Populate req.user ONLY from the doctors cookie (doctors-token).
@@ -45,6 +46,11 @@ export const Doctors: CollectionConfig = {
     verify: false,
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
+  endpoints: createCustomAuthEndpoints({
+    slug: 'doctors',
+    cookieName: 'doctors-token',
+    tokenExpiration: 60 * 60 * 24 * 7,
+  }),
   hooks: {
     beforeOperation: [ensureReqUser],
     afterChange: [
