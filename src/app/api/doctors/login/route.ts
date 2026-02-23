@@ -25,6 +25,10 @@ export async function POST(req: NextRequest) {
       data: { email, password },
     })
 
+    if (!result.user) {
+      return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 })
+    }
+
     const token = signCollectionToken(
       {
         id: result.user.id,
