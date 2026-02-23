@@ -26,7 +26,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
 
 interface LkOrgContentProps {
   userName: string
@@ -37,7 +36,6 @@ interface LkOrgContentProps {
 export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
   const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const { toast } = useToast()
 
   const handleDeleteConfirm = async () => {
     if (!deleteDoctor) return
@@ -45,19 +43,11 @@ export function LkOrgContent({ userName, initialDoctors }: LkOrgContentProps) {
     setIsDeleting(true)
     try {
       await DoctorsApi.delete(deleteDoctor.id)
-      toast({
-        title: "Успешно",
-        description: `Врач "${deleteDoctor.name}" удален`,
-      })
       setDeleteDoctor(null)
       // Refresh page to update list
       window.location.reload()
     } catch (err) {
-      toast({
-        title: "Ошибка",
-        description: err instanceof Error ? err.message : "Не удалось удалить врача",
-        variant: "destructive",
-      })
+      alert(err instanceof Error ? err.message : "Не удалось удалить врача")
     } finally {
       setIsDeleting(false)
     }
