@@ -165,5 +165,53 @@ export const Doctors: CollectionConfig = {
         },
       ],
     },
+    {
+      name: 'schedule',
+      type: 'array',
+      label: 'Расписание (еженедельный шаблон)',
+      maxRows: 7,
+      admin: {
+        description: 'Шаблон расписания на неделю. Максимум 7 дней (пн-вс).',
+      },
+      fields: [
+        {
+          name: 'day',
+          type: 'select',
+          label: 'День недели',
+          required: true,
+          options: [
+            { label: 'Понедельник', value: 'monday' },
+            { label: 'Вторник', value: 'tuesday' },
+            { label: 'Среда', value: 'wednesday' },
+            { label: 'Четверг', value: 'thursday' },
+            { label: 'Пятница', value: 'friday' },
+            { label: 'Суббота', value: 'saturday' },
+            { label: 'Воскресенье', value: 'sunday' },
+          ],
+        },
+        {
+          name: 'enabled',
+          type: 'checkbox',
+          label: 'Рабочий день',
+          defaultValue: true,
+        },
+        {
+          name: 'slots',
+          type: 'array',
+          label: 'Временные слоты',
+          fields: [
+            {
+              name: 'time',
+              type: 'text',
+              label: 'Время',
+              required: true,
+              admin: {
+                description: 'Формат HH:MM, например 09:00',
+              },
+            },
+          ],
+        },
+      ],
+    },
   ],
 }
