@@ -5,10 +5,10 @@ import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
 
 
 /**
- * Populate req.user ONLY from the doctors cookie (doctors-token).
- * This ensures doctor hooks never accidentally adopt a user/org identity.
+ * Populate req.user from the doctors cookie (doctors-token) without a DB query.
+ * JWT already contains id, email, collection -- enough for all access checks.
  */
-async function ensureReqUser({
+function ensureReqUser({
   req,
 }: {
   req: PayloadRequest
@@ -19,20 +19,12 @@ async function ensureReqUser({
   const decoded = decodeSpecificCookie(req, 'doctors-token', 'doctors')
   if (!decoded?.id) return
 
-  try {
-    const user = await req.payload.findByID({
-      collection: decoded.collection,
-      id: decoded.id,
-      depth: 0,
-      overrideAccess: true,
-    })
-
-    if (user) {
-      req.user = { ...user, collection: decoded.collection } as any
-    }
-  } catch {
-    // silently fail
-  }
+  req.user = {
+    id: decoded.id,
+    email: decoded.email,
+    role: 'doctor',
+    collection: decoded.collection,
+  } as any
 }
 
 export const Doctors: CollectionConfig = {
