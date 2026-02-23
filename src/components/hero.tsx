@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
 
 export function Hero() {

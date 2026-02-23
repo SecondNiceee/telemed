@@ -43,7 +43,7 @@ export function HowItWorks() {
         width={1200}
         height={1006}
         className="pointer-events-none absolute blur-[25px] opacity-30 w-[15%] h-auto right-[5%] bottom-[10%] hidden md:block"
-        aria-hidden="true"
+        aria-hidden="true"  
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">

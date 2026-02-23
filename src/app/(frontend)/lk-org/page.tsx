@@ -19,7 +19,8 @@ export default async function LkOrgPage() {
   )
 
   // If org is authenticated on server, pre-fetch doctors
-  const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : []
+  const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : [];
+  console.log(doctors);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

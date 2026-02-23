@@ -4,5 +4,5 @@
  * Returns empty string if not set.
  */
 export function getBasePath(): string {
-  return process.env.NEXT_PUBLIC_BASE_PATH || ''
+  return process.env.NEXT_PUBLIC_BASE_PATH || '';
 }

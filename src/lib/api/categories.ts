@@ -18,7 +18,7 @@ export class CategoriesApi {
   static async fetchAll(): Promise<ApiCategory[]> {
     const data = await apiFetch<PayloadListResponse<ApiCategory>>(
       '/api/doctor-categories?limit=100&sort=name',
-      { next: { tags: [CATEGORIES_CACHE_TAG] } },
+      { next: { tags: [CATEGORIES_CACHE_TAG] }},
     )
     return data.docs
   }

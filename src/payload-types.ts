@@ -98,7 +98,7 @@ export interface Config {
   globals: {};
   globalsSelect: {};
   locale: null;
-  user: User;
+  user: User | Doctor | Organisation;
   jobs: {
     tasks: unknown;
     workflows: unknown;
@@ -159,7 +159,8 @@ export interface OrganisationAuthOperations {
   };
 }
 /**
- * Users collection - regular users + admin for Payload Admin Panel
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
  */
 export interface User {
   id: number;
@@ -185,7 +186,8 @@ export interface User {
   collection: 'users';
 }
 /**
- * Doctors collection - separate auth collection for doctors
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "doctors".
  */
 export interface Doctor {
   id: number;
@@ -193,6 +195,9 @@ export interface Doctor {
   organisation: number | Organisation;
   categories?: (number | DoctorCategory)[] | null;
   experience?: number | null;
+  /**
+   * Например: Врач высшей категории, Кандидат медицинских наук
+   */
   degree?: string | null;
   price?: number | null;
   photo?: (number | null) | Media;
@@ -206,6 +211,31 @@ export interface Doctor {
   services?:
     | {
         value?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Длительность одной консультации
+   */
+  slotDuration?: ('15' | '30' | '45' | '60' | '90') | null;
+  /**
+   * Расписание на конкретные даты. Можно ставить на год вперед.
+   */
+  schedule?:
+    | {
+        /**
+         * Формат YYYY-MM-DD
+         */
+        date: string;
+        slots?:
+          | {
+              /**
+               * Формат HH:MM, например 09:00
+               */
+              time: string;
+              id?: string | null;
+            }[]
+          | null;
         id?: string | null;
       }[]
     | null;
@@ -229,7 +259,8 @@ export interface Doctor {
   collection: 'doctors';
 }
 /**
- * Organisations collection - separate auth collection for clinic admins
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "organisations".
  */
 export interface Organisation {
   id: number;
@@ -260,8 +291,14 @@ export interface Organisation {
 export interface DoctorCategory {
   id: number;
   name: string;
+  /**
+   * Уникальный идентификатор для URL (например: therapist)
+   */
   slug: string;
   description?: string | null;
+  /**
+   * Название иконки из библиотеки Lucide (например: stethoscope, heart, brain)
+   */
   icon?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -436,6 +473,19 @@ export interface DoctorsSelect<T extends boolean = true> {
     | T
     | {
         value?: T;
+        id?: T;
+      };
+  slotDuration?: T;
+  schedule?:
+    | T
+    | {
+        date?: T;
+        slots?:
+          | T
+          | {
+              time?: T;
+              id?: T;
+            };
         id?: T;
       };
   updatedAt?: T;

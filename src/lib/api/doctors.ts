@@ -35,6 +35,7 @@ export class DoctorsApi {
       `/api/doctors?where[organisation][equals]=${orgId}&limit=100&depth=1&sort=name`,
       { next: { tags: [DOCTORS_CACHE_TAG] } },
     )
+    console.log(data);
     return data.docs
   }
 
