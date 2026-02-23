@@ -3,7 +3,6 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import {
   buildSetCookie,
-  buildClearCookie,
   signCollectionToken,
   TOKEN_EXPIRATION,
 } from '@/lib/auth-cookies'
@@ -42,7 +41,6 @@ export async function POST(req: NextRequest) {
     })
 
     response.headers.append('Set-Cookie', buildSetCookie(COOKIE_NAME, token))
-    response.headers.append('Set-Cookie', buildClearCookie('payload-token'))
 
     return response
   } catch (err: any) {

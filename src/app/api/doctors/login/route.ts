@@ -3,7 +3,6 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import {
   buildSetCookie,
-  buildClearCookie,
   signCollectionToken,
   TOKEN_EXPIRATION,
 } from '@/lib/auth-cookies'
@@ -42,10 +41,9 @@ export async function POST(req: NextRequest) {
       exp: Math.floor(Date.now() / 1000) + TOKEN_EXPIRATION,
     })
 
-    // Set our custom cookie
+    // Set our custom cookie (payload.login() does NOT set payload-token here
+    // because we're in a Next.js route handler, not a Payload endpoint)
     response.headers.append('Set-Cookie', buildSetCookie(COOKIE_NAME, token))
-    // Clear the default payload-token that payload.login() may have set
-    response.headers.append('Set-Cookie', buildClearCookie('payload-token'))
 
     return response
   } catch (err: any) {
