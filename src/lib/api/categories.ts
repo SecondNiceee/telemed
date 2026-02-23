@@ -45,9 +45,10 @@ export class CategoriesApi {
 
   /**
    * Create a new category (from organisation)
+   * Uses the special organisations endpoint that handles auth via organisations-token
    */
   static async create(data: CreateCategoryPayload): Promise<ApiCategory> {
-    return apiFetch<ApiCategory>('/api/doctor-categories', {
+    return apiFetch<ApiCategory>('/api/organisations/categories/create', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify(data),
