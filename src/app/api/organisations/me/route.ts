@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null })
     }
 
-    const { hash: _hash, salt: _salt, ...safeUser } = user as Record<string, unknown>
+    const { hash: _hash, salt: _salt, ...safeUser } = user as unknown as Record<string, unknown>
     return NextResponse.json({ user: safeUser })
   } catch {
     return NextResponse.json({ user: null })
