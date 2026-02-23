@@ -2,11 +2,10 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { getCallerFromRequest, decodeUsersCookie } from './helpers/auth'
 
 /**
- * Populate req.user ONLY from the users cookie (payload-token).
- * This ensures that org/doctor cookies never override the admin user
- * in the Payload Admin Panel.
+ * Populate req.user from the users cookie (payload-token) without a DB query.
+ * JWT already contains id, role, email, collection -- enough for all access checks.
  */
-async function ensureReqUser({
+function ensureReqUser({
   req,
 }: {
   req: PayloadRequest
@@ -17,20 +16,12 @@ async function ensureReqUser({
   const decoded = decodeUsersCookie(req)
   if (!decoded?.id) return
 
-  try {
-    const user = await req.payload.findByID({
-      collection: decoded.collection,
-      id: decoded.id,
-      depth: 0,
-      overrideAccess: true,
-    })
-
-    if (user) {
-      req.user = { ...user, collection: decoded.collection } as any
-    }
-  } catch {
-    // silently fail
-  }
+  req.user = {
+    id: decoded.id,
+    email: decoded.email,
+    role: decoded.role,
+    collection: decoded.collection,
+  } as any
 }
 
 export const Users: CollectionConfig = {

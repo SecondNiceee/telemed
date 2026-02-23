@@ -140,11 +140,11 @@ export function decodeSpecificCookie(
 }
 
 /**
- * Get the caller's role and id. Checks req.user first (populated by Payload from DB,
- * includes real role), then falls back to cookie decode.
+ * Get the caller's role, id, and collection from req.user.
+ * req.user is populated by ensureReqUser hooks directly from JWT cookie data
+ * (no DB query needed -- JWT contains id, role, email, collection).
  */
 export function getCallerFromRequest(req: PayloadRequest): { role?: string; id?: string; collection?: AuthCollection } {
-  // 1. Prefer req.user — Payload populates it from the DB, so it has the real role.
   const user = req.user as { role?: string; id?: string | number; collection?: string } | undefined
   if (user?.id) {
     return {
@@ -154,7 +154,7 @@ export function getCallerFromRequest(req: PayloadRequest): { role?: string; id?:
     }
   }
 
-  // 2. Fallback: decode JWT from cookies (e.g. when req.user is not yet populated).
+  // Fallback: decode JWT from cookies (for collections without ensureReqUser, e.g. Media, DoctorCategories).
   const decoded = decodeAnyCookie(req)
   if (decoded) {
     return { role: decoded.role, id: decoded.id, collection: decoded.collection }
