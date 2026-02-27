@@ -113,33 +113,31 @@ export const Appointments: CollectionConfig = {
   },
   access: {
     read: ({ req }: { req: PayloadRequest }) => {
-      const caller = getCallerFromRequest(req)
-      if (caller.role === 'admin') return true
-      // Users can read their own appointments
-      if (caller.collection === 'users' && caller.id) {
-        return {
-          user: { equals: Number(caller.id) },
-        } as Where
+      // Check admin via users token
+      const callerAsUser = getCallerFromRequest(req, 'users')
+      if (callerAsUser.role === 'admin') return true
+      // Regular user reads their own appointments
+      if (callerAsUser.collection === 'users' && callerAsUser.id) {
+        return { user: { equals: Number(callerAsUser.id) } } as Where
       }
-      // Doctors can read their own appointments
-      if (caller.collection === 'doctors' && caller.id) {
-        return {
-          doctor: { equals: Number(caller.id) },
-        } as Where
+      // Doctor reads their own appointments
+      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      if (callerAsDoctor.collection === 'doctors' && callerAsDoctor.id) {
+        return { doctor: { equals: Number(callerAsDoctor.id) } } as Where
       }
       return false
     },
     create: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       // Only logged-in users can create appointments
       return caller.collection === 'users' && !!caller.id
     },
     update: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       return caller.role === 'admin'
     },
     delete: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       return caller.role === 'admin'
     },
     admin: () => true,
