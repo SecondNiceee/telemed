@@ -1,8 +1,15 @@
 "use client"
 
-import { useState, memo, useCallback, useRef, useEffect } from "react"
+import { useState, memo, useCallback } from "react"
 import { Plus, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import type { DoctorScheduleSlot } from "@/lib/api/types"
 import { ClockPicker } from "./ClockPicker"
 
@@ -18,37 +25,17 @@ export const AddSlotInput = memo(function AddSlotInput({
   const [value, setValue] = useState("09:00")
   const [inputError, setInputError] = useState("")
   const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return
-    function handleOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleOutside)
-    return () => document.removeEventListener("mousedown", handleOutside)
-  }, [open])
 
   const handleAdd = useCallback(() => {
     setInputError("")
-    if (!value) {
-      setInputError("Введите время")
-      return
-    }
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-      setInputError("Формат: HH:MM (например 09:00)")
-      return
-    }
     if (existingSlots.some((s) => s.time === value)) {
       setInputError("Такой слот уже существует")
       return
     }
     onAdd(value)
     setOpen(false)
-    // Advance +30 min
+
+    // Advance +30 min for next slot
     const [h, m] = value.split(":").map(Number)
     const totalMin = h * 60 + m + 30
     if (totalMin < 24 * 60) {
@@ -58,63 +45,58 @@ export const AddSlotInput = memo(function AddSlotInput({
     }
   }, [value, existingSlots, onAdd])
 
+  const handleOpen = useCallback(() => {
+    setInputError("")
+    setOpen(true)
+  }, [])
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        {/* Clock trigger button */}
-        <div ref={containerRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-mono font-medium transition-colors
-              ${open
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-border bg-secondary text-foreground hover:border-primary/50 hover:bg-primary/5"
-              }`}
-          >
-            <Clock className="w-4 h-4 flex-shrink-0" />
-            <span>{value}</span>
-          </button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleOpen}
+        className="gap-2"
+      >
+        <Clock className="w-4 h-4" />
+        {value}
+        <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+      </Button>
 
-          {open && (
-            <div
-              className="absolute bottom-full left-0 z-50 mb-2 rounded-2xl border border-border bg-card p-4 shadow-xl"
-              style={{ minWidth: 256 }}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-xs p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle className="text-base font-semibold">
+              Выбор времени
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="px-6 py-4">
+            <ClockPicker value={value} onChange={setValue} />
+            {inputError && (
+              <p className="mt-2 text-center text-xs text-destructive">
+                {inputError}
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 pb-6 gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpen(false)}
             >
-              <ClockPicker value={value} onChange={setValue} />
-              <div className="mt-3 flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpen(false)}
-                >
-                  Отмена
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAdd}
-                >
-                  Выбрать
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleAdd}
-          className="gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Добавить
-        </Button>
-      </div>
-      {inputError && <p className="text-xs text-destructive">{inputError}</p>}
-    </div>
+              Отмена
+            </Button>
+            <Button type="button" size="sm" onClick={handleAdd} className="flex-1">
+              <Plus className="w-4 h-4 mr-1" />
+              Добавить {value}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 })
