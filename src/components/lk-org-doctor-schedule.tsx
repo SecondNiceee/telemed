@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import Link from "next/link"
-import { ArrowLeft, Loader2, CalendarDays } from "lucide-react"
+import { ArrowLeft, Loader2, CalendarDays, CalendarRange } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSchedule } from "@/components/lk-org/schedule/useSchedule"
 import { SlotDurationSelector } from "@/components/lk-org/schedule/SlotDurationSelector"
@@ -10,6 +10,8 @@ import { ScheduleCalendar } from "@/components/lk-org/schedule/ScheduleCalendar"
 import { SlotEditor } from "@/components/lk-org/schedule/SlotEditor"
 import { ScheduleSummary } from "@/components/lk-org/schedule/ScheduleSummary"
 import { SaveScheduleBar } from "@/components/lk-org/schedule/SaveScheduleBar"
+import { WeekPatternDialog } from "@/components/lk-org/schedule/WeekPatternDialog"
+import type { DoctorScheduleSlot } from "@/lib/api/types"
 
 interface LkOrgDoctorScheduleProps {
   doctorId: number
@@ -43,6 +45,16 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
   const [clipboardSlots, setClipboardSlots] = useState<
     { time: string }[] | null
   >(null)
+  const [patternOpen, setPatternOpen] = useState(false)
+
+  const handleApplyPattern = useCallback(
+    (entries: { date: string; slots: DoctorScheduleSlot[] }[]) => {
+      for (const entry of entries) {
+        setDateSlots(entry.date, entry.slots)
+      }
+    },
+    [setDateSlots],
+  )
 
   const canPrev =
     viewYear > today.getFullYear() ||
@@ -98,7 +110,7 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
               <span className="sr-only">Назад</span>
             </Link>
           </Button>
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 flex-1">
             <h1 className="text-xl font-semibold text-foreground text-balance">
               Расписание: {doctorName}
             </h1>
@@ -106,6 +118,15 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
               Выберите дату в календаре и добавьте слоты приема
             </p>
           </div>
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={() => setPatternOpen(true)}
+          >
+            <CalendarRange className="w-4 h-4" />
+            <span className="hidden sm:inline">Создать паттерн</span>
+            <span className="sm:hidden">Паттерн</span>
+          </Button>
         </div>
 
         <SlotDurationSelector value={slotDuration} onChange={setSlotDuration} />
@@ -161,6 +182,14 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
           onSave={handleSave}
         />
       </div>
+
+      <WeekPatternDialog
+        open={patternOpen}
+        onClose={() => setPatternOpen(false)}
+        today={today}
+        maxDate={maxDate}
+        onApply={handleApplyPattern}
+      />
     </div>
   )
 }
