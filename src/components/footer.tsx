@@ -84,9 +84,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-background/20 text-center text-background/50 text-sm">
-          <p>&copy; {new Date().getFullYear()} smartcardio. Все права защищены.</p>
-        </div>
+
       </div>
     </footer>
   );
