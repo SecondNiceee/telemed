@@ -27,6 +27,7 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
   const [mode, setMode] = useState<ClockMode>("hours")
   const svgRef = useRef<SVGSVGElement>(null)
   const dragging = useRef(false)
+  const switchOnUp = useRef(false)
 
   const SIZE = 260
   const CX = SIZE / 2
@@ -74,7 +75,7 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
         const isInner = dist < mid
         const h = isInner ? (raw === 12 ? 0 : raw + 12) : raw
         onChange(`${String(h).padStart(2, "0")}:${mStr}`)
-        setTimeout(() => setMode("minutes"), 200)
+        switchOnUp.current = true
       } else {
         const raw = Math.round(angle / 6) % 60
         onChange(`${hStr}:${String(raw).padStart(2, "0")}`)
@@ -98,7 +99,13 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
     },
     [interact],
   )
-  const onPointerUp = useCallback(() => { dragging.current = false }, [])
+  const onPointerUp = useCallback(() => {
+    dragging.current = false
+    if (switchOnUp.current) {
+      switchOnUp.current = false
+      setMode("minutes")
+    }
+  }, [])
 
   return (
     <div className="flex flex-col items-center gap-4 select-none">
