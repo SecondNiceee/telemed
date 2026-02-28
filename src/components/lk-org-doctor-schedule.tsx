@@ -32,11 +32,10 @@ const MONTH_NAMES = [
 const WEEKDAY_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 
 const SLOT_DURATION_OPTIONS = [
-  { value: "15", label: "15 мин" },
+  { value: "20", label: "20 мин" },
   { value: "30", label: "30 мин" },
-  { value: "45", label: "45 мин" },
+  { value: "40", label: "40 мин" },
   { value: "60", label: "1 час" },
-  { value: "90", label: "1.5 часа" },
 ]
 
 function toDateStr(d: Date): string {
@@ -276,7 +275,7 @@ export function LkOrgDoctorSchedule({ doctorId }: LkOrgDoctorScheduleProps) {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">Длительность слота:</span>
+              <span className="text-sm font-medium text-foreground">Длительность консультаций:</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {SLOT_DURATION_OPTIONS.map((opt) => (
