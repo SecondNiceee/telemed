@@ -184,6 +184,22 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
           )
         })()}
 
+        {/* Hand line — rendered before numbers so numbers appear on top */}
+        <line
+          x1={CX} y1={CY}
+          x2={handEnd.x} y2={handEnd.y}
+          stroke="var(--primary)"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          style={{ transition: "x2 0.15s, y2 0.15s" }}
+        />
+
+        {/* Hand end circle */}
+        <circle cx={handEnd.x} cy={handEnd.y} r={6} fill="var(--primary)" />
+
+        {/* Center dot */}
+        <circle cx={CX} cy={CY} r={4.5} fill="var(--primary)" />
+
         {/* Hour numbers — outer ring (1–12, AM / 00–11 outer) */}
         {mode === "hours" &&
           HOUR_OUTER.map((n) => {
@@ -248,21 +264,7 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
             )
           })}
 
-        {/* Hand line */}
-        <line
-          x1={CX} y1={CY}
-          x2={handEnd.x} y2={handEnd.y}
-          stroke="var(--primary)"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          style={{ transition: "x2 0.15s, y2 0.15s" }}
-        />
 
-        {/* Hand end circle */}
-        <circle cx={handEnd.x} cy={handEnd.y} r={6} fill="var(--primary)" />
-
-        {/* Center dot */}
-        <circle cx={CX} cy={CY} r={4.5} fill="var(--primary)" />
       </svg>
 
       {/* Mode hint */}
