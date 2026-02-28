@@ -4,9 +4,9 @@ import { resolveImageUrl } from "@/lib/utils/image";
 
 export function Footer() {
   return (
-    <footer className="bg-foreground text-background py-12">
+    <footer className="bg-foreground text-background py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="space-y-4">
             <Link href="/" className="flex items-center gap-2">
               <img
@@ -84,7 +84,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-background/20 text-center text-background/50 text-sm">
+        <div className="mt-6 pt-4 border-t border-background/20 text-center text-background/50 text-sm">
           <p>&copy; {new Date().getFullYear()} smartcardio. Все права защищены.</p>
         </div>
       </div>
