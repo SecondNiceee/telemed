@@ -25,6 +25,7 @@ export class DoctorAuthApi {
     try {
       const data = await apiFetch<DoctorMeResponse>('/api/doctors/me', {
         credentials: 'include',
+        cache: 'no-store',
       })
       return data.user ?? null
     } catch {

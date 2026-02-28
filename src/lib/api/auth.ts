@@ -31,6 +31,7 @@ export class AuthApi {
     try {
       const data = await apiFetch<MeResponse>('/api/users/me', {
         credentials: 'include',
+        cache: 'no-store',
       })
       return data.user ?? null
     } catch {
