@@ -43,12 +43,15 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
   const hours = parseInt(hStr, 10)
   const minutes = parseInt(mStr, 10)
 
-  const isAfternoon = hours >= 12
-  const display12 = hours % 12 === 0 ? 12 : hours % 12
-  const hourAngle = (display12 / 12) * 360
+  // hours 1–12 → outer ring, hours 0 + 13–23 → inner ring
+  const isInnerHour = hours === 0 || hours >= 13
+  const clockPos = isInnerHour ? (hours === 0 ? 12 : hours - 12) : hours // 1–12 position on face
+  const hourAngle = (clockPos / 12) * 360
   const minAngle = (minutes / 60) * 360
   const handAngle = mode === "hours" ? hourAngle : minAngle
-  const handR = mode === "hours" ? (isAfternoon ? INNER_R - 8 : OUTER_R - 8) : OUTER_R - 8
+  const handR = mode === "hours" ? (isInnerHour ? INNER_R - 8 : OUTER_R - 8) : OUTER_R - 8
+  const display12 = hours % 12 === 0 ? 12 : hours % 12
+  const isAfternoon = hours >= 12
   const handEnd = polar(CX, CY, handR, handAngle)
 
   function getSVGPoint(clientX: number, clientY: number) {
@@ -73,6 +76,7 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
         const raw = Math.round(angle / 30) % 12 || 12
         const mid = (OUTER_R + INNER_R) / 2
         const isInner = dist < mid
+        // Outer ring: 1–12 (дневное). Inner ring: 13–23 + 00
         const h = isInner ? (raw === 12 ? 0 : raw + 12) : raw
         onChange(`${String(h).padStart(2, "0")}:${mStr}`)
         switchOnUp.current = true
@@ -205,7 +209,7 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
           HOUR_OUTER.map((n) => {
             const angle = (n / 12) * 360
             const pos = polar(CX, CY, OUTER_R, angle)
-            const selected = display12 === n && !isAfternoon
+            const selected = hours === n
             return (
               <g key={`ho-${n}`}>
                 {selected && <circle cx={pos.x} cy={pos.y} r={16} fill="var(--primary)" />}
@@ -221,13 +225,13 @@ export const ClockPicker = memo(function ClockPicker({ value, onChange }: ClockP
             )
           })}
 
-        {/* Hour numbers — inner ring (13–23 + 00 PM) */}
+        {/* Hour numbers — inner ring (13–23 + 00) */}
         {mode === "hours" &&
           HOUR_OUTER.map((n) => {
             const inner = n === 12 ? 0 : n + 12
             const angle = (n / 12) * 360
             const pos = polar(CX, CY, INNER_R, angle)
-            const selected = isAfternoon && (inner === 0 ? hours === 0 : hours === inner)
+            const selected = hours === inner
             return (
               <g key={`hi-${n}`}>
                 {selected && <circle cx={pos.x} cy={pos.y} r={13} fill="var(--primary)" />}
