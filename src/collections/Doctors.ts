@@ -56,7 +56,7 @@ export const Doctors: CollectionConfig = {
           data._verified = true
 
           // Auto-set organisation if the creator is an org
-          const caller = getCallerFromRequest(req)
+          const caller = getCallerFromRequest(req, 'organisations')
           if (caller.collection === 'organisations' && caller.id) {
             data.organisation = Number(caller.id)
           }
@@ -68,23 +68,28 @@ export const Doctors: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      return caller.role === 'admin' || caller.collection === 'organisations'
+      // Organisation creates doctors; admin can too
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
+      if (callerAsOrg.role === 'admin' || callerAsOrg.collection === 'organisations') return true
+      return false
     },
     update: ({ req, id }) => {
-      const caller = getCallerFromRequest(req)
-      if (caller.role === 'admin') return true
-      // Doctor can update themselves
-      if (caller.collection === 'doctors' && caller.id && String(caller.id) === String(id)) return true
-      // Organisation can update its own doctors (handled via where query in practice)
-      if (caller.collection === 'organisations') return true
+      // Admin
+      const callerAsUser = getCallerFromRequest(req, 'users')
+      if (callerAsUser.role === 'admin') return true
+      // Doctor updates themselves
+      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      if (callerAsDoctor.collection === 'doctors' && callerAsDoctor.id && String(callerAsDoctor.id) === String(id)) return true
+      // Organisation updates its doctors
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
+      if (callerAsOrg.collection === 'organisations') return true
       return false
     },
     delete: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      if (caller.role === 'admin') return true
-      // Organisation can delete its own doctors
-      if (caller.collection === 'organisations') return true
+      const callerAsUser = getCallerFromRequest(req, 'users')
+      if (callerAsUser.role === 'admin') return true
+      const callerAsOrg = getCallerFromRequest(req, 'organisations')
+      if (callerAsOrg.collection === 'organisations') return true
       return false
     },
     admin: () => false, // Doctors don't access Payload Admin Panel

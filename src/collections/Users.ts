@@ -49,21 +49,21 @@ export const Users: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       return caller.role === 'admin'
     },
     update: ({ req, id }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       if (caller.role === 'admin') return true
       if (caller.id && String(caller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       return caller.role === 'admin'
     },
     admin: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'users')
       return caller.role === 'admin'
     },
   },

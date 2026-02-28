@@ -140,22 +140,69 @@ export function decodeSpecificCookie(
   }
 }
 
+const COOKIE_MAP: Record<AuthCollection, string> = {
+  users: 'payload-token',
+  doctors: 'doctors-token',
+  organisations: 'organisations-token',
+}
+
 /**
- * Get the caller's role, id, and collection from req.user.
- * req.user is populated by ensureReqUser hooks directly from JWT cookie data
- * (no DB query needed -- JWT contains id, role, email, collection).
+ * Get the caller's role, id, and collection from req.user (set by ensureReqUser hooks).
+ *
+ * @param callerType - When provided, only the cookie for that specific collection is consulted
+ *   in the fallback path. This prevents cross-collection cookie conflicts (e.g. an organisation
+ *   request accidentally picking up a doctors-token). Admin check always reads the users cookie
+ *   regardless of callerType.
  */
-export function getCallerFromRequest(req: PayloadRequest): { role?: string; id?: string; collection?: AuthCollection } {
+export function getCallerFromRequest(
+  req: PayloadRequest,
+  callerType?: AuthCollection,
+): { role?: string; id?: string; collection?: AuthCollection } {
   const user = req.user as unknown as { role?: string; id?: string | number; collection?: string } | undefined
+
   if (user?.id) {
-    return {
-      role: user.role || (user.collection === 'doctors' ? 'doctor' : user.collection === 'organisations' ? 'organisation' : 'user'),
-      id: String(user.id),
-      collection: (user.collection as AuthCollection) || 'users',
+    const col = (user.collection as AuthCollection) || 'users'
+    // If a callerType is specified, only trust req.user when it matches that collection.
+    // Exception: always trust admins (users with role === 'admin') regardless of callerType.
+    const isAdmin = col === 'users' && user.role === 'admin'
+    if (!callerType || col === callerType || isAdmin) {
+      return {
+        role: user.role || (col === 'doctors' ? 'doctor' : col === 'organisations' ? 'organisation' : 'user'),
+        id: String(user.id),
+        collection: col,
+      }
     }
   }
 
-  // Fallback: decode JWT from cookies (for collections without ensureReqUser, e.g. Media, DoctorCategories).
+  // Fallback: decode JWT directly from cookies.
+  const cookieHeader = getCookieHeader(req)
+  if (!cookieHeader) return {}
+
+  if (callerType) {
+    // Always also check for admin in the users cookie.
+    const userDecoded = decodeCookie(cookieHeader, 'payload-token')
+    if (userDecoded?.id && userDecoded.role === 'admin') {
+      return { role: 'admin', id: String(userDecoded.id), collection: 'users' }
+    }
+
+    // Then check only the specific cookie for the requested callerType.
+    const decoded = decodeCookie(cookieHeader, COOKIE_MAP[callerType])
+    if (decoded?.id) {
+      let role: string
+      if (callerType === 'users') {
+        role = decoded.role || 'user'
+      } else if (callerType === 'doctors') {
+        role = 'doctor'
+      } else {
+        role = 'organisation'
+      }
+      return { role, id: String(decoded.id), collection: callerType }
+    }
+
+    return {}
+  }
+
+  // No callerType specified — fall back to the original any-cookie priority chain.
   const decoded = decodeAnyCookie(req)
   if (decoded) {
     return { role: decoded.role, id: decoded.id, collection: decoded.collection }

@@ -40,15 +40,15 @@ export const DoctorCategories: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'organisations')
       return caller.role === 'admin' || caller.collection === 'organisations'
     },
     update: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'organisations')
       return caller.role === 'admin'
     },
     delete: ({ req }) => {
-      const caller = getCallerFromRequest(req)
+      const caller = getCallerFromRequest(req, 'organisations')
       return caller.role === 'admin'
     },
   },
