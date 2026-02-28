@@ -32,6 +32,7 @@ export class OrgAuthApi {
     try {
       const data = await apiFetch<OrgMeResponse>('/api/organisations/me', {
         credentials: 'include',
+        cache: 'no-store',
       })
       return data.user ?? null
     } catch {
