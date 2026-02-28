@@ -59,12 +59,12 @@ export function resolveImageUrl(
         /\/$/,
         '',
       )
-      return `${serverUrl}${prefixedUrl}`
+      return `${serverUrl}${url}`
     }
     // Client-side: return with basePath prefix so the browser resolves correctly
     return prefixedUrl
   }
 
   // Anything else (full external URL, blob:, data:, etc.) — pass through
-  return url
+  return getBasePath() + url
 }

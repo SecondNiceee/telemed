@@ -9,7 +9,7 @@ import {
   Video,
   Clock,
   X,
-  Calendar,
+  Calendar1Icon,
   User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -442,7 +442,7 @@ export function DoctorDashboardContent({
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
+                          <Calendar1Icon className="w-3.5 h-3.5" />
                           {formatAppointmentDate(appt.date)}
                         </span>
                         <span className="flex items-center gap-1">

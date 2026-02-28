@@ -1,22 +1,23 @@
-import type { CollectionConfig } from 'payload'
-import { getCallerFromRequest } from './helpers/auth'
+import type { CollectionConfig, PayloadRequest } from 'payload'
+import { getCallerFromRequest } from './helpers/auth';
+
+const checkAccessCookie = ({req} : {req:PayloadRequest}) => {
+  const user = getCallerFromRequest(req, "users");
+  if (user?.role === "admin") return true;
+  const organisation = getCallerFromRequest(req, "organisations");
+  if (organisation?.collection === "organisations") return true;
+  const doctor = getCallerFromRequest(req, 'doctors');
+  if (doctor?.collection === "doctors") return true;
+  return false 
+}
 
 export const Media: CollectionConfig = {
   slug: 'media',
   access: {
     read: () => true,
-    create: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      return caller.role === 'admin' || caller.collection === 'organisations'
-    },
-    update: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      return caller.role === 'admin' || caller.collection === 'organisations'
-    },
-    delete: ({ req }) => {
-      const caller = getCallerFromRequest(req)
-      return caller.role === 'admin'
-    },
+    create: checkAccessCookie,
+    update: checkAccessCookie,
+    delete: checkAccessCookie
   },
   fields: [
     {

@@ -51,18 +51,18 @@ export const Organisations: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
     update: ({ req, id }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      if (caller.role === 'admin') return true
+      if (caller?.role === 'admin') return true
       // Organisation can update itself
-      if (caller.collection === 'organisations' && caller.id && String(caller.id) === String(id)) return true
+      if (caller?.collection === 'organisations' && caller.id && String(caller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
     admin: () => false, // Organisations don't access Payload Admin Panel
   },

@@ -19,10 +19,10 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
 
   return (
     <div onClick={() => router.push(`/doctor/${doctor.id}`)} className="block">
-      <Card className="group py-5 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
+      <Card className="group py-0 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">
-            <div className="relative w-full sm:w-40 h-52 sm:h-auto flex-shrink-0">
+            <div className="relative w-full sm:w-50 sm:h-auto flex-shrink-0">
               <img
                 src={resolveImageUrl((doctor?.photo as Media)?.url)}
                 alt={doctor.name || "Врач"}
@@ -30,7 +30,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
               />
             </div>
             
-            <div className="flex-1 flex flex-col px-5 py-1 justify-center">
+            <div className="flex-1 my-5 flex flex-col px-5 py-1 justify-center">
               <div className="flex-1 flex flex-col justify-center">
                 <div className="flex items-start justify-between mb-2">
                   <div>

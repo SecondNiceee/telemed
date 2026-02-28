@@ -99,9 +99,9 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           </Button>
 
           {/* Doctor Header */}
-          <Card className="mb-2 overflow-hidden">
-            <CardContent className="py-0">
-              <div className="flex flex-col py-0 md:flex-row md:items-stretch">
+          <Card className="mb-2 py-0 px-0 overflow-hidden">
+            <CardContent className="py-0 px-0 ">
+              <div className="flex flex-col py-0 md:flex-row gap-3 md:items-stretch">
                 <div className="w-full md:w-80 h-72 md:h-auto flex-shrink-0 relative">
                   <img
                     src={photoUrl}
@@ -110,7 +110,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
                   />
                 </div>
 
-                <div className="flex-1 px-6 py-1 text-center md:text-left flex flex-col justify-center">
+                <div className="flex-1 px-6 py-6 text-center md:text-left flex flex-col justify-center">
                   <div className="mb-1 gap-2 flex flex-col">
                     <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                       {doctor.name}

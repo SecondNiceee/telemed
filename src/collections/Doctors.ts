@@ -57,7 +57,7 @@ export const Doctors: CollectionConfig = {
 
           // Auto-set organisation if the creator is an org
           const caller = getCallerFromRequest(req, 'organisations')
-          if (caller.collection === 'organisations' && caller.id) {
+          if (caller?.collection === 'organisations' && caller.id) {
             data.organisation = Number(caller.id)
           }
         }
@@ -69,27 +69,29 @@ export const Doctors: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       // Organisation creates doctors; admin can too
-      const callerAsOrg = getCallerFromRequest(req, 'organisations')
-      if (callerAsOrg.role === 'admin' || callerAsOrg.collection === 'organisations') return true
+      const user = getCallerFromRequest(req, "users");
+      if (user?.role === "admin") return true;
+      const organistion = getCallerFromRequest(req, 'organisations')
+      if (organistion?.collection === "organisations") return true;
       return false
     },
     update: ({ req, id }) => {
       // Admin
-      const callerAsUser = getCallerFromRequest(req, 'users')
-      if (callerAsUser.role === 'admin') return true
+      const user = getCallerFromRequest(req, 'users')
+      if (user?.role === 'admin') return true
       // Doctor updates themselves
-      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
-      if (callerAsDoctor.collection === 'doctors' && callerAsDoctor.id && String(callerAsDoctor.id) === String(id)) return true
+      const doctor = getCallerFromRequest(req, 'doctors')
+      if (doctor?.collection === 'doctors' && doctor.id && String(doctor.id) === String(id)) return true
       // Organisation updates its doctors
       const callerAsOrg = getCallerFromRequest(req, 'organisations')
-      if (callerAsOrg.collection === 'organisations') return true
+      if (callerAsOrg?.collection === 'organisations') return true
       return false
     },
     delete: ({ req }) => {
       const callerAsUser = getCallerFromRequest(req, 'users')
-      if (callerAsUser.role === 'admin') return true
+      if (callerAsUser?.role === 'admin') return true
       const callerAsOrg = getCallerFromRequest(req, 'organisations')
-      if (callerAsOrg.collection === 'organisations') return true
+      if (callerAsOrg?.collection === 'organisations') return true
       return false
     },
     admin: () => false, // Doctors don't access Payload Admin Panel

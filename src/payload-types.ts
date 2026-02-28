@@ -74,6 +74,7 @@ export interface Config {
     organisations: Organisation;
     media: Media;
     'doctor-categories': DoctorCategory;
+    appointments: Appointment;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -86,6 +87,7 @@ export interface Config {
     organisations: OrganisationsSelect<false> | OrganisationsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'doctor-categories': DoctorCategoriesSelect<false> | DoctorCategoriesSelect<true>;
+    appointments: AppointmentsSelect<false> | AppointmentsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -324,6 +326,36 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appointments".
+ */
+export interface Appointment {
+  id: number;
+  doctor: number | Doctor;
+  user: number | User;
+  /**
+   * Заполняется автоматически для удобного отображения
+   */
+  doctorName?: string | null;
+  /**
+   * Заполняется автоматически
+   */
+  userName?: string | null;
+  specialty?: string | null;
+  /**
+   * Формат YYYY-MM-DD
+   */
+  date: string;
+  /**
+   * Формат HH:MM
+   */
+  time: string;
+  price?: number | null;
+  status: 'confirmed' | 'completed' | 'cancelled';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -365,6 +397,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'doctor-categories';
         value: number | DoctorCategory;
+      } | null)
+    | ({
+        relationTo: 'appointments';
+        value: number | Appointment;
       } | null);
   globalSlug?: string | null;
   user:
@@ -555,6 +591,23 @@ export interface DoctorCategoriesSelect<T extends boolean = true> {
   slug?: T;
   description?: T;
   icon?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appointments_select".
+ */
+export interface AppointmentsSelect<T extends boolean = true> {
+  doctor?: T;
+  user?: T;
+  doctorName?: T;
+  userName?: T;
+  specialty?: T;
+  date?: T;
+  time?: T;
+  price?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }
