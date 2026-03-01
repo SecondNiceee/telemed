@@ -80,8 +80,7 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Ошибка при входе")
-    } finally {
-      isSubmittingRef.current = false
+      setTimeout(() => { isSubmittingRef.current = false }, 300)
     }
   }
 
@@ -105,7 +104,9 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     } catch (err) {
       setRegError(err instanceof Error ? err.message : "Ошибка при регистрации")
     } finally {
-      isSubmittingRef.current = false
+      // Delay release so Zustand re-render (loading:false) doesn't close dialog
+      // before error state is painted
+      setTimeout(() => { isSubmittingRef.current = false }, 300)
     }
   }
 
