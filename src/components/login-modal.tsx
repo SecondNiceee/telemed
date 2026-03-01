@@ -101,7 +101,18 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className="sm:max-w-md"
+          onPointerDownOutside={(e) => {
+            if (loading || regError || loginError) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (loading || regError || loginError) e.preventDefault()
+          }}
+          onFocusOutside={(e) => {
+            e.preventDefault()
+          }}
+        >
         <DialogHeader>
           <DialogTitle className="text-xl text-center">
             {tab === "login" ? "Вход в аккаунт" : "Регистрация"}
