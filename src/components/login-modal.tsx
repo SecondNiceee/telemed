@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { AuthApi } from "@/lib/api/auth"
 import { useUserStore } from "@/stores/user-store"
+import { getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MailCheck } from "lucide-react"
 
 type Tab = "login" | "register"
@@ -41,6 +41,9 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const [regConfirm, setRegConfirm] = useState("")
   const [regError, setRegError] = useState("")
   const [regSuccess, setRegSuccess] = useState(false)
+  const [verifyChecking, setVerifyChecking] = useState(false)
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const handleReset = () => {
     setLoginEmail("")
@@ -53,7 +56,12 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setRegError("")
     setRegSuccess(false)
     setSubmitting(false)
+    setVerifyChecking(false)
     setTab("login")
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
   }
 
   const handleOpenChange = (value: boolean) => {
@@ -62,24 +70,63 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     if (!value) handleReset()
   }
 
+  const attemptAutoLogin = async () => {
+    if (!regEmail || !regPassword) return
+    try {
+      const user = await useUserStore.getState().login(regEmail, regPassword)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+      useUserStore.getState().setUser(user)
+      setOpen(false)
+      handleReset()
+      onSuccess?.()
+      if (user.role === "user" || user.role === "admin") {
+        router.push("/lk")
+      } else {
+        router.refresh()
+      }
+    } catch {
+      // Not verified yet — silently ignore, keep polling
+    }
+  }
+
+  // Start polling when regSuccess becomes true
+  useEffect(() => {
+    if (!regSuccess) return
+
+    attemptAutoLogin()
+
+    intervalRef.current = setInterval(() => {
+      attemptAutoLogin()
+    }, 7000)
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regSuccess])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
     setSubmitting(true)
     try {
-      const result = await AuthApi.login(loginEmail, loginPassword)
-      // Update zustand store with the logged-in user
-      useUserStore.getState().setUser(result.user)
+      const user = await useUserStore.getState().login(loginEmail, loginPassword)
       setOpen(false)
       handleReset()
       onSuccess?.()
-      if (result.user.role === "user" || result.user.role === "admin") {
+      if (user.role === "user" || user.role === "admin") {
         router.push("/lk")
       } else {
         router.refresh()
       }
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Ошибка при входе")
+      setLoginError(getErrorMessage(err))
       setSubmitting(false)
     }
   }
@@ -99,27 +146,33 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
 
     setSubmitting(true)
     try {
-      await AuthApi.register({ name: regName, email: regEmail, password: regPassword })
+      await useUserStore.getState().register(regName, regEmail, regPassword)
       setRegSuccess(true)
     } catch (err) {
-      setRegError(err instanceof Error ? err.message : "Ошибка при регистрации")
+      setRegError(getErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleConfirmCheck = async () => {
+    setVerifyChecking(true)
+    await attemptAutoLogin()
+    setVerifyChecking(false)
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-        <DialogContent
-          className="sm:max-w-md"
-          onPointerDownOutside={(e) => {
-            if (submitting) e.preventDefault()
-          }}
-          onInteractOutside={(e) => {
-            if (submitting) e.preventDefault()
-          }}
-        >
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => {
+          if (submitting) e.preventDefault()
+        }}
+        onInteractOutside={(e) => {
+          if (submitting) e.preventDefault()
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="text-xl text-center">
             {tab === "login" ? "Вход в аккаунт" : "Регистрация"}
@@ -205,6 +258,23 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
                   <span className="font-medium text-foreground">{regEmail}</span>.
                   Перейдите по ней, чтобы завершить регистрацию.
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  После подтверждения вы будете автоматически перенаправлены...
+                </p>
+                <Button
+                  className="w-full"
+                  onClick={handleConfirmCheck}
+                  disabled={verifyChecking}
+                >
+                  {verifyChecking ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      <span>Проверяем...</span>
+                    </>
+                  ) : (
+                    "Я подтвердил почту"
+                  )}
+                </Button>
                 <Button variant="outline" className="w-full" onClick={() => handleOpenChange(false)}>
                   Закрыть
                 </Button>
