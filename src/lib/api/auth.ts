@@ -61,21 +61,21 @@ export class AuthApi {
   }
 
   /**
-   * Register a new user (self-registration). Payload will send a verification email.
+   * Register a new user via custom route that handles duplicate unverified users.
    */
-  static async register(data: RegisterData): Promise<RegisterResponse> {
-    return apiFetch<RegisterResponse>('/api/users', {
+  static async register(data: RegisterData): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>('/api/auth/register', {
       method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({ ...data, role: 'user' }),
+      body: JSON.stringify(data),
     })
   }
 
   /**
    * Verify email with the token from the verification email link.
+   * Payload endpoint: POST /api/users/verify/{token}
    */
   static async verifyEmail(token: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>(`/api/users/verify-email?token=${token}`, {
+    return apiFetch<{ message: string }>(`/api/users/verify/${token}`, {
       method: 'POST',
     })
   }
