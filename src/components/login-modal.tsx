@@ -13,7 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useUserStore } from "@/stores/user-store"
-import { AuthApi } from "@/lib/api/auth"
 import { Loader2, MailCheck } from "lucide-react"
 
 type Tab = "login" | "register"
@@ -25,7 +24,7 @@ interface LoginModalProps {
 
 export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const router = useRouter()
-  const { login, loading } = useUserStore()
+  const { login, loading, register } = useUserStore()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>("login")
 
@@ -40,7 +39,6 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const [regPassword, setRegPassword] = useState("")
   const [regConfirm, setRegConfirm] = useState("")
   const [regError, setRegError] = useState("")
-  const [regLoading, setRegLoading] = useState(false)
   const [regSuccess, setRegSuccess] = useState(false)
 
   const handleReset = () => {
@@ -92,14 +90,11 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       return
     }
 
-    setRegLoading(true)
     try {
-      await AuthApi.register({ name: regName, email: regEmail, password: regPassword })
+      await register(regName, regEmail, regPassword)
       setRegSuccess(true)
     } catch (err) {
       setRegError(err instanceof Error ? err.message : "Ошибка при регистрации")
-    } finally {
-      setRegLoading(false)
     }
   }
 
@@ -249,8 +244,8 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
                 {regError && (
                   <p className="text-sm text-destructive text-center">{regError}</p>
                 )}
-                <Button type="submit" className="w-full" disabled={regLoading}>
-                  {regLoading ? (
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
                     <>
                       <Loader2 className="animate-spin" />
                       <span>Регистрация...</span>
