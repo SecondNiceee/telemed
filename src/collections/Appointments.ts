@@ -77,9 +77,9 @@ export const Appointments: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, operation, req }) => {
+      async ({ doc, operation }) => {
         if (operation === 'create') {
-          // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
+          // doc.doctor may be a populated object, a JSON string, or a raw id
           let doctorRaw: unknown = doc.doctor
           if (typeof doctorRaw === 'string') {
             try { doctorRaw = JSON.parse(doctorRaw) } catch { /* not JSON, keep as-is */ }
@@ -89,43 +89,15 @@ export const Appointments: CollectionConfig = {
               ? (doctorRaw as { id: number }).id
               : Number(doctorRaw)
 
-          console.log('[v0] doctorId resolved:', doctorId, '| date:', doc.date, '| time:', doc.time)
-          try {
-            const doctor = await req.payload.findByID({
-              collection: 'doctors',
-              id: doctorId,
-            })
-            console.log(doctor);
-
-            if (doctor?.schedule) {
-              const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
-
-              console.log(rawSchedule);
-
-              const updatedSchedule = rawSchedule
-                .map((dayEntry) => {
-                  if (dayEntry.date === doc.date) {
-                    return {
-                      ...dayEntry,
-                      slots: (dayEntry.slots || []).filter((slot) => slot.time !== doc.time),
-                    }
-                  }
-                  return dayEntry
-                })
-                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0);
-
-                console.log(updatedSchedule);
-
-              await req.payload.update({
-                collection: 'doctors',
-                id: doctorId,
-                data: { schedule: updatedSchedule },
-              })
-              console.log("Всё завершено.");
-            }
-          } catch (err) {
-            console.error('Failed to update doctor schedule after booking:', err)
-          }
+          // Use a separate HTTP request to avoid deadlocking the current Payload DB transaction
+          const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+          fetch(`${baseUrl}/api/doctors/remove-slot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ doctorId, date: doc.date, time: doc.time }),
+          }).catch((err) => {
+            console.error('[Appointments] Failed to call remove-slot:', err)
+          })
         }
         revalidateTag(DOCTORS_CACHE_TAG)
       },
