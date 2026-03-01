@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 
 type RegisterBody = {
   name?: string
@@ -48,24 +47,42 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // User exists but not verified — resend verification email
-      if (candidate._verificationToken) {
-        await sendVerificationEmail({
-          payload,
-          email: candidate.email,
-          name: candidate.name ?? undefined,
-          token: candidate._verificationToken,
-        })
-      }
+      // User exists but not verified — update name and let Payload resend via its own mechanism
+      await payload.update({
+        collection: 'users',
+        id: candidate.id,
+        data: {
+          name: name ?? candidate.name ?? '',
+        },
+        overrideAccess: true,
+      })
+
+      // Trigger Payload's built-in resend verification (POST /api/users/verify/resend or forgotPassword-like)
+      // Payload does not expose resend directly, so we delete and recreate to trigger the email automatically
+      await payload.delete({
+        collection: 'users',
+        id: candidate.id,
+        overrideAccess: true,
+      })
+
+      await payload.create({
+        collection: 'users',
+        data: {
+          name: name ?? candidate.name ?? '',
+          email,
+          password,
+          role: 'user',
+        },
+      })
 
       return NextResponse.json(
-        { message: 'Подтвердите почту. Мы отправили письмо повторно.' },
+        { message: 'Письмо с подтверждением отправлено повторно.' },
         { status: 200 },
       )
     }
 
-    // Create new user — Payload will generate _verificationToken automatically
-    const newUser = await payload.create({
+    // Create new user — Payload will send verification email automatically
+    await payload.create({
       collection: 'users',
       data: {
         name: name ?? '',
@@ -73,19 +90,7 @@ export async function POST(req: NextRequest) {
         password,
         role: 'user',
       },
-      showHiddenFields: true,
     })
-
-    const token = (newUser as typeof newUser & { _verificationToken?: string })._verificationToken
-
-    if (token) {
-      await sendVerificationEmail({
-        payload,
-        email: newUser.email,
-        name: newUser.name ?? undefined,
-        token,
-      })
-    }
 
     return NextResponse.json(
       { message: 'Подтвердите почту перед входом в аккаунт.' },

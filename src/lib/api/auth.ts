@@ -1,5 +1,6 @@
 import type { User } from '@/payload-types'
-import { apiFetch } from './fetch'
+import { apiFetch, getBaseUrl } from './fetch'
+import { ApiError } from './errors'
 
 interface LoginResponse {
   token: string
@@ -28,11 +29,44 @@ export class AuthApi {
    * Login with email and password
    */
   static async login(email: string, password: string): Promise<LoginResponse> {
-    return apiFetch<LoginResponse>('/api/users/login', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify({ email, password }),
-    })
+    const url = `${getBaseUrl()}/api/users/login`
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+    } catch (err) {
+      throw new ApiError(0, err instanceof Error ? err.message : 'Ошибка сети', 'NETWORK_ERROR')
+    }
+
+    if (!response.ok) {
+      let name = ''
+      try {
+        const body = await response.json()
+        name = body?.errors?.[0]?.name ?? body?.name ?? ''
+      } catch {
+        // ignore
+      }
+
+      if (response.status === 403 && name === 'UnverifiedEmail') {
+        throw new ApiError(
+          403,
+          'Ваш email ещё не подтверждён. Пройдите регистрацию повторно или подтвердите email по ссылке из письма.',
+          'UnverifiedEmail',
+        )
+      }
+
+      if (response.status === 401) {
+        throw new ApiError(401, 'Неверный email или пароль', 'AuthenticationError')
+      }
+
+      throw new ApiError(response.status, `Ошибка ${response.status}`)
+    }
+
+    return response.json() as Promise<LoginResponse>
   }
 
   /**
