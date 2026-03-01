@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { useUserStore } from "@/stores/user-store"
+import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MailCheck } from "lucide-react"
 
@@ -73,16 +74,18 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const attemptAutoLogin = async () => {
     if (!regEmail || !regPassword) return
     try {
-      const user = await useUserStore.getState().login(regEmail, regPassword)
+      // Call AuthApi directly — avoid store's loading state triggering re-renders
+      const result = await AuthApi.login(regEmail, regPassword)
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
-      useUserStore.getState().setUser(user)
+      // Only touch the store at the very end on success
+      useUserStore.getState().setUser(result.user)
       setOpen(false)
       handleReset()
       onSuccess?.()
-      if (user.role === "user" || user.role === "admin") {
+      if (result.user.role === "user" || result.user.role === "admin") {
         router.push("/lk")
       } else {
         router.refresh()
@@ -116,11 +119,14 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setLoginError("")
     setSubmitting(true)
     try {
-      const user = await useUserStore.getState().login(loginEmail, loginPassword)
+      // Call AuthApi directly — avoid store's loading state triggering re-renders
+      const result = await AuthApi.login(loginEmail, loginPassword)
+      // Only touch the store at the very end on success
+      useUserStore.getState().setUser(result.user)
       setOpen(false)
       handleReset()
       onSuccess?.()
-      if (user.role === "user" || user.role === "admin") {
+      if (result.user.role === "user" || result.user.role === "admin") {
         router.push("/lk")
       } else {
         router.refresh()
@@ -146,7 +152,8 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
 
     setSubmitting(true)
     try {
-      await useUserStore.getState().register(regName, regEmail, regPassword)
+      // Call AuthApi directly — no store mutation during registration
+      await AuthApi.register({ name: regName, email: regEmail, password: regPassword })
       setRegSuccess(true)
     } catch (err) {
       setRegError(getErrorMessage(err))
