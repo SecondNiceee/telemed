@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { resolveImageUrl } from "@/lib/utils/image";
@@ -11,13 +11,9 @@ import { resolveImageUrl } from "@/lib/utils/image";
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { user, loading: userLoading, fetched: userFetched, fetchUser, refetchUser, logout: logoutUser } = useUserStore();
+  const { user, loading: userLoading, fetched: userFetched, refetchUser, logout: logoutUser } = useUserStore();
 
   const authLoading = userLoading || !userFetched;
-
-  useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
 
   return (
     <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
