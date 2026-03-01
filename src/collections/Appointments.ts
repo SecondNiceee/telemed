@@ -79,12 +79,17 @@ export const Appointments: CollectionConfig = {
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation === 'create') {
-          // doc.doctor may be a populated object or a raw id — extract the numeric id
+          // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
+          let doctorRaw: unknown = doc.doctor
+          if (typeof doctorRaw === 'string') {
+            try { doctorRaw = JSON.parse(doctorRaw) } catch { /* not JSON, keep as-is */ }
+          }
           const doctorId: number =
-            typeof doc.doctor === 'object' && doc.doctor !== null
-              ? (doc.doctor as { id: number }).id
-              : doc.doctor
+            typeof doctorRaw === 'object' && doctorRaw !== null
+              ? (doctorRaw as { id: number }).id
+              : Number(doctorRaw)
 
+          console.log('[v0] doctorId resolved:', doctorId, '| date:', doc.date, '| time:', doc.time)
           try {
             const doctor = await req.payload.findByID({
               collection: 'doctors',
