@@ -79,6 +79,7 @@ export const Appointments: CollectionConfig = {
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation === 'create') {
+          console.log('[v0] afterChange triggered. doc.doctor:', doc.doctor, '| doc.date:', doc.date, '| doc.time:', doc.time)
           // Remove the booked slot from the doctor's schedule
           try {
             const doctor = await req.payload.findByID({
@@ -86,31 +87,46 @@ export const Appointments: CollectionConfig = {
               id: doc.doctor,
             })
 
+            console.log('[v0] Doctor fetched. Has schedule:', !!doctor?.schedule, '| Schedule length:', (doctor?.schedule as unknown[])?.length ?? 0)
+            console.log('[v0] Full schedule:', JSON.stringify(doctor?.schedule, null, 2))
+
             if (doctor?.schedule) {
-              const updatedSchedule = (doctor.schedule as { date: string; slots?: { time: string }[] }[])
+              const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
+
+              const targetDay = rawSchedule.find((d) => d.date === doc.date)
+              console.log('[v0] Target day entry for date', doc.date, ':', JSON.stringify(targetDay))
+              console.log('[v0] Looking for slot time:', doc.time, '| Available times:', targetDay?.slots?.map((s) => s.time))
+
+              const updatedSchedule = rawSchedule
                 .map((dayEntry) => {
                   if (dayEntry.date === doc.date) {
                     const filteredSlots = (dayEntry.slots || []).filter(
                       (slot) => slot.time !== doc.time
                     )
+                    console.log('[v0] Slots before filter:', dayEntry.slots?.length, '| After filter:', filteredSlots.length)
                     return { ...dayEntry, slots: filteredSlots }
                   }
                   return dayEntry
                 })
-                // Remove days with no slots left
                 .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0)
+
+              console.log('[v0] Updated schedule length:', updatedSchedule.length)
 
               await req.payload.update({
                 collection: 'doctors',
                 id: doc.doctor,
                 data: { schedule: updatedSchedule },
               })
+              console.log('[v0] Doctor schedule updated successfully')
+            } else {
+              console.log('[v0] Doctor has no schedule field — nothing to remove')
             }
           } catch (err) {
-            console.error('Failed to update doctor schedule after booking:', err)
+            console.error('[v0] Failed to update doctor schedule after booking:', err)
           }
         }
         revalidateTag(DOCTORS_CACHE_TAG);
+        console.log('[v0] revalidateTag called for tag:', DOCTORS_CACHE_TAG)
       },
     ],
   },
