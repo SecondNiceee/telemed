@@ -76,9 +76,6 @@ export const Appointments: CollectionConfig = {
         return data
       },
     ],
-    afterOperation : [
-      () => revalidateTag(DOCTORS_CACHE_TAG)
-    ],
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation === 'create') {

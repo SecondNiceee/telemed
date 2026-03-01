@@ -1,6 +1,19 @@
 import { create } from 'zustand'
 import { AppointmentsApi, type CreateAppointmentPayload } from '@/lib/api/appointments'
+import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import type { ApiAppointment } from '@/lib/api/types'
+
+async function revalidateDoctorsCache() {
+  try {
+    await fetch('/api/revalidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag: DOCTORS_CACHE_TAG }),
+    })
+  } catch {
+    // non-critical: Payload hooks also attempt revalidation
+  }
+}
 
 interface AppointmentState {
   appointments: ApiAppointment[]
@@ -61,6 +74,8 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
       set((state) => ({
         appointments: [appointment, ...state.appointments],
       }))
+      // Trigger Next.js Data Cache revalidation so booking page shows fresh schedule
+      await revalidateDoctorsCache()
       return appointment
     } finally {
       set({ creating: false })
