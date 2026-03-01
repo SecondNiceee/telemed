@@ -23,7 +23,6 @@ function ensureReqUser({
   if (userDecoded?.id) {
     req.user = {
       id: userDecoded.id,
-      email: userDecoded.email,
       role: userDecoded.role,
       collection: userDecoded.collection,
     } as unknown as PayloadRequest['user']
