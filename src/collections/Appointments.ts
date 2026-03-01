@@ -23,9 +23,9 @@ function ensureReqUser({
   if (userDecoded?.id) {
     req.user = {
       id: userDecoded.id,
-      email: userDecoded.email,
-      role: userDecoded.role,
-      collection: userDecoded.collection,
+      email: userDecoded?.email,
+      role: userDecoded?.role,
+      collection: userDecoded?.collection,
     } as unknown as PayloadRequest['user']
     return
   }
@@ -35,9 +35,9 @@ function ensureReqUser({
   if (doctorDecoded?.id) {
     req.user = {
       id: doctorDecoded.id,
-      email: doctorDecoded.email,
+      email: doctorDecoded?.email,
       role: 'doctor',
-      collection: doctorDecoded.collection,
+      collection: doctorDecoded?.collection,
     } as unknown as PayloadRequest['user']
   }
 }

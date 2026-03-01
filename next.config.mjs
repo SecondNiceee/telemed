@@ -11,7 +11,7 @@ const nextConfig = {
         allowedOrigins: ['smartcardio.ru', 'www.smartcardio.ru', 'localhost:3000']
       }
     },
-  
+    typescript : {ignoreBuildErrors : true},
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],

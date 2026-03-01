@@ -2,6 +2,7 @@
 import { AuthApi } from "@/lib/api/auth"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, XCircle } from "lucide-react"
+import Link from "next/link"
 
 // В Next.js 15+ searchParams — это Promise, в Next.js 14 — обычный объект
 interface VerifyEmailPageProps {
@@ -42,9 +43,9 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
                 Ваш аккаунт активирован. Теперь вы можете войти.
               </p>
             </div>
-            <Button className="w-full" onClick={() => window.location.href = "/"}>
+            <Link href={"/"} className="w-full">
               Перейти на главную
-            </Button>
+            </Link>
           </>
         ) : (
           <>
