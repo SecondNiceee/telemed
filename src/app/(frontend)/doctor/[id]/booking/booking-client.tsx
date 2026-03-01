@@ -15,36 +15,36 @@ import {
   Calendar,
   Loader2,
   LogIn,
+  GraduationCap,
+  Award,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useUserStore } from "@/stores/user-store";
 import { useAppointmentStore } from "@/stores/appointment-store";
 import { LoginModal } from "@/components/login-modal";
-import type { DoctorScheduleDate } from "@/lib/api/types";
+import { getDoctorSpecialty, getDoctorEducation } from "@/lib/api/index";
+import type { ApiDoctor } from "@/lib/api/types";
+import type { Media } from "@/payload-types";
 
 interface BookingClientProps {
-  doctorId: number;
-  doctorName: string;
-  doctorPhoto: string | null;
-  doctorSpecialty: string;
-  doctorPrice: number;
-  schedule: DoctorScheduleDate[];
+  doctor: ApiDoctor;
 }
 
-export function BookingClient({
-  doctorId,
-  doctorName,
-  doctorPhoto,
-  doctorSpecialty,
-  doctorPrice,
-  schedule,
-}: BookingClientProps) {
+export function BookingClient({ doctor }: BookingClientProps) {
   const { user, fetchUser } = useUserStore();
   const { createAppointment, creating } = useAppointmentStore();
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  const doctorId = doctor.id;
+  const doctorName = doctor.name || "Врач";
+  const doctorPhoto = resolveImageUrl((doctor.photo as Media)?.url);
+  const doctorSpecialty = getDoctorSpecialty(doctor);
+  const doctorPrice = doctor.price ?? 0;
+  const schedule = doctor.schedule ?? [];
+  const education = getDoctorEducation(doctor);
 
   // Build a map of date -> available time slots from doctor's schedule
   const scheduleMap = useMemo(() => {
@@ -57,7 +57,7 @@ export function BookingClient({
           .filter(Boolean)
           .sort();
         if (times.length > 0) {
-          map.set(dayEntry.date, times);
+          map.set(dayEntry.date, times as string[]);
         }
       }
     }
@@ -67,7 +67,6 @@ export function BookingClient({
   const availableDates = useMemo(() => Array.from(scheduleMap.keys()).sort(), [scheduleMap]);
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    // Start from the week of the first available date, or current week
     if (availableDates.length > 0) {
       const first = new Date(availableDates[0] + "T00:00:00");
       const day = first.getDay();
@@ -228,7 +227,7 @@ export function BookingClient({
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <main className="flex-1 bg-background">
+      <main className="flex-1 bg-gradient-to-b from-primary/5 via-background to-background">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Button variant="ghost" size="sm" asChild className="mb-6">
             <Link href={`/doctor/${doctorId}`}>
@@ -237,25 +236,60 @@ export function BookingClient({
             </Link>
           </Button>
 
-          {/* Doctor Info Header */}
-          <Card className="mb-6">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+          {/* Doctor Info Header — same style as /doctor/[id] */}
+          <Card className="mb-6 py-0 px-0 overflow-hidden">
+            <CardContent className="py-0 px-0">
+              <div className="flex flex-col md:flex-row gap-0 md:items-stretch">
+                <div className="w-full md:w-72 h-64 md:h-auto flex-shrink-0 relative">
                   <img
-                    src={resolveImageUrl(doctorPhoto)}
+                    src={doctorPhoto ?? ""}
                     alt={doctorName}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover absolute inset-0"
                   />
                 </div>
-                <div className="flex-1">
-                  <h1 className="text-xl font-bold text-foreground">
-                    Запись к врачу
-                  </h1>
-                  <p className="text-primary font-medium">{doctorName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {doctorSpecialty} · {doctorPrice.toLocaleString("ru-RU")} ₽
-                  </p>
+                <div className="flex-1 px-6 py-6 flex flex-col justify-center gap-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground uppercase tracking-wide font-medium mb-1">
+                      Запись на приём
+                    </p>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                      {doctorName}
+                    </h1>
+                    <p className="text-lg text-primary mt-0.5">{doctorSpecialty}</p>
+                  </div>
+
+                  <div className="flex flex-col gap-1 text-sm">
+                    {doctor.experience != null && (
+                      <div className="flex items-center gap-2">
+                        <Award className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Стаж:</span>
+                        <span className="font-medium text-foreground">{doctor.experience} лет</span>
+                      </div>
+                    )}
+                    {doctor.degree && (
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Степень:</span>
+                        <span className="font-medium text-foreground">{doctor.degree}</span>
+                      </div>
+                    )}
+                    {education.length > 0 && (
+                      <div className="flex items-start gap-2 flex-wrap mt-1">
+                        {education.map((edu, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-secondary/60 rounded-full text-xs text-muted-foreground">
+                            {edu}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-1">
+                    <span className="text-2xl font-bold text-foreground">
+                      {doctorPrice.toLocaleString("ru-RU")} ₽
+                    </span>
+                    <span className="text-sm text-muted-foreground ml-1">/ консультация</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -342,7 +376,6 @@ export function BookingClient({
                       <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
                         {timeSlots.map((time) => {
                           const isSelected = selectedTime === time;
-
                           return (
                             <button
                               key={time}
@@ -385,9 +418,7 @@ export function BookingClient({
                     )}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                       <div className="text-center sm:text-left">
-                        <p className="text-sm text-muted-foreground">
-                          Выбранное время:
-                        </p>
+                        <p className="text-sm text-muted-foreground">Выбранное время:</p>
                         <p className="font-semibold text-foreground">
                           {new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
                             day: "numeric",
@@ -411,9 +442,7 @@ export function BookingClient({
                               Запись...
                             </>
                           ) : (
-                            <>
-                              Подтвердить запись · {doctorPrice.toLocaleString("ru-RU")} ₽
-                            </>
+                            <>Подтвердить запись · {doctorPrice.toLocaleString("ru-RU")} ₽</>
                           )}
                         </Button>
                       ) : (

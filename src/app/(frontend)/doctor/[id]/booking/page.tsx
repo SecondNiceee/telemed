@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
 import {
   fetchDoctorById,
-  getDoctorSpecialty,
   ApiError,
   getErrorMessage,
   type ApiDoctor,
 } from "@/lib/api/index";
-import { resolveImageUrl } from "@/lib/utils/image";
-import { Media } from "@/payload-types";
 import { BookingClient } from "./booking-client";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
@@ -25,7 +22,8 @@ export default async function BookingPage({ params }: BookingPageProps) {
   let error: string | null = null;
 
   try {
-    doctor = await fetchDoctorById(id);
+    // no-store: всегда актуальное расписание (без кэша), чтобы занятые слоты не показывались
+    doctor = await fetchDoctorById(id, { cache: "no-store" });
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       notFound();
@@ -50,17 +48,5 @@ export default async function BookingPage({ params }: BookingPageProps) {
     );
   }
 
-  const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
-  const specialty = getDoctorSpecialty(doctor);
-
-  return (
-    <BookingClient
-      doctorId={doctor.id}
-      doctorName={doctor.name || "Врач"}
-      doctorPhoto={photoUrl}
-      doctorSpecialty={specialty}
-      doctorPrice={doctor.price ?? 0}
-      schedule={doctor.schedule ?? []}
-    />
-  );
+  return <BookingClient doctor={doctor} />;
 }

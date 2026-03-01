@@ -42,9 +42,10 @@ export class DoctorsApi {
   /**
    * Fetch doctor by ID
    */
-  static async fetchById(id: number | string): Promise<ApiDoctor> {
+  static async fetchById(id: number | string, fetchOptions?: RequestInit): Promise<ApiDoctor> {
     return apiFetch<ApiDoctor>(`/api/doctors/${id}?depth=1`, {
       next: { tags: [DOCTORS_CACHE_TAG] },
+      ...fetchOptions,
     })
   }
 
