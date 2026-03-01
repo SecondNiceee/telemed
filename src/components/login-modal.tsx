@@ -54,7 +54,11 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setTab("login")
   }
 
+  const isSubmittingRef = React.useRef(false)
+
   const handleOpenChange = (value: boolean) => {
+    // Prevent dialog from closing while a request is in flight
+    if (!value && isSubmittingRef.current) return
     setOpen(value)
     if (!value) handleReset()
   }
@@ -62,8 +66,10 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
+    isSubmittingRef.current = true
     try {
       const loggedInUser = await login(loginEmail, loginPassword)
+      isSubmittingRef.current = false
       setOpen(false)
       handleReset()
       onSuccess?.()
@@ -74,6 +80,8 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Ошибка при входе")
+    } finally {
+      isSubmittingRef.current = false
     }
   }
 
@@ -90,11 +98,14 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       return
     }
 
+    isSubmittingRef.current = true
     try {
       await register(regName, regEmail, regPassword)
       setRegSuccess(true)
     } catch (err) {
       setRegError(err instanceof Error ? err.message : "Ошибка при регистрации")
+    } finally {
+      isSubmittingRef.current = false
     }
   }
 
