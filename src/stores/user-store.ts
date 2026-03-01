@@ -77,6 +77,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       await AuthApi.register({ name, email, password })
       // User is not yet verified so we don't set user in store here.
       // They will need to confirm email first.
+    } catch (err) {
+      throw err
     } finally {
       set({ loading: false })
     }
