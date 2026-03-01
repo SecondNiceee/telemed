@@ -47,32 +47,12 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // User exists but not verified — update name and let Payload resend via its own mechanism
+      // User exists but not verified — update name if provided
       await payload.update({
         collection: 'users',
         id: candidate.id,
-        data: {
-          name: name ?? candidate.name ?? '',
-        },
+        data: { name: name ?? candidate.name ?? '' },
         overrideAccess: true,
-      })
-
-      // Trigger Payload's built-in resend verification (POST /api/users/verify/resend or forgotPassword-like)
-      // Payload does not expose resend directly, so we delete and recreate to trigger the email automatically
-      await payload.delete({
-        collection: 'users',
-        id: candidate.id,
-        overrideAccess: true,
-      })
-
-      await payload.create({
-        collection: 'users',
-        data: {
-          name: name ?? candidate.name ?? '',
-          email,
-          password,
-          role: 'user',
-        },
       })
 
       return NextResponse.json(

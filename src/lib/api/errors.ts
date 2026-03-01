@@ -29,22 +29,23 @@ export function getErrorCode(status: number): string {
   }
 }
 
+const ERROR_MESSAGES_BY_NAME: Record<string, string> = {
+  UnverifiedEmail:
+    'Email ещё не подтверждён. Перейдите по ссылке из письма или пройдите регистрацию повторно.',
+  AuthenticationError: 'Неверный email или пароль.',
+  UNAUTHORIZED: 'Вы не авторизованы. Пожалуйста, войдите в систему.',
+  FORBIDDEN: 'У вас нет доступа к этому ресурсу.',
+  NOT_FOUND: 'Запрашиваемый ресурс не найден.',
+  TOO_MANY_REQUESTS: 'Слишком много запросов. Попробуйте позже.',
+  INTERNAL_SERVER_ERROR: 'Произошла ошибка на сервере. Попробуйте позже.',
+  NETWORK_ERROR: 'Ошибка соединения. Проверьте интернет и попробуйте снова.',
+}
+
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    switch (error.code) {
-      case 'UNAUTHORIZED':
-        return 'Вы не авторизованы. Пожалуйста, войдите в систему.'
-      case 'FORBIDDEN':
-        return 'У вас нет доступа к этому ресурсу.'
-      case 'NOT_FOUND':
-        return 'Запрашиваемый ресурс не найден.'
-      case 'TOO_MANY_REQUESTS':
-        return 'Слишком много запросов. Попробуйте позже.'
-      case 'INTERNAL_SERVER_ERROR':
-        return 'Произошла ошибка на сервере. Попробуйте позже.'
-      default:
-        return error.message || 'Произошла неизвестная ошибка.'
-    }
+    const byName = ERROR_MESSAGES_BY_NAME[error.code]
+    if (byName) return byName
+    return error.message || 'Произошла неизвестная ошибка.'
   }
   if (error instanceof Error) {
     return error.message
