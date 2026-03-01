@@ -26,17 +26,17 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
 
   return (
     <div className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all">
-      <div className="flex items-center justify-between p-4">
+      <div className="flex items-center justify-between pr-5">
         <Link
           href={`/doctor/${doctor.id}`}
-          className="flex-1 flex items-center gap-4 min-w-0"
+          className="flex-1 h-full flex items-center gap-4 min-w-0"
         >
-          <div className="w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
+          <div className="h-full w-20 rounded-l-xl overflow-hidden bg-muted shrink-0">
             {doctor.photo ? (
               <img
                 src={resolveImageUrl((doctor.photo as Media).url)}
                 alt={doctor.name || "Врач"}
-                className="w-full h-full object-cover"
+                className="w-20  object-cover h-[-webkit-fill-available]"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
@@ -45,7 +45,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
             )}
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 py-4">
             <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate">
               {doctor.name || "Без имени"}
             </h3>
