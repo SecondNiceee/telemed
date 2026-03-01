@@ -1,5 +1,5 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
-import { decodeUsersCookie, decodeSpecificCookie, getCallerFromRequest } from './helpers/auth'
+import { getCallerFromRequest } from './helpers/auth'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
@@ -16,7 +16,7 @@ function ensureReqUser({
   if (req.user) return
 
   // Try users cookie first
-  const userDecoded = decodeUsersCookie(req)
+  const userDecoded = getCallerFromRequest(req, 'users')
   if (userDecoded?.id) {
     req.user = {
       id: userDecoded.id,
@@ -28,7 +28,7 @@ function ensureReqUser({
   }
 
   // Try doctors cookie
-  const doctorDecoded = decodeSpecificCookie(req, 'doctors-token', 'doctors')
+  const doctorDecoded = getCallerFromRequest(req, "doctors")
   if (doctorDecoded?.id) {
     req.user = {
       id: doctorDecoded.id,
@@ -95,9 +95,12 @@ export const Appointments: CollectionConfig = {
               collection: 'doctors',
               id: doctorId,
             })
+            console.log(doctor);
 
             if (doctor?.schedule) {
               const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
+
+              console.log(rawSchedule);
 
               const updatedSchedule = rawSchedule
                 .map((dayEntry) => {
@@ -109,13 +112,16 @@ export const Appointments: CollectionConfig = {
                   }
                   return dayEntry
                 })
-                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0)
+                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0);
+
+                console.log(updatedSchedule);
 
               await req.payload.update({
                 collection: 'doctors',
                 id: doctorId,
                 data: { schedule: updatedSchedule },
               })
+              console.log("Всё завершено.");
             }
           } catch (err) {
             console.error('Failed to update doctor schedule after booking:', err)
