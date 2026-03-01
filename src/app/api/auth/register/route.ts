@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 
 type RegisterBody = {
   name?: string
@@ -47,13 +48,25 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // User exists but not verified — update name if provided
-      await payload.update({
+      // User exists but not verified — update name and resend verification email
+      const updatedUser = await payload.update({
         collection: 'users',
         id: candidate.id,
         data: { name: name ?? candidate.name ?? '' },
         overrideAccess: true,
-      })
+        showHiddenFields: true,
+      }) as typeof candidate
+
+      const token = updatedUser._verificationToken ?? candidate._verificationToken
+
+      if (token) {
+        await sendVerificationEmail({
+          payload,
+          email,
+          token,
+          name: updatedUser.name ?? name,
+        })
+      }
 
       return NextResponse.json(
         { message: 'Письмо с подтверждением отправлено повторно.' },
