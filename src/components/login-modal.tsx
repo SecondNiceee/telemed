@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { AuthApi } from "@/lib/api/auth"
 import { useUserStore } from "@/stores/user-store"
 import { Loader2, MailCheck } from "lucide-react"
 
@@ -24,9 +25,9 @@ interface LoginModalProps {
 
 export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const router = useRouter()
-  const { login, loading, register } = useUserStore()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>("login")
+  const [submitting, setSubmitting] = useState(false)
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("")
@@ -51,14 +52,12 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
     setRegConfirm("")
     setRegError("")
     setRegSuccess(false)
+    setSubmitting(false)
     setTab("login")
   }
 
-  const isSubmittingRef = React.useRef(false)
-
   const handleOpenChange = (value: boolean) => {
-    // Prevent dialog from closing while a request is in flight
-    if (!value && isSubmittingRef.current) return
+    if (!value && submitting) return
     setOpen(value)
     if (!value) handleReset()
   }
@@ -66,21 +65,22 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
-    isSubmittingRef.current = true
+    setSubmitting(true)
     try {
-      const loggedInUser = await login(loginEmail, loginPassword)
-      isSubmittingRef.current = false
+      const result = await AuthApi.login(loginEmail, loginPassword)
+      // Update zustand store with the logged-in user
+      useUserStore.getState().setUser(result.user)
       setOpen(false)
       handleReset()
       onSuccess?.()
-      if (loggedInUser.role === "user" || loggedInUser.role === "admin") {
+      if (result.user.role === "user" || result.user.role === "admin") {
         router.push("/lk")
       } else {
         router.refresh()
       }
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Ошибка при входе")
-      setTimeout(() => { isSubmittingRef.current = false }, 300)
+      setSubmitting(false)
     }
   }
 
@@ -97,16 +97,14 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
       return
     }
 
-    isSubmittingRef.current = true
+    setSubmitting(true)
     try {
-      await register(regName, regEmail, regPassword)
+      await AuthApi.register({ name: regName, email: regEmail, password: regPassword })
       setRegSuccess(true)
     } catch (err) {
       setRegError(err instanceof Error ? err.message : "Ошибка при регистрации")
     } finally {
-      // Delay release so Zustand re-render (loading:false) doesn't close dialog
-      // before error state is painted
-      setTimeout(() => { isSubmittingRef.current = false }, 300)
+      setSubmitting(false)
     }
   }
 
@@ -116,13 +114,10 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
         <DialogContent
           className="sm:max-w-md"
           onPointerDownOutside={(e) => {
-            if (loading || regError || loginError) e.preventDefault()
+            if (submitting) e.preventDefault()
           }}
           onInteractOutside={(e) => {
-            if (loading || regError || loginError) e.preventDefault()
-          }}
-          onFocusOutside={(e) => {
-            e.preventDefault()
+            if (submitting) e.preventDefault()
           }}
         >
         <DialogHeader>
@@ -186,8 +181,8 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
             {loginError && (
               <p className="text-sm text-destructive text-center">{loginError}</p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? (
                 <>
                   <Loader2 className="animate-spin" />
                   <span>Вход...</span>
@@ -267,8 +262,8 @@ export function LoginModal({ children, onSuccess }: LoginModalProps) {
                 {regError && (
                   <p className="text-sm text-destructive text-center">{regError}</p>
                 )}
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
+                <Button type="submit" className="w-full" disabled={submitting}>
+                  {submitting ? (
                     <>
                       <Loader2 className="animate-spin" />
                       <span>Регистрация...</span>
