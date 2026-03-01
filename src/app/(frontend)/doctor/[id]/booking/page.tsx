@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import {
   fetchDoctorById,
   getDoctorSpecialty,
+  getDoctorEducation,
+  getDoctorServices,
   ApiError,
   getErrorMessage,
   type ApiDoctor,
@@ -54,6 +56,8 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   const photoUrl = resolveImageUrl((doctor.photo as Media)?.url);
   const specialty = getDoctorSpecialty(doctor);
+  const education = getDoctorEducation(doctor);
+  const services = getDoctorServices(doctor);
 
   return (
     <BookingClient
@@ -62,6 +66,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
       doctorPhoto={photoUrl}
       doctorSpecialty={specialty}
       doctorPrice={doctor.price ?? 0}
+      doctorExperience={doctor.experience ?? null}
+      doctorDegree={doctor.degree ?? null}
+      doctorBio={doctor.bio ?? null}
+      doctorEducation={education}
+      doctorServices={services}
+      doctorEmail={doctor.email}
       schedule={doctor.schedule ?? []}
     />
   );

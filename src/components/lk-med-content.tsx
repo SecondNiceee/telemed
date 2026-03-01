@@ -7,8 +7,15 @@ import { useAppointmentStore } from "@/stores/appointment-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, CalendarX, Calendar, Clock, User as UserIcon } from "lucide-react"
+import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, Mail } from "lucide-react"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
+
+function getUserEmailFromAppointment(appt: ApiAppointment): string | null {
+  if (typeof appt.user === 'object' && appt.user !== null && 'email' in appt.user) {
+    return appt.user.email
+  }
+  return null
+}
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor | null
@@ -203,17 +210,32 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {appt.price != null && (
-                    <span className="text-lg font-bold text-foreground">
-                      {appt.price.toLocaleString("ru-RU")} ₽
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-3">
+                    {appt.price != null && (
+                      <span className="text-lg font-bold text-foreground">
+                        {appt.price.toLocaleString("ru-RU")} ₽
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
+                    >
+                      {getStatusLabel(appt.status)}
                     </span>
-                  )}
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
-                  >
-                    {getStatusLabel(appt.status)}
-                  </span>
+                  </div>
+                  {(() => {
+                    const userEmail = getUserEmailFromAppointment(appt)
+                    if (!userEmail) return null
+                    return (
+                      <a
+                        href={`mailto:${userEmail}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        Написать
+                      </a>
+                    )
+                  })()}
                 </div>
               </div>
             ))}
