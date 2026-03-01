@@ -1,4 +1,6 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
@@ -80,30 +82,21 @@ export const Appointments: CollectionConfig = {
       async ({ doc, operation, req }) => {
         if (operation === 'create') {
           // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
-          let doctorRaw: unknown = doc.doctor;
-
-          console.log(doctorRaw);
+          const doctorRaw: unknown = doc.doctor;
           const doctorId: number =
             typeof doctorRaw === 'object' && doctorRaw !== null
               ? (doctorRaw as { id: number }).id
               : Number(doctorRaw)
 
-          console.log(doctorId);
-
-
-          console.log('[v0] doctorId resolved:', doctorId, '| date:', doc.date, '| time:', doc.time)
           try {
             const doctor = await req.payload.findByID({
               collection: 'doctors',
               id: doctorId,
+              overrideAccess: true,
             })
-            console.log(doctor);
-            console.log("Всё прошло успешно")
 
             if (doctor?.schedule) {
               const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
-
-              console.log(rawSchedule);
 
               const updatedSchedule = rawSchedule
                 .map((dayEntry) => {
@@ -117,16 +110,16 @@ export const Appointments: CollectionConfig = {
                 })
                 .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0);
 
-                console.log(updatedSchedule);
-                console.log("Получил улучшенное расписание!");
-
-              await req.payload.update({
+              // Use a separate Payload instance (outside the current transaction)
+              // to avoid a deadlock: the appointment transaction is still open,
+              // so updating doctors through `req.payload` would block forever.
+              const payload = await getPayload({ config })
+              await payload.update({
                 collection: 'doctors',
                 id: doctorId,
                 data: { schedule: updatedSchedule },
-                overrideAccess : true
+                overrideAccess: true,
               })
-              console.log("Всё завершено.") 
             }
           } catch (err) {
             console.error('Failed to update doctor schedule after booking:', err)
