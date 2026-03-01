@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
-import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
+import { getCallerFromRequest } from './helpers/auth'
 
 
 /**
@@ -16,7 +16,7 @@ function ensureReqUser({
 }) {
   if (req.user) return
 
-  const decoded = decodeSpecificCookie(req, 'doctors-token', 'doctors')
+  const decoded = getCallerFromRequest(req, 'doctors',)
   if (!decoded?.id) return
 
   req.user = {
@@ -50,20 +50,7 @@ export const Doctors: CollectionConfig = {
         revalidateTag(DOCTORS_CACHE_TAG)
       },
     ],
-    beforeChange: [
-      ({ data, operation, req }) => {
-        if (operation === 'create') {
-          data._verified = true
-
-          // Auto-set organisation if the creator is an org
-          const caller = getCallerFromRequest(req, 'organisations')
-          if (caller?.collection === 'organisations' && caller.id) {
-            data.organisation = Number(caller.id)
-          }
-        }
-        return data
-      },
-    ],
+    beforeChange: [],
   },
   access: {
     read: () => true,

@@ -1,5 +1,5 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
-import { decodeUsersCookie, decodeSpecificCookie, getCallerFromRequest } from './helpers/auth'
+import { getCallerFromRequest } from './helpers/auth'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
@@ -16,7 +16,7 @@ function ensureReqUser({
   if (req.user) return
 
   // Try users cookie first
-  const userDecoded = decodeUsersCookie(req)
+  const userDecoded = getCallerFromRequest(req, 'users')
   if (userDecoded?.id) {
     req.user = {
       id: userDecoded.id,
@@ -28,7 +28,7 @@ function ensureReqUser({
   }
 
   // Try doctors cookie
-  const doctorDecoded = decodeSpecificCookie(req, 'doctors-token', 'doctors')
+  const doctorDecoded = getCallerFromRequest(req, "doctors")
   if (doctorDecoded?.id) {
     req.user = {
       id: doctorDecoded.id,
@@ -76,44 +76,63 @@ export const Appointments: CollectionConfig = {
         return data
       },
     ],
-    afterOperation : [
-      () => revalidateTag(DOCTORS_CACHE_TAG)
-    ],
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation === 'create') {
-          // Remove the booked slot from the doctor's schedule
+          // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
+          let doctorRaw: unknown = doc.doctor;
+
+          console.log(doctorRaw);
+          const doctorId: number =
+            typeof doctorRaw === 'object' && doctorRaw !== null
+              ? (doctorRaw as { id: number }).id
+              : Number(doctorRaw)
+
+          console.log(doctorId);
+
+
+          console.log('[v0] doctorId resolved:', doctorId, '| date:', doc.date, '| time:', doc.time)
           try {
             const doctor = await req.payload.findByID({
               collection: 'doctors',
-              id: doc.doctor,
+              id: doctorId,
             })
+            console.log(doctor);
+            console.log("Всё прошло успешно")
 
             if (doctor?.schedule) {
-              const updatedSchedule = (doctor.schedule as { date: string; slots?: { time: string }[] }[])
+              const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
+
+              console.log(rawSchedule);
+
+              const updatedSchedule = rawSchedule
                 .map((dayEntry) => {
                   if (dayEntry.date === doc.date) {
-                    const filteredSlots = (dayEntry.slots || []).filter(
-                      (slot) => slot.time !== doc.time
-                    )
-                    return { ...dayEntry, slots: filteredSlots }
+                    return {
+                      ...dayEntry,
+                      slots: (dayEntry.slots || []).filter((slot) => slot.time !== doc.time),
+                    }
                   }
                   return dayEntry
                 })
-                // Remove days with no slots left
-                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0)
+                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0);
+
+                console.log(updatedSchedule);
+                console.log("Получил улучшенное расписание!");
 
               await req.payload.update({
                 collection: 'doctors',
-                id: doc.doctor,
+                id: doctorId,
                 data: { schedule: updatedSchedule },
+                overrideAccess : true
               })
+              console.log("Всё завершено.") 
             }
           } catch (err) {
             console.error('Failed to update doctor schedule after booking:', err)
           }
         }
-        revalidateTag(DOCTORS_CACHE_TAG);
+        revalidateTag(DOCTORS_CACHE_TAG)
       },
     ],
   },

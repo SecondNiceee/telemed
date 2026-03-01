@@ -14,6 +14,8 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic'
+
 interface BookingPageProps {
   params: Promise<{ id: string }>;
 }
