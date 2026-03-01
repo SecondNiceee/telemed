@@ -12,6 +12,17 @@ interface MeResponse {
   user: User | null
 }
 
+interface RegisterData {
+  name: string
+  email: string
+  password: string
+}
+
+interface RegisterResponse {
+  doc: User
+  message: string
+}
+
 export class AuthApi {
   /**
    * Login with email and password
@@ -46,6 +57,26 @@ export class AuthApi {
     await apiFetch<{ message: string }>('/api/users/logout', {
       method: 'POST',
       credentials: 'include',
+    })
+  }
+
+  /**
+   * Register a new user (self-registration). Payload will send a verification email.
+   */
+  static async register(data: RegisterData): Promise<RegisterResponse> {
+    return apiFetch<RegisterResponse>('/api/users', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ ...data, role: 'user' }),
+    })
+  }
+
+  /**
+   * Verify email with the token from the verification email link.
+   */
+  static async verifyEmail(token: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/api/users/verify-email?token=${token}`, {
+      method: 'POST',
     })
   }
 }
