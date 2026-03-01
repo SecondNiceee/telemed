@@ -4,8 +4,19 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUserStore } from "@/stores/user-store"
 import { useAppointmentStore } from "@/stores/appointment-store"
-import { CalendarX, Calendar, Clock, User as UserIcon } from "lucide-react"
-import type { ApiAppointment } from "@/lib/api/types"
+import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink } from "lucide-react"
+import Link from "next/link"
+import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
+
+function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
+  if (typeof appt.doctor === 'object' && appt.doctor !== null) {
+    return appt.doctor as ApiDoctor
+  }
+  if (typeof appt.doctor === 'number') {
+    return { id: appt.doctor }
+  }
+  return null
+}
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
@@ -140,17 +151,43 @@ export function LkContent() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {appt.price != null && (
-                    <span className="text-lg font-bold text-foreground">
-                      {appt.price.toLocaleString("ru-RU")} ₽
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-3">
+                    {appt.price != null && (
+                      <span className="text-lg font-bold text-foreground">
+                        {appt.price.toLocaleString("ru-RU")} ₽
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
+                    >
+                      {getStatusLabel(appt.status)}
                     </span>
-                  )}
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appt.status)}`}
-                  >
-                    {getStatusLabel(appt.status)}
-                  </span>
+                  </div>
+                  {(() => {
+                    const doc = getDoctorFromAppointment(appt)
+                    if (!doc) return null
+                    return (
+                      <div className="flex items-center gap-2">
+                        {doc.email && (
+                          <a
+                            href={`mailto:${doc.email}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            Написать
+                          </a>
+                        )}
+                        <Link
+                          href={`/doctor/${doc.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Профиль
+                        </Link>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             ))}

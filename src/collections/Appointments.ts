@@ -4,6 +4,7 @@ import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
+import { sendAppointmentEmail } from '@/utils/sendAppointmentEmail'
 
 /**
  * Populate req.user from the users cookie (payload-token).
@@ -129,6 +130,24 @@ export const Appointments: CollectionConfig = {
               }
 
               revalidateTag(DOCTORS_CACHE_TAG)
+
+              // Send notification email to doctor
+              if (doctor?.email) {
+                try {
+                  await sendAppointmentEmail({
+                    payload,
+                    doctorEmail: doctor.email,
+                    doctorName: (doc.doctorName as string) || doctor.name || 'Врач',
+                    patientName: (doc.userName as string) || 'Пациент',
+                    specialty: (doc.specialty as string) || '',
+                    date: appointmentDate,
+                    time: appointmentTime,
+                    price: (doc.price as number) || 0,
+                  })
+                } catch (emailErr) {
+                  console.error('Failed to send appointment email to doctor:', emailErr)
+                }
+              }
             } catch (err) {
               console.error('Failed to update doctor schedule after booking:', err)
             }
