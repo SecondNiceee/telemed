@@ -22,7 +22,8 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
 
   const handleDelete = useCallback(() => {
     onDeleteRequest(doctor)
-  }, [doctor, onDeleteRequest])
+  }, [doctor, onDeleteRequest]);
+  console.log("Вызов компонента OrgDoctorCard")
 
   return (
     <div className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-md transition-all">
@@ -31,7 +32,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
           href={`/doctor/${doctor.id}`}
           className="flex-1 h-full flex items-center gap-4 min-w-0"
         >
-          <div className="h-full w-20 rounded-l-xl overflow-hidden bg-muted shrink-0">
+          <div className="h-[-webkit-fill-available] w-24 rounded-l-xl overflow-hidden bg-muted shrink-0">
             {doctor.photo ? (
               <img
                 src={resolveImageUrl((doctor.photo as Media).url)}

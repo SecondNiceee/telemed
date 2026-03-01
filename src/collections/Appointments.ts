@@ -1,5 +1,7 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { decodeUsersCookie, decodeSpecificCookie, getCallerFromRequest } from './helpers/auth'
+import { revalidateTag } from 'next/cache'
+import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
 /**
  * Populate req.user from the users cookie (payload-token).
@@ -74,6 +76,9 @@ export const Appointments: CollectionConfig = {
         return data
       },
     ],
+    afterOperation : [
+      () => revalidateTag(DOCTORS_CACHE_TAG)
+    ],
     afterChange: [
       async ({ doc, operation, req }) => {
         if (operation === 'create') {
@@ -108,6 +113,7 @@ export const Appointments: CollectionConfig = {
             console.error('Failed to update doctor schedule after booking:', err)
           }
         }
+        revalidateTag(DOCTORS_CACHE_TAG);
       },
     ],
   },
@@ -115,14 +121,14 @@ export const Appointments: CollectionConfig = {
     read: ({ req }: { req: PayloadRequest }) => {
       // Check admin via users token
       const callerAsUser = getCallerFromRequest(req, 'users')
-      if (callerAsUser.role === 'admin') return true
+      if (callerAsUser?.role === 'admin') return true
       // Regular user reads their own appointments
-      if (callerAsUser.collection === 'users' && callerAsUser.id) {
+      if (callerAsUser?.collection === 'users' && callerAsUser.id) {
         return { user: { equals: Number(callerAsUser.id) } } as Where
       }
       // Doctor reads their own appointments
       const callerAsDoctor = getCallerFromRequest(req, 'doctors')
-      if (callerAsDoctor.collection === 'doctors' && callerAsDoctor.id) {
+      if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
         return { doctor: { equals: Number(callerAsDoctor.id) } } as Where
       }
       return false
@@ -130,15 +136,15 @@ export const Appointments: CollectionConfig = {
     create: ({ req }) => {
       const caller = getCallerFromRequest(req, 'users')
       // Only logged-in users can create appointments
-      return caller.collection === 'users' && !!caller.id
+      return caller?.collection === 'users' && !!caller.id
     },
     update: ({ req }) => {
       const caller = getCallerFromRequest(req, 'users')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req, 'users')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
     admin: () => true,
   },

@@ -38,6 +38,7 @@ export default buildConfig({
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+
     },
   }),
   secret: process.env.PAYLOAD_SECRET || '',

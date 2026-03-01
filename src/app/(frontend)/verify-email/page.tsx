@@ -1,49 +1,39 @@
-"use client"
-
-import React, { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+// app/verify-email/page.tsx
 import { AuthApi } from "@/lib/api/auth"
 import { Button } from "@/components/ui/button"
-import { Loader2, CheckCircle, XCircle } from "lucide-react"
+import { CheckCircle, XCircle } from "lucide-react"
 
-type Status = "loading" | "success" | "error"
+// В Next.js 15+ searchParams — это Promise, в Next.js 14 — обычный объект
+interface VerifyEmailPageProps {
+  searchParams: Promise<{ token?: string }> | { token?: string }
+}
 
-export default function VerifyEmailPage() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [status, setStatus] = useState<Status>("loading")
-  const [message, setMessage] = useState("")
+export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageProps) {
+  // Унифицированная работа с searchParams для Next.js 14 и 15
+  const params = await Promise.resolve(searchParams)
+  const token = params.token
 
-  useEffect(() => {
-    const token = searchParams.get("token")
+  let result: { success: boolean; message?: string } = { success: false }
 
-    if (!token) {
-      setStatus("error")
-      setMessage("Ссылка недействительна: токен не найден.")
-      return
+  if (!token) {
+    result = { success: false, message: "Ссылка недействительна: токен не найден." }
+  } else {
+    try {
+      await AuthApi.verifyEmail(token)
+      result = { success: true }
+    } catch (err) {
+      result = { 
+        success: false, 
+        message: err instanceof Error ? err.message : "Не удалось подтвердить email." 
+      }
     }
-
-    AuthApi.verifyEmail(token)
-      .then(() => {
-        setStatus("success")
-      })
-      .catch((err) => {
-        setStatus("error")
-        setMessage(err instanceof Error ? err.message : "Не удалось подтвердить email.")
-      })
-  }, [searchParams])
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card shadow-sm p-8 flex flex-col items-center gap-6 text-center">
-        {status === "loading" && (
-          <>
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <p className="text-muted-foreground">Подтверждаем ваш email...</p>
-          </>
-        )}
-
-        {status === "success" && (
+        
+        {result.success ? (
           <>
             <CheckCircle className="w-12 h-12 text-green-500" />
             <div className="flex flex-col gap-1">
@@ -52,26 +42,25 @@ export default function VerifyEmailPage() {
                 Ваш аккаунт активирован. Теперь вы можете войти.
               </p>
             </div>
-            <Button className="w-full" onClick={() => router.push("/")}>
+            <Button className="w-full" onClick={() => window.location.href = "/"}>
               Перейти на главную
             </Button>
           </>
-        )}
-
-        {status === "error" && (
+        ) : (
           <>
             <XCircle className="w-12 h-12 text-destructive" />
             <div className="flex flex-col gap-1">
               <p className="text-xl font-semibold text-foreground">Ошибка подтверждения</p>
               <p className="text-sm text-muted-foreground">
-                {message || "Ссылка устарела или недействительна."}
+                {result.message || "Ссылка устарела или недействительна."}
               </p>
             </div>
-            <Button variant="outline" className="w-full" onClick={() => router.push("/")}>
+            <Button variant="outline" className="w-full" onClick={() => window.location.href = "/"}>
               На главную
             </Button>
           </>
         )}
+        
       </div>
     </main>
   )

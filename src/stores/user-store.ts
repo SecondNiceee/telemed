@@ -37,7 +37,8 @@ export const useUserStore = create<UserState>((set, get) => ({
 
     set({ loading: true })
     try {
-      const user = await AuthApi.me()
+      const user = await AuthApi.me();
+      console.log(user);
       set({ user, fetched: true })
     } catch {
       set({ user: null, fetched: true })

@@ -19,13 +19,12 @@ export const ScheduleSummary = memo(function ScheduleSummary({
 
   if (datesWithSlots.length === 0) return null
 
-  const handleClick = useCallback(
+  const handleClick = 
     (dateStr: string) => {
       const d = parseDate(dateStr)
       onSelectDate(dateStr, d.getFullYear(), d.getMonth())
-    },
-    [onSelectDate],
-  )
+    }
+    
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">

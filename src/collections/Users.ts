@@ -83,8 +83,8 @@ export const Users: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       // Allow self-registration (no auth) as well as admin creation
-      const caller = getCallerFromRequest(req, 'users')
-      if (!req.user) return true // unauthenticated = self-registration
+      const caller = getCallerFromRequest(req, 'users');
+      if (!caller?.id) return true; // unauthenticated = self-registration
       return caller?.role === 'admin'
     },
     update: ({ req, id }) => {
