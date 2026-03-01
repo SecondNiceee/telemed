@@ -79,7 +79,7 @@ export const Appointments: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, operation, req }) => {
+      async ({ doc, operation }) => {
         if (operation === 'create') {
           // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
           const doctorRaw: unknown = doc.doctor;
@@ -88,44 +88,54 @@ export const Appointments: CollectionConfig = {
               ? (doctorRaw as { id: number }).id
               : Number(doctorRaw)
 
-          try {
-            const doctor = await req.payload.findByID({
-              collection: 'doctors',
-              id: doctorId,
-              overrideAccess: true,
-            })
+          const appointmentDate = doc.date as string
+          const appointmentTime = doc.time as string
 
-            if (doctor?.schedule) {
-              const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
-
-              const updatedSchedule = rawSchedule
-                .map((dayEntry) => {
-                  if (dayEntry.date === doc.date) {
-                    return {
-                      ...dayEntry,
-                      slots: (dayEntry.slots || []).filter((slot) => slot.time !== doc.time),
-                    }
-                  }
-                  return dayEntry
-                })
-                .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0);
-
-              // Use a separate Payload instance (outside the current transaction)
-              // to avoid a deadlock: the appointment transaction is still open,
-              // so updating doctors through `req.payload` would block forever.
+          // Schedule the doctor update to run AFTER the current transaction commits.
+          // Doing it inside afterChange causes a deadlock because the appointment
+          // transaction holds a lock and payload.update('doctors') tries to acquire
+          // its own lock in the same DB connection.
+          setImmediate(async () => {
+            try {
               const payload = await getPayload({ config })
-              await payload.update({
+
+              const doctor = await payload.findByID({
                 collection: 'doctors',
                 id: doctorId,
-                data: { schedule: updatedSchedule },
                 overrideAccess: true,
               })
+
+              if (doctor?.schedule) {
+                const rawSchedule = doctor.schedule as { date: string; slots?: { time: string }[] }[]
+
+                const updatedSchedule = rawSchedule
+                  .map((dayEntry) => {
+                    if (dayEntry.date === appointmentDate) {
+                      return {
+                        ...dayEntry,
+                        slots: (dayEntry.slots || []).filter((slot) => slot.time !== appointmentTime),
+                      }
+                    }
+                    return dayEntry
+                  })
+                  .filter((dayEntry) => dayEntry.slots && dayEntry.slots.length > 0)
+
+                await payload.update({
+                  collection: 'doctors',
+                  id: doctorId,
+                  data: { schedule: updatedSchedule },
+                  overrideAccess: true,
+                })
+              }
+
+              revalidateTag(DOCTORS_CACHE_TAG)
+            } catch (err) {
+              console.error('Failed to update doctor schedule after booking:', err)
             }
-          } catch (err) {
-            console.error('Failed to update doctor schedule after booking:', err)
-          }
+          })
+        } else {
+          revalidateTag(DOCTORS_CACHE_TAG)
         }
-        revalidateTag(DOCTORS_CACHE_TAG)
       },
     ],
   },
