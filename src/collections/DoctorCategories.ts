@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
-import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
+import { getCallerFromRequest } from './helpers/auth'
 
 const revalidateCategories = () => {
   revalidateTag(CATEGORIES_CACHE_TAG)
