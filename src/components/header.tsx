@@ -78,9 +78,9 @@ export function Header() {
             </Link>
           </nav>
 
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-4 min-h-[36px]">
             {authLoading ? (
-              <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
+              <div className="h-9 w-[164px] rounded-md bg-muted animate-pulse" />
             ) : user ? (
               <>
                 <Link
@@ -155,9 +155,9 @@ export function Header() {
               >
                 Как это работает
               </Link>
-              <div className="flex flex-col gap-2 pt-4 border-t border-border">
+              <div className="flex flex-col gap-2 pt-4 border-t border-border min-h-[52px]">
                 {authLoading ? (
-                  <div className="h-9 rounded-md bg-muted animate-pulse" />
+                  <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
                 ) : user ? (
                   <>
                     <Link
