@@ -89,9 +89,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ loading: true })
     try {
       await AuthApi.logout()
-      set({ ...initialState, fetched: true })
+    } catch {
+      // Ignore logout API errors (e.g. expired/invalid token) — clear state regardless
     } finally {
-      set({ loading: false })
+      set({ ...initialState, fetched: true, loading: false })
     }
     window.location.href = '/'
   },
