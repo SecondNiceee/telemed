@@ -93,7 +93,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     } finally {
       set({ loading: false })
     }
-    window.location.href = '/'
   },
 
   reset: () => set(initialState),

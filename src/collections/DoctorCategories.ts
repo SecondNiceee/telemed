@@ -11,24 +11,7 @@ const revalidateCategories = () => {
  * Populate req.user from the organisations cookie (organisations-token) without a DB query.
  * JWT already contains id, email, collection -- enough for all access checks.
  */
-function ensureReqUser({
-  req,
-}: {
-  req: PayloadRequest
-  operation: string
-}) {
-  if (req.user) return
 
-  const decoded = decodeSpecificCookie(req, 'organisations-token', 'organisations')
-  if (!decoded?.id) return
-
-  req.user = {
-    id: decoded.id,
-    email: decoded.email,
-    role: 'organisation',
-    collection: decoded.collection,
-  } as unknown as PayloadRequest['user']
-}
 
 export const DoctorCategories: CollectionConfig = {
   slug: 'doctor-categories',
@@ -41,19 +24,18 @@ export const DoctorCategories: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      return caller.role === 'admin' || caller.collection === 'organisations'
+      return caller?.role === 'admin' || caller?.collection === 'organisations'
     },
     update: ({ req }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
     delete: ({ req }) => {
       const caller = getCallerFromRequest(req, 'organisations')
-      return caller.role === 'admin'
+      return caller?.role === 'admin'
     },
   },
   hooks: {
-    beforeOperation: [ensureReqUser],
     afterChange: [
       () => {
         revalidateCategories()

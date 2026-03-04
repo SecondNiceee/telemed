@@ -1,15 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { Stethoscope, UserPlus } from "lucide-react"
+import { Stethoscope, UserPlus, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { memo } from "react"
+import { useOrgStore } from "@/stores/org-store"
 
 interface OrgPageHeaderProps {
   userName: string
 }
 
 export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHeaderProps) {
+  const logout = useOrgStore((s) => s.logout)
+  const loading = useOrgStore((s) => s.loading)
+
   return (
     <div className="flex items-center justify-between mb-8">
       <div>
@@ -30,6 +34,10 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
             <UserPlus className="w-4 h-4" />
             <span className="hidden sm:inline">Создать врача</span>
           </Link>
+        </Button>
+        <Button variant="outline" className="gap-2" onClick={logout} disabled={loading}>
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">Выйти</span>
         </Button>
       </div>
     </div>

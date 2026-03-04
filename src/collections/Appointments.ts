@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { getCallerFromRequest } from './helpers/auth'
+import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { sendAppointmentEmail } from '@/utils/sendAppointmentEmail'
@@ -19,7 +19,7 @@ function ensureReqUser({
   if (req.user) return
 
   // Try users cookie first
-  const userDecoded = getCallerFromRequest(req, 'users')
+  const userDecoded = getCallerFromRequest(req, 'users') as DecodedCaller || null
   if (userDecoded?.id) {
     req.user = {
       id: userDecoded.id,
@@ -31,7 +31,7 @@ function ensureReqUser({
   }
 
   // Try doctors cookie
-  const doctorDecoded = getCallerFromRequest(req, "doctors")
+  const doctorDecoded = getCallerFromRequest(req, "doctors") as DecodedCaller || null
   if (doctorDecoded?.id) {
     req.user = {
       id: doctorDecoded.id,

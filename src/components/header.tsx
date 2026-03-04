@@ -7,11 +7,19 @@ import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { resolveImageUrl } from "@/lib/utils/image";
+import { useRouter } from "next/navigation";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const router = useRouter();
+
   const { user, loading: userLoading, fetched: userFetched, refetchUser, logout: logoutUser } = useUserStore();
+
+  const logoutHandler = async () => {
+    await logoutUser();
+    router.replace("/")
+  }
 
   const authLoading = userLoading || !userFetched;
 
@@ -66,7 +74,7 @@ export function Header() {
                   <span className="max-w-[180px] truncate">{user.name || user.email}</span>
                 </Link>
                 <button
-                  onClick={logoutUser}
+                  onClick={logoutHandler}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
                   aria-label="Выйти"
                 >

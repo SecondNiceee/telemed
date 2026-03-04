@@ -1,7 +1,7 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
-import { getCallerFromRequest } from './helpers/auth'
+import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
 
 
 /**
@@ -16,7 +16,7 @@ function ensureReqUser({
 }) {
   if (req.user) return
 
-  const decoded = getCallerFromRequest(req, 'doctors',)
+  const decoded = getCallerFromRequest(req, 'doctors') as DecodedCaller | null
   if (!decoded?.id) return
 
   req.user = {

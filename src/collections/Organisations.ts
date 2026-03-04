@@ -1,29 +1,12 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
-import { getCallerFromRequest, decodeSpecificCookie } from './helpers/auth'
+import { getCallerFromRequest } from './helpers/auth'
 
 
 /**
  * Populate req.user from the organisations cookie (organisations-token) without a DB query.
  * JWT already contains id, email, collection -- enough for all access checks.
  */
-function ensureReqUser({
-  req,
-}: {
-  req: PayloadRequest
-  operation: string
-}) {
-  if (req.user) return
 
-  const decoded = decodeSpecificCookie(req, 'organisations-token', 'organisations')
-  if (!decoded?.id) return
-
-  req.user = {
-    id: decoded.id,
-    email: decoded.email,
-    role: 'organisation',
-    collection: decoded.collection,
-  } as unknown as PayloadRequest['user']
-}
 
 export const Organisations: CollectionConfig = {
   slug: 'organisations',
@@ -37,7 +20,7 @@ export const Organisations: CollectionConfig = {
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
   hooks: {
-    beforeOperation: [ensureReqUser],
+    beforeOperation: [],
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create') {
@@ -50,19 +33,21 @@ export const Organisations: CollectionConfig = {
   access: {
     read: () => true,
     create: ({ req }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      return caller?.role === 'admin'
+      const user = getCallerFromRequest(req, 'users')
+      return user?.role === 'admin'
     },
     update: ({ req, id }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      if (caller?.role === 'admin') return true
+      const userCaller = getCallerFromRequest(req, 'users')
+      if (userCaller?.role === 'admin') return true;
+
+      const organisationCaller = getCallerFromRequest(req, "organisations");
       // Organisation can update itself
-      if (caller?.collection === 'organisations' && caller.id && String(caller.id) === String(id)) return true
+      if (organisationCaller?.collection === 'organisations' && organisationCaller.id && String(organisationCaller.id) === String(id)) return true
       return false
     },
     delete: ({ req }) => {
-      const caller = getCallerFromRequest(req, 'organisations')
-      return caller?.role === 'admin'
+      const caller = getCallerFromRequest(req, 'users');
+      return caller?.role === 'admin';
     },
     admin: () => false, // Organisations don't access Payload Admin Panel
   },
