@@ -9,6 +9,7 @@ import { useUserStore } from "@/stores/user-store";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useRouter } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
+import { toast } from "sonner";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,6 +21,7 @@ export function Header() {
 
   const logoutHandler = async () => {
     await logoutUser();
+    toast.success("Вы успешно вышли из аккаунта");
     router.replace("/")
   }
 
@@ -170,7 +172,7 @@ export function Header() {
                     <button
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        logoutUser();
+                        logoutHandler();
                       }}
                       className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors py-2"
                     >

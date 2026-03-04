@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { DoctorAuthApi } from '@/lib/api/doctor-auth'
 import type { ApiDoctor } from '@/lib/api/types'
+import { toast } from 'sonner'
 
 interface DoctorState {
   doctor: ApiDoctor | null
@@ -68,10 +69,11 @@ export const useDoctorStore = create<DoctorState>((set, get) => ({
     try {
       await DoctorAuthApi.logout()
       set({ ...initialState, fetched: true })
+      toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })
     }
-    window.location.href = '/'
+    setTimeout(() => { window.location.href = '/' }, 500)
   },
 
   reset: () => set(initialState),

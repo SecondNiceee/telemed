@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { OrgAuthApi, type ApiOrganisation } from '@/lib/api/org-auth'
+import { toast } from 'sonner'
 
 interface OrgState {
   org: ApiOrganisation | null
@@ -67,10 +68,11 @@ export const useOrgStore = create<OrgState>((set, get) => ({
     try {
       await OrgAuthApi.logout()
       set({ ...initialState, fetched: true })
+      toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })
     }
-    window.location.href = '/'
+    setTimeout(() => { window.location.href = '/' }, 500)
   },
 
   reset: () => set(initialState),

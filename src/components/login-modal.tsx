@@ -16,6 +16,7 @@ import { useUserStore } from "@/stores/user-store"
 import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MailCheck } from "lucide-react"
+import { resolveImageUrl } from "@/lib/utils/image"
 
 type Tab = "login" | "register"
 
@@ -192,9 +193,18 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
         }}
       >
         <DialogHeader>
-          <DialogTitle className="text-xl text-center">
-            {tab === "login" ? "Вход в аккаунт" : "Регистрация"}
-          </DialogTitle>
+          <div className="flex flex-col items-center gap-3 mb-1">
+            <img
+              src={resolveImageUrl("/images/logo.jpg")}
+              alt="SmartCardio"
+              width={48}
+              height={48}
+              className="w-12 h-12 rounded-lg object-contain"
+            />
+            <DialogTitle className="text-xl text-center">
+              {tab === "login" ? "Вход в аккаунт" : "Регистрация"}
+            </DialogTitle>
+          </div>
         </DialogHeader>
 
         {/* Tabs */}

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import type { ApiDoctor } from "@/lib/api/types"
+import { resolveImageUrl } from "@/lib/utils/image"
 
 interface LkOrgGateProps {
   initialOrg: { id: number; name?: string; email: string } | null
@@ -43,13 +44,22 @@ export function LkOrgGate({ initialOrg, initialDoctors, children }: LkOrgGatePro
       <div className="flex-1 flex items-center justify-center py-20">
         <div className="w-full max-w-sm mx-auto px-4">
           <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
-            <div className="text-center mb-6">
-              <h1 className="text-xl font-semibold text-foreground">
-                Вход для организаций
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Введите логин и пароль вашей организации
-              </p>
+            <div className="flex flex-col items-center gap-3 mb-6">
+              <img
+                src={resolveImageUrl("/images/logo.jpg")}
+                alt="SmartCardio"
+                width={48}
+                height={48}
+                className="w-12 h-12 rounded-lg object-contain"
+              />
+              <div className="text-center">
+                <h1 className="text-xl font-semibold text-foreground">
+                  Вход для организаций
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Введите логин и пароль вашей организации
+                </p>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
