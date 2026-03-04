@@ -26,8 +26,12 @@ export function Header() {
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
     try {
-      await AuthApi.me();
-      router.push("/lk");
+      const user = await AuthApi.me();
+      console.log(user);
+      if (!user) setLoginModalOpen(true);
+      else{
+        router.push("/lk");
+      }
     } catch {
       setLoginModalOpen(true);
     }

@@ -304,6 +304,10 @@ export interface DoctorCategory {
    * Название иконки из библиотеки Lucide (например: stethoscope, heart, brain)
    */
   icon?: string | null;
+  /**
+   * Загрузите собственное изображение иконки (PNG/SVG/JPG)
+   */
+  iconImage?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
 }
@@ -595,6 +599,7 @@ export interface DoctorCategoriesSelect<T extends boolean = true> {
   slug?: T;
   description?: T;
   icon?: T;
+  iconImage?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -41,7 +41,6 @@ export class AuthApi {
         credentials: 'include',
         cache: 'no-store',
       })
-      console.log(data);
       return data.user ?? null
     } catch {
       return null

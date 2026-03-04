@@ -8,6 +8,7 @@ import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink, LogOu
 import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
+import { User } from "@/payload-types"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -62,9 +63,13 @@ function getInitials(name?: string | null, email?: string) {
   return email?.[0]?.toUpperCase() ?? "U"
 }
 
-export function LkContent() {
-  const router = useRouter()
-  const { user, loading: userLoading, fetched: userFetched, fetchUser, logout } = useUserStore()
+export function LkContent({user} : {user:User|null}) {
+  const { loading: userLoading, setUser, user:storeUser, fetched: userFetched, logout } = useUserStore();
+  useEffect( () => {
+    if (!storeUser){
+      setUser(user);
+    }
+  }, [] )
   const {
     appointments,
     loading: apptLoading,
@@ -72,15 +77,7 @@ export function LkContent() {
     fetchAppointments,
   } = useAppointmentStore()
 
-  useEffect(() => {
-    fetchUser()
-  }, [fetchUser])
 
-  useEffect(() => {
-    if (userFetched && !user) {
-      router.replace("/")
-    }
-  }, [userFetched, user, router])
 
   useEffect(() => {
     if (user) {

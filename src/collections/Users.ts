@@ -81,9 +81,13 @@ export const Users: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => true,
-    update: ({ req, id }) => true,
-    delete: ({ req }) => true
+    create: () => true,
+    update: () => true,
+    delete: () => true,
+    admin : ({req}) => {
+      const user = getCallerFromRequest(req, "users");
+      return user.role === "admin"
+    }
   },
   fields: [
     {
