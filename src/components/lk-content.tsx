@@ -9,7 +9,6 @@ import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
 import { User } from "@/payload-types"
-import { toast } from "sonner"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -127,10 +126,7 @@ export function LkContent({user} : {user:User|null}) {
               variant="outline"
               size="sm"
               className="gap-2 shrink-0"
-              onClick={() => {
-                logout();
-                toast.success("Вы успешно вышли из аккаунта");
-              }}
+              onClick={() => logout()}
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Выйти</span>

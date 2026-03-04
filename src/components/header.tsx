@@ -9,7 +9,6 @@ import { useUserStore } from "@/stores/user-store";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useRouter } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
-import { toast } from "sonner";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,12 +17,6 @@ export function Header() {
   const router = useRouter();
 
   const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
-
-  const logoutHandler = async () => {
-    await logoutUser();
-    toast.success("Вы успешно вышли из аккаунта");
-    router.replace("/")
-  }
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
@@ -92,7 +85,7 @@ export function Header() {
                   <span className="max-w-[180px] truncate">{user.name || user.email}</span>
                 </Link>
                 <button
-                  onClick={logoutHandler}
+                  onClick={logoutUser}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
                   aria-label="Выйти"
                 >
@@ -172,7 +165,7 @@ export function Header() {
                     <button
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        logoutHandler();
+                        logoutUser();
                       }}
                       className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors py-2"
                     >

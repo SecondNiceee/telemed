@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { User } from '@/payload-types'
 import { AuthApi } from '@/lib/api/auth'
+import { toast } from 'sonner'
 
 interface UserState {
   user: User | null
@@ -90,9 +91,11 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       await AuthApi.logout()
       set({ ...initialState, fetched: true })
+      toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })
     }
+    setTimeout(() => { window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || '/' }, 500)
   },
 
   reset: () => set(initialState),
