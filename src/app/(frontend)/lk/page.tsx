@@ -1,22 +1,33 @@
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkContent } from "@/components/lk-content"
-import { AuthApi } from "@/lib/api/auth"
 import { redirect } from "next/navigation"
+import { headers } from "next/headers"
+import { getBaseUrl } from "@/lib/api/fetch"
 
 export const dynamic = "force-dynamic"
 
 export default async function LkPage() {
   let user = null;
-  try{
-    user = await AuthApi.me();
-    if (!user){
-      redirect('/')
+  try {
+    const hdrs = await headers()
+    const cookie = hdrs.get("cookie") ?? ""
+    const baseUrl = getBaseUrl()
+    const res = await fetch(`${baseUrl}/api/users/me`, {
+      headers: { cookie },
+      cache: "no-store",
+    })
+    if (res.ok) {
+      const data = await res.json()
+      user = data.user ?? null
     }
-    
-  }
-  catch(e){
-    console.log(e);
+    if (!user) {
+      redirect("/")
+    }
+  } catch (e) {
+    // redirect() throws a special Next.js error — rethrow it
+    if (e && typeof e === "object" && "digest" in e) throw e
+    console.log(e)
     redirect("/")
   }
   return (
