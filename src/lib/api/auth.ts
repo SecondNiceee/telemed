@@ -52,7 +52,7 @@ export class AuthApi {
    * Logout current user
    */
   static async logout(): Promise<void> {
-    await apiFetch<{ message: string }>('/api/users/logout', {
+    await apiFetch<{ message: string }>('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
     })
