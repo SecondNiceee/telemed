@@ -73,7 +73,7 @@ export const useDoctorStore = create<DoctorState>((set, get) => ({
     } finally {
       set({ loading: false })
     }
-    setTimeout(() => { window.location.href = '/' }, 500)
+    setTimeout(() => { window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || '/' }, 500)
   },
 
   reset: () => set(initialState),
