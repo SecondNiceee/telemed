@@ -77,5 +77,14 @@ export const DoctorCategories: CollectionConfig = {
         description: 'Название иконки из библиотеки Lucide (например: stethoscope, heart, brain)',
       },
     },
+    {
+      name: 'iconImage',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'Изображение иконки',
+      admin: {
+        description: 'Загрузите собственное изображение иконки (PNG/SVG/JPG)',
+      },
+    },
   ],
 }

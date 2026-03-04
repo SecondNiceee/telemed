@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     // Get request body
     const body = await req.json()
-    const { name, slug, description, icon } = body
+    const { name, slug, description, icon, iconImage } = body
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
         slug,
         description: description || undefined,
         icon: icon || undefined,
+        iconImage: iconImage || undefined,
       },
       overrideAccess: true,
       user: {
