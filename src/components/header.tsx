@@ -8,18 +8,30 @@ import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useRouter } from "next/navigation";
+import { AuthApi } from "@/lib/api/auth";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const router = useRouter();
 
-  const { user, loading: userLoading, fetched: userFetched, refetchUser, logout: logoutUser } = useUserStore();
+  const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
 
   const logoutHandler = async () => {
     await logoutUser();
     router.replace("/")
   }
+
+  /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
+  const handleAuthClick = async () => {
+    try {
+      await AuthApi.me();
+      router.push("/lk");
+    } catch {
+      setLoginModalOpen(true);
+    }
+  };
 
   const authLoading = userLoading || !userFetched;
 
@@ -84,12 +96,19 @@ export function Header() {
               </>
             ) : (
               <>
-                <LoginModal onSuccess={refetchUser}>
-                  <Button variant="ghost" size="sm">
+                <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+                  <Button variant="ghost" size="sm" onClick={handleAuthClick}>
                     Войти
                   </Button>
                 </LoginModal>
-                <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/5 transition-all">Записаться</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-primary text-primary hover:bg-primary/5 transition-all"
+                  onClick={handleAuthClick}
+                >
+                  Записаться
+                </Button>
               </>
             )}
           </div>
@@ -157,12 +176,17 @@ export function Header() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    <LoginModal onSuccess={refetchUser}>
-                      <Button variant="ghost" size="sm" className="flex-1">
+                    <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+                      <Button variant="ghost" size="sm" className="flex-1" onClick={handleAuthClick}>
                         Войти
                       </Button>
                     </LoginModal>
-                    <Button variant="outline" size="sm" className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all"
+                      onClick={handleAuthClick}
+                    >
                       Записаться
                     </Button>
                   </div>

@@ -22,12 +22,23 @@ type Tab = "login" | "register"
 interface LoginModalProps {
   children: React.ReactNode
   onSuccess?: () => void
+  /** Controlled open state (optional) */
+  open?: boolean
+  /** Controlled open change handler (optional) */
+  onOpenChange?: (open: boolean) => void
 }
 
-export function LoginModal({ children, onSuccess }: LoginModalProps) {
+export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenChange: controlledOnOpenChange }: LoginModalProps) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [tab, setTab] = useState<Tab>("login")
+
+  // Support both controlled and uncontrolled usage
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
+  const setOpen = (value: boolean) => {
+    setInternalOpen(value)
+    controlledOnOpenChange?.(value)
+  }
   const [submitting, setSubmitting] = useState(false)
 
   // Login state
