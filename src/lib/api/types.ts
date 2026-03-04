@@ -4,6 +4,7 @@ export interface ApiCategory {
   slug: string
   description?: string | null
   icon?: string | null
+  iconImage?: ApiMedia | number | null
   createdAt: string
   updatedAt: string
 }
