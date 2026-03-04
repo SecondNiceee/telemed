@@ -38,17 +38,20 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[62px]">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary shadow-sm shadow-primary/30 flex-shrink-0">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="M10 3a7 7 0 1 0 0 14A7 7 0 0 0 10 3Z" stroke="white" strokeWidth="1.5" fill="none"/>
-                <path d="M7 10h2l1.5-3L12 13l1-3h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden ring-1 ring-border/60 shadow-sm shadow-primary/10">
+              <img
+                src="/images/logo.jpg"
+                alt="Smartcardio"
+                width={40}
+                height={40}
+                className="w-full h-full object-cover"
+              />
             </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-[15px] font-bold tracking-tight text-foreground">
+            <div className="flex flex-col leading-none gap-[4px]">
+              <span className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">
                 Smartcardio
               </span>
-              <span className="text-[9px] font-medium tracking-[0.18em] uppercase text-muted-foreground mt-0.5">
+              <span className="text-[10px] font-semibold tracking-[0.25em] uppercase text-primary/70">
                 Телемедицина
               </span>
             </div>
