@@ -41,7 +41,6 @@ export class AuthApi {
         credentials: 'include',
         cache: 'no-store',
       })
-      console.log(data);
       return data.user ?? null
     } catch {
       return null
@@ -52,7 +51,7 @@ export class AuthApi {
    * Logout current user
    */
   static async logout(): Promise<void> {
-    await apiFetch<{ message: string }>('/api/auth/logout', {
+    await apiFetch<{ message: string }>('/api/users/logout', {
       method: 'POST',
       credentials: 'include',
     })
