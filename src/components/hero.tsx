@@ -1,88 +1,107 @@
 import Link from "next/link";
 import { CheckCircle, Video, Clock, Shield, ArrowRight } from "lucide-react";
-import { resolveImageUrl } from "@/lib/utils/image";
+
+const BADGES = [
+  { icon: CheckCircle, label: "Лицензированные врачи" },
+  { icon: Video, label: "Видеоконсультации" },
+  { icon: Clock, label: "Доступно 24/7" },
+  { icon: Shield, label: "Конфиденциально" },
+];
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden py-20 sm:py-24">
-      {/* Background with gradient mesh */}
-      <div className="absolute inset-0 bg-gradient-to-b from-primary/8 via-background to-background" />
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-primary/4 rounded-full blur-3xl" />
-      {/* VideoLiner decorative background */}
-      <img
-        src={resolveImageUrl("/images/videoLiner.svg")}
-        alt=""
-        width={755}
-        height={821}
-        className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[600px] blur-[100px] opacity-80 -z-10 hidden md:block lg:min-w-[600px] md:min-w-[500px] md:-translate-x-[60%]"
+    <section className="relative overflow-hidden py-24 sm:py-32 animate-fade-up">
+      {/* Subtle dot-grid */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, oklch(0.50 0.28 305 / 0.18) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+          maskImage:
+            "radial-gradient(ellipse 90% 70% at 50% 0%, black 30%, transparent 100%)",
+        }}
         aria-hidden="true"
       />
-      
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center space-y-8">
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-semibold tracking-wide border border-primary/20">
-              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              Телемедицина нового поколения
-            </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.08] tracking-tight text-balance">
-              Забота о здоровье —{" "}
-              <span className="relative">
-                <span className="text-primary">без дороги в поликлинику</span>
-                <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none">
-                  <path d="M2 10C50 4 150 2 298 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-primary/40" />
-                </svg>
-              </span>
-            </h1>
-            <p className="text-lg sm:text-xl text-foreground/70 max-w-2xl mx-auto leading-relaxed font-medium">
-              Ваш врач на расстоянии одного клика. 
-              Профессиональные консультации <span className="text-foreground font-bold">кардиологов и терапевтов</span> без очередей и ожидания.
-            </p>
-          </div>
+      {/* Top glow */}
+      <div
+        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px]"
+        style={{
+          background:
+            "radial-gradient(ellipse, oklch(0.50 0.28 305 / 0.10) 0%, transparent 65%)",
+        }}
+        aria-hidden="true"
+      />
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="text-center flex flex-col items-center gap-8">
+
+          {/* Live badge */}
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] uppercase text-primary border border-primary/25 bg-primary/8 shadow-sm animate-fade-up" style={{ animationDelay: "0.05s" }}>
+            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+            Телемедицина нового поколения
+          </span>
+
+          {/* Heading */}
+          <h1 className="text-4xl sm:text-5xl lg:text-[66px] font-extrabold text-foreground leading-[1.04] tracking-[-0.035em] text-balance animate-fade-up" style={{ animationDelay: "0.1s" }}>
+            Забота о здоровье —{" "}
+            <span className="relative inline-block">
+              <span className="text-primary">без дороги</span>
+              <span className="text-primary"> в поликлинику</span>
+              <svg
+                className="absolute -bottom-2 left-0 w-full text-primary/35"
+                viewBox="0 0 380 10"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 8C70 3 220 1 378 8"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+          </h1>
+
+          {/* Subheading */}
+          <p className="text-lg sm:text-xl text-foreground/55 max-w-2xl leading-relaxed animate-fade-up" style={{ animationDelay: "0.15s" }}>
+            Ваш врач на расстоянии одного клика.{" "}
+            <span className="text-foreground/85 font-semibold">
+              Профессиональные консультации кардиологов и терапевтов
+            </span>{" "}
+            без очередей и ожидания.
+          </p>
+
+          {/* CTA */}
+          <div className="flex flex-col sm:flex-row gap-3 animate-fade-up" style={{ animationDelay: "0.2s" }}>
             <Link
               href="/#categories"
-              className="inline-flex items-center justify-center gap-2 text-base font-medium text-primary px-12 py-4 rounded-lg border-2 border-primary bg-background hover:bg-primary/5 shadow-sm transition-all md:px-16 lg:px-20"
+              className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 hover:shadow-primary/35 transition-all duration-200"
             >
-              Записаться на прием
+              Записаться на приём
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 text-base font-medium text-foreground/70 px-12 py-4 rounded-lg border border-border bg-background transition-all md:px-16 lg:px-20"
+              className="inline-flex items-center justify-center gap-2 text-[15px] font-medium text-foreground/65 px-8 py-3.5 rounded-xl border border-border bg-background hover:bg-secondary/50 transition-all duration-200"
             >
               Узнать больше
             </Link>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 pt-6 lg:flex-nowrap">
-            <div className="flex items-center gap-2.5 text-foreground/80">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <CheckCircle className="w-4.5 h-4.5 text-primary" />
+          {/* Trust badges */}
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 pt-2 animate-fade-up" style={{ animationDelay: "0.25s" }}>
+            {BADGES.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 text-foreground/55">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <span className="text-sm font-medium">{label}</span>
               </div>
-              <span className="text-sm font-medium">Лицензированные врачи</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-foreground/80">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <Video className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium">Видеоконсультации</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-foreground/80">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium">Доступно 24/7</span>
-            </div>
-            <div className="flex items-center gap-2.5 text-foreground/80">
-              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
-                <Shield className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <span className="text-sm font-medium">Конфиденциально</span>
-            </div>
+            ))}
           </div>
+
         </div>
       </div>
     </section>
