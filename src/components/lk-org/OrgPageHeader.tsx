@@ -35,7 +35,9 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
           variant="outline"
           size="sm"
           className="gap-2 shrink-0"
-          onClick={logout}
+          onClick={() => {
+            logout();
+          }}
           disabled={loading}
         >
           <LogOut className="w-4 h-4" />
