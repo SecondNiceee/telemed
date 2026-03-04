@@ -6,7 +6,6 @@ import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
-import { resolveImageUrl } from "@/lib/utils/image";
 import { useRouter } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 
@@ -35,20 +34,24 @@ export function Header() {
   const authLoading = userLoading || !userFetched;
 
   return (
-    <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
+    <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <img
-              src={`${resolveImageUrl("/images/logo.jpg")}`}
-              alt="smartcardio"
-              width={40}
-              height={40}
-              className="w-10 h-10 rounded-lg object-contain"
-            />
-            <span className="text-xl font-semibold text-foreground">
-              SmartcardioТелемедицина
-            </span>
+        <div className="flex items-center justify-between h-[62px]">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary shadow-sm shadow-primary/30 flex-shrink-0">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M10 3a7 7 0 1 0 0 14A7 7 0 0 0 10 3Z" stroke="white" strokeWidth="1.5" fill="none"/>
+                <path d="M7 10h2l1.5-3L12 13l1-3h2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex flex-col leading-none">
+              <span className="text-[15px] font-bold tracking-tight text-foreground">
+                Smartcardio
+              </span>
+              <span className="text-[9px] font-medium tracking-[0.18em] uppercase text-muted-foreground mt-0.5">
+                Телемедицина
+              </span>
+            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
