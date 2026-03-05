@@ -37,13 +37,13 @@ export function Hero() {
         <div className="text-center flex flex-col items-center gap-8">
 
           {/* Live badge */}
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] uppercase text-primary border border-primary/25 bg-primary/8 shadow-sm animate-fade-up" style={{ animationDelay: "0.05s" }}>
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.18em] uppercase text-primary border border-primary/25 bg-primary/8 shadow-sm">
             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
             Телемедицина нового поколения
           </span>
 
           {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-[66px] font-extrabold text-foreground leading-[1.04] tracking-[-0.035em] text-balance animate-fade-up" style={{ animationDelay: "0.1s" }}>
+          <h1 className="text-4xl sm:text-5xl lg:text-[66px] font-extrabold text-foreground leading-[1.04] tracking-[-0.035em] text-balance">
             Забота о здоровье —{" "}
             <span className="relative inline-block">
               <span className="text-primary">без дороги</span>
@@ -65,7 +65,7 @@ export function Hero() {
           </h1>
 
           {/* Subheading */}
-          <p className="text-lg sm:text-xl text-foreground/55 max-w-2xl leading-relaxed animate-fade-up" style={{ animationDelay: "0.15s" }}>
+          <p className="text-lg sm:text-xl text-foreground/55 max-w-2xl leading-relaxed">
             Ваш врач на расстоянии одного клика.{" "}
             <span className="text-foreground/85 font-semibold">
               Профессиональные консультации кардиологов и терапевтов
@@ -74,7 +74,7 @@ export function Hero() {
           </p>
 
           {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/#categories"
               className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-3.5 rounded-xl shadow-lg shadow-primary/20 hover:brightness-110 hover:shadow-primary/35 transition-all duration-200"
@@ -91,7 +91,7 @@ export function Hero() {
           </div>
 
           {/* Trust badges */}
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 pt-2 animate-fade-up" style={{ animationDelay: "0.25s" }}>
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 pt-2">
             {BADGES.map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-2 text-foreground/55">
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
