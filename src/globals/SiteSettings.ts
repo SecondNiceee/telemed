@@ -1,4 +1,5 @@
 import type { GlobalConfig } from 'payload'
+import { revalidateTag } from 'next/cache'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
@@ -67,16 +68,8 @@ export const SiteSettings: GlobalConfig = {
   ],
   hooks: {
     afterChange: [
-      async () => {
-        // Revalidate the homepage when settings change
-        try {
-          const baseUrl = process.env.SERVER_URL || 'http://localhost:3000'
-          await fetch(`${baseUrl}/api/revalidate?tag=site-settings`, {
-            method: 'POST',
-          })
-        } catch (error) {
-          console.error('Failed to revalidate site-settings:', error)
-        }
+      () => {
+        revalidateTag('site-settings')
       },
     ],
   },
