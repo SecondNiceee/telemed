@@ -13,9 +13,15 @@ interface AuthenticatedSocket extends Socket {
   data: {
     userId?: number
     doctorId?: number
+    // Primary sender type (what the client initially connected as)
     senderType: 'user' | 'doctor'
     senderId: number
   }
+}
+
+interface AuthInfo {
+  userId?: number
+  doctorId?: number
 }
 
 interface SendMessagePayload {
