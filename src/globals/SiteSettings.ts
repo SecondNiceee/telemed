@@ -1,5 +1,6 @@
 import type { GlobalConfig } from 'payload'
 import { revalidateTag } from 'next/cache'
+import { getCallerFromRequest } from '@/collections/helpers/auth'
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
@@ -9,6 +10,10 @@ export const SiteSettings: GlobalConfig = {
   },
   access: {
     read: () => true,
+    update: ({req}) => {
+      const user = getCallerFromRequest(req);
+      return user.role === "admin"
+    },
   },
   fields: [
     {

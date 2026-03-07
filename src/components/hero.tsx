@@ -18,7 +18,7 @@ export function Hero({ title, subtitle }: HeroProps) {
   const displaySubtitle = subtitle || "Ваш врач на расстоянии одного клика. Профессиональные консультации кардиологов и терапевтов без очередей и ожидания.";
 
   return (
-    <section className="relative overflow-hidden py-24 sm:py-32 animate-fade-up bg-gradient-to-b from-primary/5 via-background to-background">
+    <section className="relative overflow-hidden py-18  bg-gradient-to-b from-primary/5 via-background to-background">
       {/* Decorative blurred shapes */}
       <div
         className="pointer-events-none absolute top-0 left-1/4 w-[500px] h-[500px] opacity-30"

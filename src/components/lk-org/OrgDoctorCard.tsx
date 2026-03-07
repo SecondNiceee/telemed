@@ -37,7 +37,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
               <img
                 src={resolveImageUrl((doctor.photo as Media).url)}
                 alt={doctor.name || "Врач"}
-                className="w-20  object-cover h-[-webkit-fill-available]"
+                className="w-full  object-cover h-[-webkit-fill-available]"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

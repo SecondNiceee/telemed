@@ -48,7 +48,7 @@ export function Header() {
               />
             </div>
             <div className="flex flex-col leading-none gap-[4px]">
-              <span className="text-[19px] font-extrabold tracking-[-0.03em] text-foreground">
+              <span className="text-[19px] font-bold tracking-[-0.03em] text-foreground">
                 Smartcardio
               </span>
               <span className="text-[10px] font-semibold tracking-[0.25em] uppercase text-primary/70">

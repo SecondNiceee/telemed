@@ -56,9 +56,12 @@ export const Doctors: CollectionConfig = {
     read: () => true,
     create: ({ req }) => {
       // Organisation creates doctors; admin can too
+      console.log("Самое начало")
       const user = getCallerFromRequest(req, "users");
+      console.log(user);
       if (user?.role === "admin") return true;
-      const organistion = getCallerFromRequest(req, 'organisations')
+      const organistion = getCallerFromRequest(req, 'organisations');
+      console.log("Я ТУТ")
       if (organistion?.collection === "organisations") return true;
       return false
     },

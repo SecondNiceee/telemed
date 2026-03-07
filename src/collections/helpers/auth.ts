@@ -62,33 +62,6 @@ function decodeCookie(cookieHeader: string, cookieName: string): { id?: string |
  * Decode JWTs from ALL auth-collection cookies.
  * Returns the first valid decoded token found (priority: users > doctors > organisations).
  */
-export function decodeAnyCookie(req: PayloadRequest): DecodedCaller | null {
-  const cookieHeader = getCookieHeader(req)
-  if (!cookieHeader) return null
-
-  for (const { name, collection } of AUTH_COOKIES) {
-    const decoded = decodeCookie(cookieHeader, name)
-    if (decoded?.id) {
-      let role: string
-      if (collection === 'users') {
-        role = decoded.role || 'user'
-      } else if (collection === 'doctors') {
-        role = 'doctor'
-      } else {
-        role = 'organisation'
-      }
-
-      return {
-        id: String(decoded.id),
-        collection,
-        role,
-        email: decoded.email,
-      }
-    }
-  }
-
-  return null
-}
 
 /**
  * Decode ONLY the users collection cookie (payload-token).
@@ -158,35 +131,17 @@ export function getCallerFromRequest(
   req: PayloadRequest,
   callerType?: AuthCollection,
 ): { role?: string; id?: string; collection?: AuthCollection } {
-  const user = req.user as unknown as { role?: string; id?: string | number; collection?: string } | undefined
-
-  if (user?.id) {
-    const col = (user.collection as AuthCollection) || 'users'
-    // If a callerType is specified, only trust req.user when it matches that collection.
-    // Exception: always trust admins (users with role === 'admin') regardless of callerType.
-    const isAdmin = col === 'users' && user.role === 'admin'
-    if (!callerType || col === callerType || isAdmin) {
-      return {
-        role: user.role || (col === 'doctors' ? 'doctor' : col === 'organisations' ? 'organisation' : 'user'),
-        id: String(user.id),
-        collection: col,
-      }
-    }
-  }
 
   // Fallback: decode JWT directly from cookies.
-  const cookieHeader = getCookieHeader(req)
+  console.log("Я хотя бы тут")
+  const cookieHeader = getCookieHeader(req);
   if (!cookieHeader) return {}
 
   if (callerType) {
-    // Always also check for admin in the users cookie.
-    const userDecoded = decodeCookie(cookieHeader, 'payload-token')
-    if (userDecoded?.id && userDecoded.role === 'admin') {
-      return { role: 'admin', id: String(userDecoded.id), collection: 'users' }
-    }
 
     // Then check only the specific cookie for the requested callerType.
-    const decoded = decodeCookie(cookieHeader, COOKIE_MAP[callerType])
+    const decoded = decodeCookie(cookieHeader, COOKIE_MAP[callerType]);
+    console.log(decoded);
     if (decoded?.id) {
       let role: string
       if (callerType === 'users') {
