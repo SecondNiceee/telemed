@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { useUserStore } from "@/stores/user-store"
 import { useAppointmentStore } from "@/stores/appointment-store"
 import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink, LogOut } from "lucide-react"
@@ -9,6 +8,7 @@ import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
 import { User } from "@/payload-types"
+import { formatDate, getStatusLabel, getStatusColor, getInitials } from "@/lib/utils/date"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -20,70 +20,28 @@ function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: s
   return null
 }
 
-function formatDate(dateStr: string) {
-  const date = new Date(dateStr + "T00:00:00")
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
+interface LkContentProps {
+  user: User | null
+  appointments: ApiAppointment[]
 }
 
-function getStatusLabel(status: ApiAppointment["status"]) {
-  switch (status) {
-    case "confirmed":
-      return "Подтверждена"
-    case "completed":
-      return "Завершена"
-    case "cancelled":
-      return "Отменена"
-  }
-}
+export function LkContent({ user, appointments: serverAppointments }: LkContentProps) {
+  const { loading: userLoading, setUser, user: storeUser, fetched: userFetched, logout } = useUserStore()
+  const { appointments, setAppointments, loading: apptLoading, fetched: apptFetched } = useAppointmentStore()
 
-function getStatusColor(status: ApiAppointment["status"]) {
-  switch (status) {
-    case "confirmed":
-      return "bg-green-100 text-green-700 border border-green-200"
-    case "completed":
-      return "bg-muted text-muted-foreground border border-border"
-    case "cancelled":
-      return "bg-destructive/10 text-destructive border border-destructive/20"
-  }
-}
-
-function getInitials(name?: string | null, email?: string) {
-  if (name) {
-    return name
-      .split(" ")
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-  }
-  return email?.[0]?.toUpperCase() ?? "U"
-}
-
-export function LkContent({user} : {user:User|null}) {
-  const { loading: userLoading, setUser, user:storeUser, fetched: userFetched, logout } = useUserStore();
-  useEffect( () => {
-    if (!storeUser){
-      setUser(user);
-    }
-  }, [] )
-  const {
-    appointments,
-    loading: apptLoading,
-    fetched: apptFetched,
-    fetchAppointments,
-  } = useAppointmentStore()
-
-
-
+  // Sync user to store
   useEffect(() => {
-    if (user) {
-      fetchAppointments()
+    if (!storeUser && user) {
+      setUser(user)
     }
-  }, [user, fetchAppointments])
+  }, [storeUser, user, setUser])
+
+  // Sync server-loaded appointments to store
+  useEffect(() => {
+    if (serverAppointments.length > 0 && !apptFetched) {
+      setAppointments(serverAppointments)
+    }
+  }, [serverAppointments, apptFetched, setAppointments])
 
   if (!userFetched || userLoading) {
     return (
