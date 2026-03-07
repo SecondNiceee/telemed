@@ -7,6 +7,7 @@ export { DoctorAuthApi } from './doctor-auth'
 export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
 export { AppointmentsApi } from './appointments'
+export { MessagesApi } from './messages'
 export { SiteSettingsApi } from './site-settings'
 export type { SiteSettings, FaqItem } from './site-settings'
 export type {
@@ -20,6 +21,7 @@ export type {
   PayloadListResponse,
 } from './types'
 export type { CreateCategoryPayload } from './categories'
+export type { ApiMessage } from './messages'
 
 // Legacy support: export functions as top-level exports for backward compatibility
 import { AuthApi } from './auth'

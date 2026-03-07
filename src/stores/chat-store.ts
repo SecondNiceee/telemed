@@ -1,0 +1,164 @@
+import { create } from 'zustand'
+import { MessagesApi, type ApiMessage } from '@/lib/api/messages'
+
+interface ChatState {
+  // Active chat state
+  activeAppointmentId: number | null
+  
+  // Messages by appointment ID
+  messages: Record<number, ApiMessage[]>
+  
+  // Unread counts by appointment ID
+  unreadCounts: Record<number, number>
+  
+  // Loading state per appointment
+  loadingMessages: Record<number, boolean>
+  
+  // Typing indicator state
+  typingUsers: Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>
+
+  // Actions
+  setActiveChat: (appointmentId: number | null) => void
+  
+  addMessage: (message: ApiMessage) => void
+  
+  setMessages: (appointmentId: number, messages: ApiMessage[]) => void
+  
+  loadMessages: (appointmentId: number) => Promise<void>
+  
+  markAsRead: (appointmentId: number) => void
+  
+  setUnreadCount: (appointmentId: number, count: number) => void
+  
+  incrementUnreadCount: (appointmentId: number) => void
+  
+  setTypingUser: (appointmentId: number, typingUser: { senderType: 'user' | 'doctor'; senderId: number } | null) => void
+  
+  reset: () => void
+}
+
+const initialState = {
+  activeAppointmentId: null,
+  messages: {} as Record<number, ApiMessage[]>,
+  unreadCounts: {} as Record<number, number>,
+  loadingMessages: {} as Record<number, boolean>,
+  typingUsers: {} as Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>,
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  ...initialState,
+
+  setActiveChat: (appointmentId) => {
+    set({ activeAppointmentId: appointmentId })
+    
+    // Reset unread count when opening chat
+    if (appointmentId !== null) {
+      set((state) => ({
+        unreadCounts: {
+          ...state.unreadCounts,
+          [appointmentId]: 0,
+        },
+      }))
+    }
+  },
+
+  addMessage: (message) => {
+    const appointmentId = typeof message.appointment === 'object' 
+      ? message.appointment.id 
+      : message.appointment
+
+    set((state) => {
+      const currentMessages = state.messages[appointmentId] || []
+      
+      // Check if message already exists (prevent duplicates)
+      if (currentMessages.some((m) => m.id === message.id)) {
+        return state
+      }
+
+      return {
+        messages: {
+          ...state.messages,
+          [appointmentId]: [...currentMessages, message],
+        },
+      }
+    })
+  },
+
+  setMessages: (appointmentId, messages) => {
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [appointmentId]: messages,
+      },
+    }))
+  },
+
+  loadMessages: async (appointmentId) => {
+    // Prevent duplicate loading
+    if (get().loadingMessages[appointmentId]) return
+
+    set((state) => ({
+      loadingMessages: {
+        ...state.loadingMessages,
+        [appointmentId]: true,
+      },
+    }))
+
+    try {
+      const messages = await MessagesApi.fetchByAppointment(appointmentId)
+      set((state) => ({
+        messages: {
+          ...state.messages,
+          [appointmentId]: messages,
+        },
+      }))
+    } catch (err) {
+      console.error('Failed to load messages:', err)
+    } finally {
+      set((state) => ({
+        loadingMessages: {
+          ...state.loadingMessages,
+          [appointmentId]: false,
+        },
+      }))
+    }
+  },
+
+  markAsRead: (appointmentId) => {
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [appointmentId]: 0,
+      },
+    }))
+  },
+
+  setUnreadCount: (appointmentId, count) => {
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [appointmentId]: count,
+      },
+    }))
+  },
+
+  incrementUnreadCount: (appointmentId) => {
+    set((state) => ({
+      unreadCounts: {
+        ...state.unreadCounts,
+        [appointmentId]: (state.unreadCounts[appointmentId] || 0) + 1,
+      },
+    }))
+  },
+
+  setTypingUser: (appointmentId, typingUser) => {
+    set((state) => ({
+      typingUsers: {
+        ...state.typingUsers,
+        [appointmentId]: typingUser,
+      },
+    }))
+  },
+
+  reset: () => set(initialState),
+}))
