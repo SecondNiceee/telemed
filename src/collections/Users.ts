@@ -1,28 +1,7 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
-import { getCallerFromRequest, decodeUsersCookie } from './helpers/auth'
+import type { CollectionConfig } from 'payload'
+import { getCallerFromRequest } from './helpers/auth'
 
-/**
- * Populate req.user from the users cookie (payload-token) without a DB query.
- * JWT already contains id, role, email, collection -- enough for all access checks.
- */
-function ensureReqUser({
-  req,
-}: {
-  req: PayloadRequest
-  operation: string
-}) {
-  if (req.user) return
 
-  const decoded = decodeUsersCookie(req)
-  if (!decoded?.id) return
-
-  req.user = {
-    id: decoded.id,
-    email: decoded.email,
-    role: decoded.role,
-    collection: decoded.collection,
-  } as unknown as PayloadRequest['user']
-}
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -75,9 +54,6 @@ export const Users: CollectionConfig = {
       generateEmailSubject: () => 'Подтвердите ваш email — smartcardio',
     },
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
-  },
-  hooks: {
-    beforeOperation: [ensureReqUser],
   },
   access: {
     read: () => true,

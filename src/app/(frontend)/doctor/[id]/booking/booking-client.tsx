@@ -315,7 +315,7 @@ export function BookingClient({
                 </h3>
                 <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
                   У врача пока нет открытых слотов для записи. Попробуйте позже
-                  или в��берите другого специалиста.
+                  или выберите другого специалиста.
                 </p>
               </CardContent>
             </Card>
