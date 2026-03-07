@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { AppointmentsApi, type CreateAppointmentPayload } from '@/lib/api/appointments'
-import type { ApiAppointment } from '@/lib/api/types'
+import type { ApiAppointment, ApiDoctor } from '@/lib/api/types'
+
+export interface CreateAppointmentWithDoctorPayload extends CreateAppointmentPayload {
+  /** Full doctor object to embed in the appointment */
+  doctorData?: Partial<ApiDoctor>
+}
 
 interface AppointmentState {
   appointments: ApiAppointment[]
@@ -8,12 +13,14 @@ interface AppointmentState {
   fetched: boolean
   creating: boolean
 
+  /** Set appointments from server (for SSR hydration) */
+  setAppointments: (appointments: ApiAppointment[]) => void
   /** Fetch current user/doctor appointments */
   fetchAppointments: () => Promise<void>
   /** Force refetch */
   refetchAppointments: () => Promise<void>
-  /** Create a new appointment */
-  createAppointment: (data: CreateAppointmentPayload) => Promise<ApiAppointment>
+  /** Create a new appointment with full doctor info */
+  createAppointment: (data: CreateAppointmentWithDoctorPayload) => Promise<ApiAppointment>
   /** Reset store */
   reset: () => void
 }
@@ -27,6 +34,10 @@ const initialState = {
 
 export const useAppointmentStore = create<AppointmentState>((set, get) => ({
   ...initialState,
+
+  setAppointments: (appointments) => {
+    set({ appointments, fetched: true, loading: false })
+  },
 
   fetchAppointments: async () => {
     if (get().fetched) return
@@ -57,11 +68,24 @@ export const useAppointmentStore = create<AppointmentState>((set, get) => ({
   createAppointment: async (data) => {
     set({ creating: true })
     try {
-      const appointment = await AppointmentsApi.create(data)
+      const { doctorData, ...payload } = data
+      const appointment = await AppointmentsApi.create(payload)
+      
+      // Embed full doctor object if provided, so UI has all info immediately
+      const enrichedAppointment: ApiAppointment = {
+        ...appointment,
+        doctor: doctorData ? { 
+          id: payload.doctor,
+          email: doctorData.email || '',
+          name: doctorData.name,
+          ...doctorData 
+        } as ApiDoctor : appointment.doctor,
+      }
+      
       set((state) => ({
-        appointments: [appointment, ...state.appointments],
+        appointments: [enrichedAppointment, ...state.appointments],
       }))
-      return appointment
+      return enrichedAppointment
     } finally {
       set({ creating: false })
     }

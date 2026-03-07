@@ -189,6 +189,16 @@ export function BookingClient({
         date: selectedDate,
         time: selectedTime,
         price: doctorPrice,
+        // Pass full doctor data so the store has all info immediately
+        doctorData: {
+          id: doctorId,
+          email: doctorEmail,
+          name: doctorName,
+          price: doctorPrice,
+          experience: doctorExperience,
+          degree: doctorDegree,
+          bio: doctorBio,
+        },
       });
       setIsBooked(true);
     } catch (err) {
