@@ -25,7 +25,7 @@ interface SocketProviderProps {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
-  const { addMessage, setTypingUser, incrementUnreadCount, activeAppointmentId } = useChatStore()
+  const { addMessage, setTypingUser, incrementUnreadCount, activeAppointmentId, markMessagesAsReadByType } = useChatStore()
 
   useEffect(() => {
     // Connect to the separate Socket.io server on port 3001
@@ -73,6 +73,15 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     newSocket.on('user-stop-typing', ({ appointmentId }) => {
       setTypingUser(appointmentId, null)
+    })
+
+    // Handle messages marked as read
+    newSocket.on('messages-read', ({ appointmentId, readBy }) => {
+      // Mark messages from the OTHER party as read
+      // If readBy is 'user', mark all 'doctor' messages as read (user read them)
+      // If readBy is 'doctor', mark all 'user' messages as read (doctor read them)
+      const senderTypeToMarkRead = readBy === 'user' ? 'doctor' : 'user'
+      markMessagesAsReadByType(appointmentId, senderTypeToMarkRead)
     })
 
     // Handle errors

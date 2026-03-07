@@ -28,6 +28,8 @@ interface ChatState {
   
   markAsRead: (appointmentId: number) => void
   
+  markMessagesAsReadByType: (appointmentId: number, senderType: 'user' | 'doctor') => void
+  
   setUnreadCount: (appointmentId: number, count: number) => void
   
   incrementUnreadCount: (appointmentId: number) => void
@@ -131,6 +133,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [appointmentId]: 0,
       },
     }))
+  },
+
+  markMessagesAsReadByType: (appointmentId, senderType) => {
+    set((state) => {
+      const currentMessages = state.messages[appointmentId] || []
+      
+      // Mark all messages from the specified sender type as read
+      const updatedMessages = currentMessages.map((msg) => {
+        if (msg.senderType === senderType && !msg.read) {
+          return { ...msg, read: true }
+        }
+        return msg
+      })
+
+      return {
+        messages: {
+          ...state.messages,
+          [appointmentId]: updatedMessages,
+        },
+      }
+    })
   },
 
   setUnreadCount: (appointmentId, count) => {
