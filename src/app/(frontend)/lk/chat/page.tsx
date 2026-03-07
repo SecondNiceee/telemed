@@ -15,7 +15,13 @@ export const metadata = {
   description: "Чат с вашими врачами",
 }
 
-export default async function LkChatPage() {
+export default async function LkChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ appointment?: string }>
+}) {
+  const params = await searchParams
+  const initialAppointmentId = params.appointment ? parseInt(params.appointment, 10) : null
   let user: User | null = null
   let appointments: ApiAppointment[] = []
 
@@ -81,6 +87,7 @@ export default async function LkChatPage() {
           appointments={activeAppointments}
           currentSenderType="user"
           currentSenderId={user.id}
+          initialAppointmentId={initialAppointmentId}
         />
       </main>
     </div>
