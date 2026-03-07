@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useUserStore } from "@/stores/user-store"
 import { useAppointmentStore } from "@/stores/appointment-store"
-import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink, LogOut } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink, LogOut, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
@@ -80,15 +80,28 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
                 <p className="text-sm text-muted-foreground mt-0.5">{user.email}</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 shrink-0"
-              onClick={() => logout()}
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Выйти</span>
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                asChild
+              >
+                <Link href="/lk/chat">
+                  <MessageSquare className="w-4 h-4" />
+                  <span className="hidden sm:inline">Сообщения</span>
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => logout()}
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Выйти</span>
+              </Button>
+            </div>
           </div>
 
           {/* Stats row */}

@@ -7,7 +7,8 @@ import { useAppointmentStore } from "@/stores/appointment-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, Mail } from "lucide-react"
+import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, Mail, MessageSquare, LogOut } from "lucide-react"
+import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { resolveImageUrl } from "@/lib/utils/image"
 
@@ -55,7 +56,7 @@ function getStatusColor(status: ApiAppointment["status"]) {
 
 export function LkMedContent({ initialDoctor }: LkMedContentProps) {
   const router = useRouter()
-  const { doctor: storeDoctor, login, loading } = useDoctorStore()
+  const { doctor: storeDoctor, login, loading, logout } = useDoctorStore()
   const {
     appointments,
     loading: apptLoading,
@@ -164,12 +165,31 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
   return (
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8">
-          <p className="text-sm text-muted-foreground">Кабинет врача</p>
-          <h1 className="text-2xl font-semibold text-foreground mt-1">
-            {doctor.name || doctor.email}
-          </h1>
-          <p className="text-muted-foreground mt-1">{doctor.email}</p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted-foreground">Кабинет врача</p>
+            <h1 className="text-2xl font-semibold text-foreground mt-1">
+              {doctor.name || doctor.email}
+            </h1>
+            <p className="text-muted-foreground mt-1">{doctor.email}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-2" asChild>
+              <Link href="/lk-med/chat">
+                <MessageSquare className="w-4 h-4" />
+                <span>Сообщения</span>
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => logout()}
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Выйти</span>
+            </Button>
+          </div>
         </div>
 
         <h2 className="text-lg font-semibold text-foreground mb-4">
