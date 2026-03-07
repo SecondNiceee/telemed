@@ -163,15 +163,29 @@ export const Appointments: CollectionConfig = {
       // Check admin via users token
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
+      
+      // Check both tokens and combine conditions with OR
+      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      
+      const conditions: Where[] = []
+      
       // Regular user reads their own appointments
       if (callerAsUser?.collection === 'users' && callerAsUser.id) {
-        return { user: { equals: Number(callerAsUser.id) } } as Where
+        conditions.push({ user: { equals: Number(callerAsUser.id) } })
       }
+      
       // Doctor reads their own appointments
-      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
       if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
-        return { doctor: { equals: Number(callerAsDoctor.id) } } as Where
+        conditions.push({ doctor: { equals: Number(callerAsDoctor.id) } })
       }
+      
+      // Return combined OR query if we have conditions
+      if (conditions.length > 0) {
+        return conditions.length === 1 
+          ? conditions[0] 
+          : { or: conditions } as Where
+      }
+      
       return false
     },
     create: ({ req }) => {

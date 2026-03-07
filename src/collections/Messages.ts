@@ -14,19 +14,30 @@ export const Messages: CollectionConfig = {
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
 
+      // Check both tokens and combine conditions with OR
+      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      
+      const conditions: Where[] = []
+
       // User reads messages from their appointments
       if (callerAsUser?.collection === 'users' && callerAsUser.id) {
-        return {
+        conditions.push({
           'appointment.user': { equals: Number(callerAsUser.id) },
-        } as Where
+        })
       }
 
       // Doctor reads messages from their appointments
-      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
       if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
-        return {
+        conditions.push({
           'appointment.doctor': { equals: Number(callerAsDoctor.id) },
-        } as Where
+        })
+      }
+
+      // Return combined OR query if we have conditions
+      if (conditions.length > 0) {
+        return conditions.length === 1 
+          ? conditions[0] 
+          : { or: conditions } as Where
       }
 
       return false
@@ -43,22 +54,33 @@ export const Messages: CollectionConfig = {
     },
     update: ({ req }) => {
       // Only admin can update messages (e.g., mark as read)
-      const caller = getCallerFromRequest(req, 'users')
-      if (caller?.role === 'admin') return true
-
-      // Allow users/doctors to update their own messages (e.g., mark as read)
       const callerAsUser = getCallerFromRequest(req, 'users')
+      if (callerAsUser?.role === 'admin') return true
+
+      // Check both tokens and combine conditions with OR
+      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      
+      const conditions: Where[] = []
+
+      // Allow users to update messages from their appointments
       if (callerAsUser?.collection === 'users' && callerAsUser.id) {
-        return {
+        conditions.push({
           'appointment.user': { equals: Number(callerAsUser.id) },
-        } as Where
+        })
       }
 
-      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
+      // Allow doctors to update messages from their appointments
       if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
-        return {
+        conditions.push({
           'appointment.doctor': { equals: Number(callerAsDoctor.id) },
-        } as Where
+        })
+      }
+
+      // Return combined OR query if we have conditions
+      if (conditions.length > 0) {
+        return conditions.length === 1 
+          ? conditions[0] 
+          : { or: conditions } as Where
       }
 
       return false
