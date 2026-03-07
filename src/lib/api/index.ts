@@ -7,6 +7,8 @@ export { DoctorAuthApi } from './doctor-auth'
 export { CategoriesApi } from './categories'
 export { DoctorsApi } from './doctors'
 export { AppointmentsApi } from './appointments'
+export { SiteSettingsApi } from './site-settings'
+export type { SiteSettings, FaqItem } from './site-settings'
 export type {
   ApiCategory,
   ApiMedia,

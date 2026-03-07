@@ -12,6 +12,7 @@ import { Organisations } from './collections/Organisations'
 import { Media } from './collections/Media'
 import { DoctorCategories } from './collections/DoctorCategories'
 import { Appointments } from './collections/Appointments'
+import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -27,6 +28,7 @@ export default buildConfig({
   },
 
   collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments],
+  globals: [SiteSettings],
   editor: lexicalEditor(),
   email: nodemailerAdapter({
     defaultFromAddress: process.env.SMTP_FROM || 'no-reply@example.com',
