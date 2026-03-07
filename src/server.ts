@@ -1,52 +1,66 @@
 import 'dotenv/config'
 import http from 'http'
-import next from 'next'
 import { Server as SocketIOServer } from 'socket.io'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { initializeSocketServer } from './lib/socket/server'
 
-const dev = process.env.NODE_ENV !== 'production'
-const hostname = process.env.HOSTNAME || 'localhost'
-const port = parseInt(process.env.PORT || '3000', 10)
+// Socket.io runs on a SEPARATE port from Next.js
+// This avoids the AsyncLocalStorage conflict with Next.js 15
+const SOCKET_PORT = parseInt(process.env.SOCKET_PORT || '3001', 10)
+const NEXT_URL = process.env.SERVER_URL || 'http://localhost:3000'
 
 async function main() {
-  // Initialize Next.js app
-  const app = next({ dev, hostname, port })
-  const handle = app.getRequestHandler()
-
-  await app.prepare()
-
-  // Initialize Payload CMS
+  // Initialize Payload CMS (for database access)
   const payload = await getPayload({ config })
-  console.log('[Server] Payload CMS initialized')
+  console.log('[Socket Server] Payload CMS initialized')
 
-  // Create HTTP server
+  // Create standalone HTTP server for Socket.IO (no Next.js)
   const httpServer = http.createServer((req, res) => {
-    handle(req, res)
+    // Simple health check endpoint
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }))
+      return
+    }
+    
+    // CORS preflight for socket.io
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': NEXT_URL,
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Credentials': 'true',
+      })
+      res.end()
+      return
+    }
+    
+    res.writeHead(404)
+    res.end('Not found')
   })
 
-  // Initialize Socket.IO with in-memory adapter (default)
+  // Initialize Socket.IO with in-memory adapter
   const io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.SERVER_URL || `http://${hostname}:${port}`,
+      origin: NEXT_URL,
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    // In-memory adapter is the default, no need to specify
   })
 
   // Initialize socket event handlers
   initializeSocketServer(io, payload)
 
-  // Start server
-  httpServer.listen(port, () => {
-    console.log(`[Server] Ready on http://${hostname}:${port}`)
-    console.log(`[Server] Socket.IO initialized with in-memory adapter`)
+  // Start socket server
+  httpServer.listen(SOCKET_PORT, () => {
+    console.log(`[Socket Server] Ready on http://localhost:${SOCKET_PORT}`)
+    console.log(`[Socket Server] Accepting connections from ${NEXT_URL}`)
+    console.log(`[Socket Server] In-memory adapter (single process mode)`)
   })
 }
 
 main().catch((err) => {
-  console.error('[Server] Failed to start:', err)
+  console.error('[Socket Server] Failed to start:', err)
   process.exit(1)
 })

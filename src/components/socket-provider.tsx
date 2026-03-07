@@ -28,10 +28,8 @@ export function SocketProvider({ children }: SocketProviderProps) {
   const { addMessage, setTypingUser, incrementUnreadCount, activeAppointmentId } = useChatStore()
 
   useEffect(() => {
-    // Get the base URL for socket connection
-    const socketUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : process.env.SERVER_URL || 'http://localhost:3000'
+    // Connect to the separate Socket.io server on port 3001
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001'
 
     const newSocket = io(socketUrl, {
       withCredentials: true,
