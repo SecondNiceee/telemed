@@ -7,11 +7,7 @@ import jwt from 'jsonwebtoken'
  *  - doctors     → doctors-token  (Payload derives from slug)
  *  - organisations → organisations-token
  */
-const AUTH_COOKIES = [
-  { name: 'payload-token', collection: 'users' as const },
-  { name: 'doctors-token', collection: 'doctors' as const },
-  { name: 'organisations-token', collection: 'organisations' as const },
-] as const
+
 
 export type AuthCollection = 'users' | 'doctors' | 'organisations'
 
@@ -58,60 +54,7 @@ function decodeCookie(cookieHeader: string, cookieName: string): { id?: string |
   }
 }
 
-/**
- * Decode JWTs from ALL auth-collection cookies.
- * Returns the first valid decoded token found (priority: users > doctors > organisations).
- */
 
-/**
- * Decode ONLY the users collection cookie (payload-token).
- * Used by ensureReqUser to avoid overriding req.user with non-user entities.
- */
-export function decodeUsersCookie(req: PayloadRequest): DecodedCaller | null {
-  const cookieHeader = getCookieHeader(req)
-  if (!cookieHeader) return null
-
-  const decoded = decodeCookie(cookieHeader, 'payload-token')
-  if (!decoded?.id) return null
-
-  return {
-    id: String(decoded.id),
-    collection: 'users',
-    role: decoded.role || 'user',
-    email: decoded.email,
-  }
-}
-
-/**
- * Decode JWT from a SPECIFIC cookie.
- */
-export function decodeSpecificCookie(
-  req: PayloadRequest,
-  cookieName: string,
-  collection: AuthCollection,
-): DecodedCaller | null {
-  const cookieHeader = getCookieHeader(req)
-  if (!cookieHeader) return null
-
-  const decoded = decodeCookie(cookieHeader, cookieName)
-  if (!decoded?.id) return null
-
-  let role: string
-  if (collection === 'users') {
-    role = decoded.role || 'user'
-  } else if (collection === 'doctors') {
-    role = 'doctor'
-  } else {
-    role = 'organisation'
-  }
-
-  return {
-    id: String(decoded.id),
-    collection,
-    role,
-    email: decoded.email,
-  }
-}
 
 const COOKIE_MAP: Record<AuthCollection, string> = {
   users: 'payload-token',
@@ -157,11 +100,6 @@ export function getCallerFromRequest(
     return {}
   }
 
-  // No callerType specified — fall back to the original any-cookie priority chain.
-  const decoded = decodeAnyCookie(req)
-  if (decoded) {
-    return { role: decoded.role, id: decoded.id, collection: decoded.collection }
-  }
 
   return {}
 }
