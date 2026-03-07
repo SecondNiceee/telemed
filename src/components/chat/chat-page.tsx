@@ -13,14 +13,21 @@ interface ChatPageProps {
   appointments: ApiAppointment[]
   currentSenderType: 'user' | 'doctor'
   currentSenderId: number
+  initialAppointmentId?: number | null
 }
 
 function ChatPageContent({
   appointments,
   currentSenderType,
   currentSenderId,
+  initialAppointmentId,
 }: ChatPageProps) {
-  const [selectedAppointment, setSelectedAppointment] = useState<ApiAppointment | null>(null)
+  // Find initial appointment if provided
+  const initialAppointment = initialAppointmentId 
+    ? appointments.find(a => a.id === initialAppointmentId) || null
+    : null
+  
+  const [selectedAppointment, setSelectedAppointment] = useState<ApiAppointment | null>(initialAppointment)
   const [isMobileView, setIsMobileView] = useState(false)
   const { isConnected, joinRoom } = useSocket()
 

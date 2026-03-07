@@ -7,7 +7,7 @@ import { useAppointmentStore } from "@/stores/appointment-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, Mail, MessageSquare, LogOut } from "lucide-react"
+import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { resolveImageUrl } from "@/lib/utils/image"
@@ -253,19 +253,15 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
                       {getStatusLabel(appt.status)}
                     </span>
                   </div>
-                  {(() => {
-                    const userEmail = getUserEmailFromAppointment(appt)
-                    if (!userEmail) return null
-                    return (
-                      <a
-                        href={`mailto:${userEmail}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        Написать
-                      </a>
-                    )
-                  })()}
+                  {appt.status === "confirmed" && (
+                    <Link
+                      href={`/lk-med/chat?appointment=${appt.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Написать
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}

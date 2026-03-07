@@ -14,7 +14,14 @@ export const metadata = {
   description: "Чат с пациентами",
 }
 
-export default async function LkMedChatPage() {
+export default async function LkMedChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ appointment?: string }>
+}) {
+  const params = await searchParams
+  const initialAppointmentId = params.appointment ? parseInt(params.appointment, 10) : null
+  
   const requestHeaders = await headers()
 
   // Check doctors-token cookie for doctor auth on server
@@ -81,6 +88,7 @@ export default async function LkMedChatPage() {
           appointments={activeAppointments}
           currentSenderType="doctor"
           currentSenderId={doctor.id}
+          initialAppointmentId={initialAppointmentId}
         />
       </main>
     </div>

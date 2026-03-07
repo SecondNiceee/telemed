@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useUserStore } from "@/stores/user-store"
 import { useAppointmentStore } from "@/stores/appointment-store"
-import { CalendarX, Calendar, Clock, User as UserIcon, Mail, ExternalLink, LogOut, MessageSquare } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, ExternalLink, LogOut, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
@@ -205,14 +205,14 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
 
                       {doc && (
                         <div className="flex items-center gap-2">
-                          {(doc as ApiDoctor).email && (
-                            <a
-                              href={`mailto:${(doc as ApiDoctor).email}`}
+                          {appt.status === "confirmed" && (
+                            <Link
+                              href={`/lk/chat?appointment=${appt.id}`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
                             >
-                              <Mail className="w-3.5 h-3.5" />
+                              <MessageSquare className="w-3.5 h-3.5" />
                               Написать
-                            </a>
+                            </Link>
                           )}
                           <Link
                             href={`/doctor/${doc.id}`}
