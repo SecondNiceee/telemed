@@ -15,6 +15,9 @@ interface AuthenticatedSocket extends Socket {
     doctorId?: number
     senderType: 'user' | 'doctor'
     senderId: number
+    // Store both IDs for access verification when user has both tokens
+    allUserIds: number[]
+    allDoctorIds: number[]
   }
 }
 
@@ -52,13 +55,14 @@ function decodeToken(token: string): DecodedToken | null {
 
 /**
  * Verify that the user/doctor has access to the appointment
+ * Checks both user and doctor tokens if available
  */
 async function verifyAppointmentAccess(
   payload: Payload,
   appointmentId: number,
-  senderType: 'user' | 'doctor',
-  senderId: number
-): Promise<boolean> {
+  allUserIds: number[],
+  allDoctorIds: number[]
+): Promise<{ hasAccess: boolean; accessType?: 'user' | 'doctor'; accessId?: number }> {
   try {
     const appointment = await payload.findByID({
       collection: 'appointments',
@@ -66,17 +70,27 @@ async function verifyAppointmentAccess(
       overrideAccess: true,
     })
 
-    if (!appointment) return false
+    if (!appointment) return { hasAccess: false }
 
-    if (senderType === 'user') {
-      const userId = typeof appointment.user === 'object' ? appointment.user.id : appointment.user
-      return userId === senderId
-    } else {
-      const doctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
-      return doctorId === senderId
+    // Check if any of the user IDs match
+    const appointmentUserId = typeof appointment.user === 'object' ? appointment.user.id : appointment.user
+    for (const userId of allUserIds) {
+      if (appointmentUserId === userId) {
+        return { hasAccess: true, accessType: 'user', accessId: userId }
+      }
     }
+
+    // Check if any of the doctor IDs match
+    const appointmentDoctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
+    for (const doctorId of allDoctorIds) {
+      if (appointmentDoctorId === doctorId) {
+        return { hasAccess: true, accessType: 'doctor', accessId: doctorId }
+      }
+    }
+
+    return { hasAccess: false }
   } catch {
-    return false
+    return { hasAccess: false }
   }
 }
 
@@ -84,39 +98,56 @@ async function verifyAppointmentAccess(
  * Initialize Socket.IO server with event handlers
  */
 export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
-  // Authentication middleware
+  // Authentication middleware - collect ALL tokens
   io.use((socket, next) => {
     const cookies = socket.handshake.headers.cookie || ''
     
-    // Try to get user token first
+    const allUserIds: number[] = []
+    const allDoctorIds: number[] = []
+    let primarySenderType: 'user' | 'doctor' | null = null
+    let primarySenderId: number | null = null
+    
+    // Try to get user token
     const userToken = getCookieValue(cookies, 'payload-token')
     if (userToken) {
       const decoded = decodeToken(userToken)
       if (decoded?.id) {
-        ;(socket as AuthenticatedSocket).data = {
-          userId: decoded.id,
-          senderType: 'user',
-          senderId: decoded.id,
-        }
-        return next()
+        allUserIds.push(decoded.id)
+        // Default to user if both exist
+        primarySenderType = 'user'
+        primarySenderId = decoded.id
       }
     }
 
-    // Try doctor token
+    // Try doctor token - always check regardless of user token
     const doctorToken = getCookieValue(cookies, 'doctors-token')
     if (doctorToken) {
       const decoded = decodeToken(doctorToken)
       if (decoded?.id) {
-        ;(socket as AuthenticatedSocket).data = {
-          doctorId: decoded.id,
-          senderType: 'doctor',
-          senderId: decoded.id,
+        allDoctorIds.push(decoded.id)
+        // Override to doctor if no user, or keep user as primary
+        if (!primarySenderType) {
+          primarySenderType = 'doctor'
+          primarySenderId = decoded.id
         }
-        return next()
       }
     }
 
-    return next(new Error('Authentication required'))
+    // Require at least one valid token
+    if (!primarySenderType || !primarySenderId) {
+      return next(new Error('Authentication required'))
+    }
+
+    ;(socket as AuthenticatedSocket).data = {
+      userId: allUserIds[0],
+      doctorId: allDoctorIds[0],
+      senderType: primarySenderType,
+      senderId: primarySenderId,
+      allUserIds,
+      allDoctorIds,
+    }
+    
+    return next()
   })
 
   io.on('connection', (socket: Socket) => {
@@ -127,22 +158,22 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('join-room', async (data: JoinRoomPayload) => {
       const { appointmentId } = data
       
-      // Verify access to the appointment
-      const hasAccess = await verifyAppointmentAccess(
+      // Verify access to the appointment (checks both user and doctor tokens)
+      const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.senderType,
-        authSocket.data.senderId
+        authSocket.data.allUserIds,
+        authSocket.data.allDoctorIds
       )
 
-      if (!hasAccess) {
+      if (!accessResult.hasAccess) {
         socket.emit('error', { message: 'Нет доступа к этой консультации' })
         return
       }
 
       const roomName = `appointment:${appointmentId}`
       socket.join(roomName)
-      console.log(`[Socket] ${authSocket.data.senderType}:${authSocket.data.senderId} joined room ${roomName}`)
+      console.log(`[Socket] ${accessResult.accessType}:${accessResult.accessId} joined room ${roomName}`)
       
       socket.emit('joined-room', { appointmentId, roomName })
     })
@@ -164,18 +195,22 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
         return
       }
 
-      // Verify access
-      const hasAccess = await verifyAppointmentAccess(
+      // Verify access (checks both user and doctor tokens)
+      const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.senderType,
-        authSocket.data.senderId
+        authSocket.data.allUserIds,
+        authSocket.data.allDoctorIds
       )
 
-      if (!hasAccess) {
+      if (!accessResult.hasAccess) {
         socket.emit('error', { message: 'Нет доступа к этой консультации' })
         return
       }
+
+      // Use the actual access type and ID for creating the message
+      const senderType = accessResult.accessType!
+      const senderId = accessResult.accessId!
 
       try {
         // Save message to database
@@ -183,8 +218,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
           collection: 'messages',
           data: {
             appointment: appointmentId,
-            senderType: authSocket.data.senderType,
-            senderId: authSocket.data.senderId,
+            senderType: senderType,
+            senderId: senderId,
             text: text.trim(),
             read: false,
           },
@@ -204,7 +239,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
           createdAt: message.createdAt,
         })
 
-        console.log(`[Socket] Message sent in room ${roomName} by ${authSocket.data.senderType}:${authSocket.data.senderId}`)
+        console.log(`[Socket] Message sent in room ${roomName} by ${senderType}:${senderId}`)
       } catch (err) {
         console.error('[Socket] Failed to save message:', err)
         socket.emit('error', { message: 'Ошибка при отправке сообщения' })
@@ -215,19 +250,19 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('mark-read', async (data: MarkReadPayload) => {
       const { appointmentId } = data
 
-      // Verify access
-      const hasAccess = await verifyAppointmentAccess(
+      // Verify access (checks both user and doctor tokens)
+      const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.senderType,
-        authSocket.data.senderId
+        authSocket.data.allUserIds,
+        authSocket.data.allDoctorIds
       )
 
-      if (!hasAccess) return
+      if (!accessResult.hasAccess) return
 
       try {
         // Mark all unread messages from the OTHER party as read
-        const otherSenderType = authSocket.data.senderType === 'user' ? 'doctor' : 'user'
+        const otherSenderType = accessResult.accessType === 'user' ? 'doctor' : 'user'
 
         await payload.update({
           collection: 'messages',
@@ -243,7 +278,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
         const roomName = `appointment:${appointmentId}`
         io.to(roomName).emit('messages-read', {
           appointmentId,
-          readBy: authSocket.data.senderType,
+          readBy: accessResult.accessType,
         })
       } catch (err) {
         console.error('[Socket] Failed to mark messages as read:', err)
