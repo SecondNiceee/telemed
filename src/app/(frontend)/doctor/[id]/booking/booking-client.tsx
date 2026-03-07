@@ -16,10 +16,6 @@ import {
   Loader2,
   LogIn,
   GraduationCap,
-  CheckCircle,
-  Video,
-  Shield,
-  Award,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useUserStore } from "@/stores/user-store";
@@ -268,7 +264,15 @@ export function BookingClient({
                 <div className="flex-1 px-6 py-6 flex flex-col justify-center">
                   <p className="text-sm text-muted-foreground mb-1">Запись к врачу</p>
                   <h1 className="text-2xl font-bold text-foreground mb-1">{doctorName}</h1>
-                  <p className="text-lg text-primary mb-3">{doctorSpecialty}</p>
+                  <p className="text-lg text-primary mb-2">{doctorSpecialty}</p>
+                  {doctorEducation.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <GraduationCap className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      {doctorEducation.map((edu, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-secondary/60 rounded-full text-xs text-muted-foreground">{edu}</span>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex flex-col gap-1 text-sm mb-3">
                     {doctorExperience != null && (
                       <div className="flex items-center gap-2">
@@ -292,87 +296,6 @@ export function BookingClient({
             </CardContent>
           </Card>
 
-          {/* About & Details */}
-          {(doctorBio || doctorEducation.length > 0 || doctorServices.length > 0) && (
-            <div className="flex flex-col gap-2 mb-6">
-              {doctorBio && (
-                <Card>
-                  <CardContent className="px-6 py-4">
-                    <h2 className="text-base font-semibold text-foreground mb-1">О враче</h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{doctorBio}</p>
-                  </CardContent>
-                </Card>
-              )}
-              {doctorEducation.length > 0 && (
-                <Card>
-                  <CardContent className="px-6 py-4 flex flex-row gap-4 items-center flex-wrap">
-                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-primary" />
-                      Образование
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                      {doctorEducation.map((edu, i) => (
-                        <span key={i} className="px-3 py-1 bg-secondary/50 rounded-full text-sm text-muted-foreground">{edu}</span>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {doctorServices.length > 0 && (
-                <Card>
-                  <CardContent className="px-6 py-4">
-                    <h2 className="text-base font-semibold text-foreground mb-2">Услуги</h2>
-                    <div className="grid sm:grid-cols-2 gap-1.5">
-                      {doctorServices.map((service, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg">
-                          <CheckCircle className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                          <span className="text-sm text-foreground">{service}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {/* Features */}
-          <div className="grid grid-cols-3 gap-2 mb-6">
-            <Card className="py-3">
-              <CardContent className="px-4 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Video className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-xs text-foreground leading-tight">Видеоконсультация</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight">HD качество</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="py-3">
-              <CardContent className="px-4 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Shield className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-xs text-foreground leading-tight">Конфиденциально</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight">Защита данных</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="py-3">
-              <CardContent className="px-4 py-0 flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-                  <Award className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-xs text-foreground leading-tight">Сертифицирован</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight">Все лицензии</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {hasNoSchedule ? (
             <Card>
               <CardContent className="p-12 flex flex-col items-center justify-center text-center">
@@ -382,7 +305,7 @@ export function BookingClient({
                 </h3>
                 <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
                   У врача пока нет открытых слотов для записи. Попробуйте позже
-                  или выберите другого специалиста.
+                  или в��берите другого специалиста.
                 </p>
               </CardContent>
             </Card>
