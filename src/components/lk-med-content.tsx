@@ -1,167 +1,45 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 import { useDoctorStore } from "@/stores/doctor-store"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Loader2, CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut } from "lucide-react"
+import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
-import { resolveImageUrl } from "@/lib/utils/image"
-
-function getUserEmailFromAppointment(appt: ApiAppointment): string | null {
-  if (typeof appt.user === 'object' && appt.user !== null && 'email' in appt.user) {
-    return appt.user.email
-  }
-  return null
-}
+import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 
 interface LkMedContentProps {
-  initialDoctor: ApiDoctor | null
-}
-
-function formatDate(dateStr: string) {
-  const date = new Date(dateStr + "T00:00:00")
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  })
-}
-
-function getStatusLabel(status: ApiAppointment["status"]) {
-  switch (status) {
-    case "confirmed":
-      return "Подтверждена"
-    case "completed":
-      return "Завершена"
-    case "cancelled":
-      return "Отменена"
-  }
-}
-
-function getStatusColor(status: ApiAppointment["status"]) {
-  switch (status) {
-    case "confirmed":
-      return "bg-green-100 text-green-700"
-    case "completed":
-      return "bg-muted text-muted-foreground"
-    case "cancelled":
-      return "bg-destructive/10 text-destructive"
-  }
+  initialDoctor: ApiDoctor
 }
 
 export function LkMedContent({ initialDoctor }: LkMedContentProps) {
-  const router = useRouter()
-  const { doctor: storeDoctor, login, loading, logout } = useDoctorStore()
+  const { doctor: storeDoctor, setDoctor, logout } = useDoctorStore()
   const {
     appointments,
     loading: apptLoading,
     fetched: apptFetched,
     fetchAppointments,
   } = useDoctorAppointmentStore()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
 
   const doctor = storeDoctor || initialDoctor
 
+  // Sync doctor from server to store
+  useEffect(() => {
+    if (!storeDoctor && initialDoctor) {
+      setDoctor(initialDoctor)
+    }
+  }, [storeDoctor, initialDoctor, setDoctor])
+
+  // Fetch appointments when doctor is available
   useEffect(() => {
     if (doctor) {
       fetchAppointments()
     }
   }, [doctor, fetchAppointments])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    try {
-      await login(email, password)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка при входе")
-    }
-  }
-
-  // Not logged in as doctor -- show login form
-  if (!doctor) {
-    return (
-      <div className="flex-1 flex items-center justify-center py-20">
-        <div className="w-full max-w-sm mx-auto px-4">
-          <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
-            <div className="flex flex-col items-center gap-3 mb-6">
-              <img
-                src={resolveImageUrl("/images/logo.jpg")}
-                alt="SmartCardio"
-                width={48}
-                height={48}
-                className="w-12 h-12 rounded-lg object-contain"
-              />
-              <div className="text-center">
-                <h1 className="text-xl font-semibold text-foreground">
-                  Вход для врачей
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Введите логин и пароль вашего аккаунта врача
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="doctor-login-email">Электронная почта</Label>
-                <Input
-                  id="doctor-login-email"
-                  type="email"
-                  placeholder="doctor@clinic.ru"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="doctor-login-password">Пароль</Label>
-                <Input
-                  id="doctor-login-password"
-                  type="password"
-                  placeholder="Введите пароль"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {error && (
-                <p className="text-sm text-destructive text-center">{error}</p>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="animate-spin" />
-                    <span>Вход...</span>
-                  </>
-                ) : (
-                  "Войти"
-                )}
-              </Button>
-            </form>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const isLoading = apptLoading && !apptFetched
 
-  // Logged in as doctor -- show personal cabinet
   return (
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

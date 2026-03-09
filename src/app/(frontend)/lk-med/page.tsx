@@ -1,4 +1,5 @@
 import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
@@ -9,6 +10,8 @@ export const metadata = {
   description: "Личный кабинет врача на платформе smartcardio Телемедицина",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function LkMedPage() {
   const requestHeaders = await headers()
 
@@ -18,6 +21,11 @@ export default async function LkMedPage() {
     'doctors-token',
     'doctors',
   )
+
+  // Redirect to login if not authenticated
+  if (!doctor) {
+    redirect("/lk-med/login")
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
