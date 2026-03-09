@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { User } from '@/payload-types'
 import { AuthApi } from '@/lib/api/auth'
 import { toast } from 'sonner'
+import { useUserAppointmentStore } from './user-appointments-store'
 
 interface UserState {
   user: User | null
@@ -91,6 +92,8 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       await AuthApi.logout()
       set({ ...initialState, fetched: true })
+      // Clear user appointments store
+      useUserAppointmentStore.getState().reset()
       toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })

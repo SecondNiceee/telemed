@@ -7,7 +7,7 @@ export interface CreateAppointmentWithDoctorPayload extends CreateAppointmentPay
   doctorData?: Partial<ApiDoctor>
 }
 
-interface AppointmentState {
+interface UserAppointmentState {
   appointments: ApiAppointment[]
   loading: boolean
   fetched: boolean
@@ -15,7 +15,7 @@ interface AppointmentState {
 
   /** Set appointments from server (for SSR hydration) */
   setAppointments: (appointments: ApiAppointment[]) => void
-  /** Fetch current user/doctor appointments */
+  /** Fetch current user appointments */
   fetchAppointments: () => Promise<void>
   /** Force refetch */
   refetchAppointments: () => Promise<void>
@@ -32,7 +32,7 @@ const initialState = {
   creating: false,
 }
 
-export const useAppointmentStore = create<AppointmentState>((set, get) => ({
+export const useUserAppointmentStore = create<UserAppointmentState>((set, get) => ({
   ...initialState,
 
   setAppointments: (appointments) => {

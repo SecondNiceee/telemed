@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { useUserStore } from "@/stores/user-store";
-import { useAppointmentStore } from "@/stores/appointment-store";
+import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
 import type { DoctorScheduleDate } from "@/lib/api/types";
 
@@ -53,7 +53,7 @@ export function BookingClient({
   schedule,
 }: BookingClientProps) {
   const { user, fetchUser } = useUserStore();
-  const { createAppointment, creating } = useAppointmentStore();
+  const { createAppointment, creating } = useUserAppointmentStore();
 
   useEffect(() => {
     fetchUser();
@@ -409,7 +409,7 @@ export function BookingClient({
                       </div>
                     ) : (
                       <p className="text-center py-6 text-muted-foreground">
-                        На эту дату нет свободных слотов
+                        На ��ту дату нет свободных слотов
                       </p>
                     )}
                   </div>

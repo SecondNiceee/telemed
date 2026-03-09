@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { DoctorAuthApi } from '@/lib/api/doctor-auth'
 import type { ApiDoctor } from '@/lib/api/types'
 import { toast } from 'sonner'
+import { useDoctorAppointmentStore } from './doctor-appointments-store'
 
 interface DoctorState {
   doctor: ApiDoctor | null
@@ -69,6 +70,8 @@ export const useDoctorStore = create<DoctorState>((set, get) => ({
     try {
       await DoctorAuthApi.logout()
       set({ ...initialState, fetched: true })
+      // Clear doctor appointments store
+      useDoctorAppointmentStore.getState().reset()
       toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })

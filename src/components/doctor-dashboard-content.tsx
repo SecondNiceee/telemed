@@ -13,7 +13,7 @@ import {
   User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useAppointmentStore } from "@/stores/appointment-store"
+import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import type { ApiAppointment } from "@/lib/api/types"
 
 type ConsultationTab = "active" | "completed"
@@ -275,7 +275,7 @@ export function DoctorDashboardContent({
     loading: apptLoading,
     fetched: apptFetched,
     fetchAppointments,
-  } = useAppointmentStore()
+  } = useDoctorAppointmentStore()
 
   useEffect(() => {
     fetchAppointments()

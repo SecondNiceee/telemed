@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useDoctorStore } from "@/stores/doctor-store"
-import { useAppointmentStore } from "@/stores/appointment-store"
+import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -62,7 +62,7 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
     loading: apptLoading,
     fetched: apptFetched,
     fetchAppointments,
-  } = useAppointmentStore()
+  } = useDoctorAppointmentStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")

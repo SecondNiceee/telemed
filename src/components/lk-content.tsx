@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useUserStore } from "@/stores/user-store"
-import { useAppointmentStore } from "@/stores/appointment-store"
+import { useUserAppointmentStore } from "@/stores/user-appointments-store"
 import { CalendarX, Calendar, Clock, User as UserIcon, ExternalLink, LogOut, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
@@ -27,7 +27,7 @@ interface LkContentProps {
 
 export function LkContent({ user, appointments: serverAppointments }: LkContentProps) {
   const { loading: userLoading, setUser, user: storeUser, fetched: userFetched, logout } = useUserStore()
-  const { appointments, setAppointments, loading: apptLoading, fetched: apptFetched } = useAppointmentStore()
+  const { appointments, setAppointments, loading: apptLoading, fetched: apptFetched } = useUserAppointmentStore()
 
   // Sync user to store
   useEffect(() => {
