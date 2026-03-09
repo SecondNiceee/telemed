@@ -2,8 +2,8 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
-import { serverApiFetch } from "@/lib/api"
-import type { ApiDoctor } from "@/lib/api/types"
+import { serverApiFetch, AppointmentsApi } from "@/lib/api"
+import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 export const metadata = {
   title: "Кабинет врача | smartcardio",
@@ -21,6 +21,7 @@ export default async function LkMedPage() {
   const cookie = requestHeaders.get("cookie") ?? ""
 
   let doctor: ApiDoctor | null = null
+  let appointments: ApiAppointment[] = []
 
   try {
     // Make server-side request to /api/doctors/me with no caching
@@ -29,8 +30,15 @@ export default async function LkMedPage() {
       cache: "no-store",
     })
     doctor = data.user ?? null
+
+    // If doctor is authenticated, fetch their appointments
+    if (doctor) {
+      appointments = await AppointmentsApi.fetchDoctorAppointmentsServer({ cookie })
+    }
   } catch (error) {
     // If request fails, doctor is not authenticated
+    // redirect() throws a special Next.js error — rethrow it
+    if (error && typeof error === "object" && "digest" in error) throw error
     doctor = null
   }
 
@@ -41,7 +49,7 @@ export default async function LkMedPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <LkMedContent initialDoctor={doctor} />
+      <LkMedContent initialDoctor={doctor} initialAppointments={appointments} />
       <Footer />
     </div>
   )

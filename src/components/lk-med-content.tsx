@@ -11,18 +11,19 @@ import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor
+  initialAppointments: ApiAppointment[]
 }
 
-export function LkMedContent({ initialDoctor }: LkMedContentProps) {
+export function LkMedContent({ initialDoctor, initialAppointments }: LkMedContentProps) {
   const { doctor: storeDoctor, setDoctor, logout } = useDoctorStore()
   const {
-    appointments,
-    loading: apptLoading,
+    appointments: storeAppointments,
     fetched: apptFetched,
-    fetchAppointments,
+    setAppointments,
   } = useDoctorAppointmentStore()
 
   const doctor = storeDoctor || initialDoctor
+  const appointments = apptFetched ? storeAppointments : initialAppointments
 
   // Sync doctor from server to store
   useEffect(() => {
@@ -31,14 +32,14 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
     }
   }, [storeDoctor, initialDoctor, setDoctor])
 
-  // Fetch appointments when doctor is available
+  // Sync appointments from server to store
   useEffect(() => {
-    if (doctor) {
-      fetchAppointments()
+    if (!apptFetched && initialAppointments.length > 0) {
+      setAppointments(initialAppointments)
+    } else if (!apptFetched) {
+      setAppointments([])
     }
-  }, [doctor, fetchAppointments])
-
-  const isLoading = apptLoading && !apptFetched
+  }, [apptFetched, initialAppointments, setAppointments])
 
   return (
     <div className="flex-1">
@@ -74,11 +75,7 @@ export function LkMedContent({ initialDoctor }: LkMedContentProps) {
           Мои консультации
         </h2>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          </div>
-        ) : appointments.length === 0 ? (
+        {appointments.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center gap-4">
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
               <CalendarX className="w-7 h-7 text-muted-foreground" />
