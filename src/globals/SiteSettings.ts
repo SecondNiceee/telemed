@@ -12,6 +12,7 @@ export const SiteSettings: GlobalConfig = {
     read: () => true,
     update: ({req}) => {
       const user = getCallerFromRequest(req);
+      console.log(user);
       return user.role === "admin"
     },
   },
