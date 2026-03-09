@@ -1,5 +1,9 @@
-import { apiFetch } from './fetch'
+import { apiFetch, serverApiFetch } from './fetch'
 import type { ApiAppointment, PayloadListResponse } from './types'
+
+interface ServerOptions {
+  cookie?: string
+}
 
 export interface CreateAppointmentPayload {
   doctor: number
@@ -25,12 +29,23 @@ export class AppointmentsApi {
   }
 
   /**
-   * Fetch appointments for the current user (filtered server-side by access control)
+   * Fetch appointments for the current user (client-side)
    */
   static async fetchMyAppointments(): Promise<ApiAppointment[]> {
     const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
       '/api/appointments?limit=100&depth=1&sort=-date',
       { credentials: 'include' },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch appointments for the current user (server-side with cookie)
+   */
+  static async fetchMyAppointmentsServer(options: ServerOptions = {}): Promise<ApiAppointment[]> {
+    const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
+      '/api/appointments?limit=100&depth=1&sort=-date',
+      options,
     )
     return data.docs
   }

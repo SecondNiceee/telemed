@@ -1,6 +1,7 @@
 // Main API exports
 export { ApiError, getErrorMessage } from './errors'
-export { apiFetch, getBaseUrl } from './fetch'
+export { apiFetch, serverApiFetch, getBaseUrl } from './fetch'
+export type { ApiFetchOptions } from './fetch'
 export { AuthApi } from './auth'
 export { OrgAuthApi } from './org-auth'
 export { DoctorAuthApi } from './doctor-auth'

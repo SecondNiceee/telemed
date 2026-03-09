@@ -1,5 +1,5 @@
 import type { User } from '@/payload-types'
-import { apiFetch } from './fetch'
+import { apiFetch, serverApiFetch } from './fetch'
 
 interface LoginResponse {
   token: string
@@ -18,6 +18,10 @@ interface RegisterData {
   password: string
 }
 
+interface ServerOptions {
+  cookie?: string
+}
+
 
 
 export class AuthApi {
@@ -33,7 +37,7 @@ export class AuthApi {
   }
 
   /**
-   * Get current authenticated user
+   * Get current authenticated user (client-side)
    */
   static async me(): Promise<User | null> {
     try {
@@ -41,6 +45,18 @@ export class AuthApi {
         credentials: 'include',
         cache: 'no-store',
       })
+      return data.user ?? null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Get current authenticated user (server-side with cookie)
+   */
+  static async meServer(options: ServerOptions = {}): Promise<User | null> {
+    try {
+      const data = await serverApiFetch<MeResponse>('/api/users/me', options)
       return data.user ?? null
     } catch {
       return null
