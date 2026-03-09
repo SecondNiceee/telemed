@@ -3,7 +3,7 @@ import { Footer } from "@/components/footer"
 import { LkContent } from "@/components/lk-content"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
-import { AuthApi, AppointmentsApi } from "@/lib/api"
+import { AuthApi, AppointmentsApi } from "@/lib/api/index"
 import type { ApiAppointment } from "@/lib/api/types"
 
 export const dynamic = "force-dynamic"
