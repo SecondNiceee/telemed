@@ -3,36 +3,61 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LoginModal } from "@/components/login-modal";
-import { useUserStore } from "@/stores/user-store";
 import { useRouter } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
+import { toast } from "sonner";
+import type { User } from "@/payload-types";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
 
-  const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
+  // Fetch user on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const userData = await AuthApi.me();
+        setUser(userData);
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
-    try {
-      const user = await AuthApi.me();
-      console.log(user);
-      if (!user) setLoginModalOpen(true);
-      else{
-        router.push("/lk");
-      }
-    } catch {
+    if (user) {
+      router.push("/lk");
+    } else {
       setLoginModalOpen(true);
     }
   };
 
-  const authLoading = userLoading || !userFetched;
+  const handleLogout = async () => {
+    try {
+      await AuthApi.logout();
+      setUser(null);
+      toast.success("Вы успешно вышли из аккаунта");
+      router.push("/");
+    } catch {
+      toast.error("Ошибка при выходе");
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    // Refetch user after login
+    AuthApi.me().then(setUser).catch(() => setUser(null));
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-lg border-b border-border/60">
@@ -80,7 +105,7 @@ export function Header() {
           </nav>
 
           <div className="hidden md:flex items-center gap-4 min-h-[36px]">
-            {authLoading ? (
+            {loading ? (
               <div className="h-9 w-[164px] rounded-md bg-muted animate-pulse" />
             ) : user ? (
               <>
@@ -92,7 +117,7 @@ export function Header() {
                   <span className="max-w-[180px] truncate">{user.name || user.email}</span>
                 </Link>
                 <button
-                  onClick={logoutUser}
+                  onClick={handleLogout}
                   className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors"
                   aria-label="Выйти"
                 >
@@ -102,7 +127,7 @@ export function Header() {
               </>
             ) : (
               <>
-                <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+                <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onSuccess={handleLoginSuccess}>
                   <Button variant="ghost" size="sm" onClick={handleAuthClick}>
                     Войти
                   </Button>
@@ -157,7 +182,7 @@ export function Header() {
                 Как это работает
               </Link>
               <div className="flex flex-col gap-2 pt-4 border-t border-border min-h-[52px]">
-                {authLoading ? (
+                {loading ? (
                   <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
                 ) : user ? (
                   <>
@@ -172,7 +197,7 @@ export function Header() {
                     <button
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        logoutUser();
+                        handleLogout();
                       }}
                       className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors py-2"
                     >
@@ -182,7 +207,7 @@ export function Header() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
+                    <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} onSuccess={handleLoginSuccess}>
                       <Button variant="ghost" size="sm" className="flex-1" onClick={handleAuthClick}>
                         Войти
                       </Button>

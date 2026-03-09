@@ -2,63 +2,36 @@ import { create } from 'zustand'
 import { DoctorAuthApi } from '@/lib/api/doctor-auth'
 import type { ApiDoctor } from '@/lib/api/types'
 import { toast } from 'sonner'
-import { useDoctorAppointmentStore } from './doctor-appointments-store'
 
 interface DoctorState {
   doctor: ApiDoctor | null
   loading: boolean
-  fetched: boolean
 
-  fetchDoctor: () => Promise<void>
-  refetchDoctor: () => Promise<void>
+  /** Set doctor manually (for initial hydration from server) */
   setDoctor: (doctor: ApiDoctor | null) => void
+  /** Login with email/password */
   login: (email: string, password: string) => Promise<ApiDoctor>
+  /** Logout and redirect to home */
   logout: () => Promise<void>
+  /** Reset store to initial state */
   reset: () => void
 }
 
 const initialState = {
   doctor: null,
   loading: false,
-  fetched: false,
 }
 
-export const useDoctorStore = create<DoctorState>((set, get) => ({
+export const useDoctorStore = create<DoctorState>((set) => ({
   ...initialState,
 
-  fetchDoctor: async () => {
-    if (get().fetched) return
-
-    set({ loading: true })
-    try {
-      const doctor = await DoctorAuthApi.me()
-      set({ doctor, fetched: true })
-    } catch {
-      set({ doctor: null, fetched: true })
-    } finally {
-      set({ loading: false })
-    }
-  },
-
-  refetchDoctor: async () => {
-    set({ loading: true, fetched: false })
-    try {
-      const doctor = await DoctorAuthApi.me()
-      set({ doctor, fetched: true })
-    } catch {
-      set({ doctor: null, fetched: true })
-    } finally {
-      set({ loading: false })
-    }
-  },
-
-  setDoctor: (doctor) => set({ doctor, fetched: true }),
+  setDoctor: (doctor) => set({ doctor }),
 
   login: async (email, password) => {
     set({ loading: true })
     try {
       const result = await DoctorAuthApi.login(email, password)
-      set({ doctor: result.user, fetched: true })
+      set({ doctor: result.user })
       return result.user
     } finally {
       set({ loading: false })
@@ -69,9 +42,7 @@ export const useDoctorStore = create<DoctorState>((set, get) => ({
     set({ loading: true })
     try {
       await DoctorAuthApi.logout()
-      set({ ...initialState, fetched: true })
-      // Clear doctor appointments store
-      useDoctorAppointmentStore.getState().reset()
+      set({ ...initialState })
       toast.success("Вы успешно вышли из аккаунта")
     } finally {
       set({ loading: false })

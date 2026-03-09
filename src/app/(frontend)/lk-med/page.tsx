@@ -49,7 +49,7 @@ export default async function LkMedPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <LkMedContent initialDoctor={doctor} initialAppointments={appointments} />
+      <LkMedContent doctor={doctor} appointments={appointments} />
       <Footer />
     </div>
   )

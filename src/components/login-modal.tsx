@@ -12,7 +12,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useUserStore } from "@/stores/user-store"
 import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MailCheck } from "lucide-react"
@@ -86,14 +85,11 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
   const attemptAutoLogin = async () => {
     if (!regEmail || !regPassword) return
     try {
-      // Call AuthApi directly — avoid store's loading state triggering re-renders
       const result = await AuthApi.login(regEmail, regPassword)
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
-      // Only touch the store at the very end on success
-      useUserStore.getState().setUser(result.user)
       setOpen(false)
       handleReset()
       onSuccess?.()
@@ -131,10 +127,7 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     setLoginError("")
     setSubmitting(true)
     try {
-      // Call AuthApi directly — avoid store's loading state triggering re-renders
       const result = await AuthApi.login(loginEmail, loginPassword)
-      // Only touch the store at the very end on success
-      useUserStore.getState().setUser(result.user)
       setOpen(false)
       handleReset()
       onSuccess?.()
@@ -164,7 +157,6 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
 
     setSubmitting(true)
     try {
-      // Call AuthApi directly — no store mutation during registration
       await AuthApi.register({ name: regName, email: regEmail, password: regPassword })
       setRegSuccess(true)
     } catch (err) {
