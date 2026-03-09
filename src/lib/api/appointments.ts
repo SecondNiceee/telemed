@@ -42,10 +42,10 @@ export class AppointmentsApi {
   /**
    * Fetch appointments for the current user (server-side with cookie)
    */
-  static async fetchMyAppointmentsServer(options: ServerOptions = {}): Promise<ApiAppointment[]> {
+  static async fetchAppointmentsServer(options: ServerOptions = {}): Promise<ApiAppointment[]> {
     const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
       '/api/appointments?limit=100&depth=1&sort=-date',
-      options,
+      { ...options, cache: 'no-store' },
     )
     return data.docs
   }

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useDoctorStore } from "@/stores/doctor-store"
+import { DoctorAuthApi } from "@/lib/api/doctor-auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,21 +12,24 @@ import { resolveImageUrl } from "@/lib/utils/image"
 
 export function DoctorLoginForm() {
   const router = useRouter()
-  const { login, loading } = useDoctorStore()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setLoading(true)
 
     try {
-      await login(email, password)
+      await DoctorAuthApi.login(email, password)
       router.push("/lk-med")
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка при входе")
+    } finally {
+      setLoading(false)
     }
   }
 

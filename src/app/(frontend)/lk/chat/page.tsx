@@ -1,8 +1,8 @@
 import { Header } from "@/components/header"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
-import { getBaseUrl } from "@/lib/api/fetch"
-import type { ApiAppointment, PayloadListResponse } from "@/lib/api/types"
+import { serverApiFetch, AppointmentsApi } from "@/lib/api"
+import type { ApiAppointment } from "@/lib/api/types"
 import { ChatPage } from "@/components/chat/chat-page"
 import type { User } from "@/payload-types"
 import Link from "next/link"
@@ -15,6 +15,10 @@ export const metadata = {
   description: "Чат с вашими врачами",
 }
 
+interface UserMeResponse {
+  user: User | null
+}
+
 export default async function LkChatPage({
   searchParams,
 }: {
@@ -22,39 +26,27 @@ export default async function LkChatPage({
 }) {
   const params = await searchParams
   const initialAppointmentId = params.appointment ? parseInt(params.appointment, 10) : null
+  
+  const requestHeaders = await headers()
+  const cookie = requestHeaders.get("cookie") ?? ""
+
   let user: User | null = null
   let appointments: ApiAppointment[] = []
 
   try {
-    const hdrs = await headers()
-    const cookie = hdrs.get("cookie") ?? ""
-    const baseUrl = getBaseUrl()
-
     // Fetch user
-    const userRes = await fetch(`${baseUrl}/api/users/me`, {
-      headers: { cookie },
+    const userData = await serverApiFetch<UserMeResponse>("/api/users/me", {
+      cookie,
       cache: "no-store",
     })
-    if (userRes.ok) {
-      const data = await userRes.json()
-      user = data.user ?? null
-    }
+    user = userData.user ?? null
+
     if (!user) {
       redirect("/")
     }
 
-    // Fetch appointments (for chat list)
-    const apptRes = await fetch(
-      `${baseUrl}/api/appointments?limit=100&depth=1&sort=-date`,
-      {
-        headers: { cookie },
-        cache: "no-store",
-      }
-    )
-    if (apptRes.ok) {
-      const data: PayloadListResponse<ApiAppointment> = await apptRes.json()
-      appointments = data.docs
-    }
+    // Fetch appointments
+    appointments = await AppointmentsApi.fetchAppointmentsServer({ cookie })
   } catch (e) {
     // redirect() throws a special Next.js error — rethrow it
     if (e && typeof e === "object" && "digest" in e) throw e
@@ -62,7 +54,7 @@ export default async function LkChatPage({
     redirect("/")
   }
 
-  // Filter to only confirmed appointments (active chats)
+  // Filter to only confirmed/completed appointments (active chats)
   const activeAppointments = appointments.filter(
     (a) => a.status === "confirmed" || a.status === "completed"
   )

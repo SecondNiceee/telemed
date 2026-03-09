@@ -1,45 +1,30 @@
 "use client"
 
-import { useEffect } from "react"
-import { useDoctorStore } from "@/stores/doctor-store"
-import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import { Button } from "@/components/ui/button"
 import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
+import { DoctorAuthApi } from "@/lib/api/doctor-auth"
+import { toast } from "sonner"
 
 interface LkMedContentProps {
-  initialDoctor: ApiDoctor
-  initialAppointments: ApiAppointment[]
+  doctor: ApiDoctor
+  appointments: ApiAppointment[]
 }
 
-export function LkMedContent({ initialDoctor, initialAppointments }: LkMedContentProps) {
-  const { doctor: storeDoctor, setDoctor, logout } = useDoctorStore()
-  const {
-    appointments: storeAppointments,
-    fetched: apptFetched,
-    setAppointments,
-  } = useDoctorAppointmentStore()
-
-  const doctor = storeDoctor || initialDoctor
-  const appointments = apptFetched ? storeAppointments : initialAppointments
-
-  // Sync doctor from server to store
-  useEffect(() => {
-    if (!storeDoctor && initialDoctor) {
-      setDoctor(initialDoctor)
+export function LkMedContent({ doctor, appointments }: LkMedContentProps) {
+  const handleLogout = async () => {
+    try {
+      await DoctorAuthApi.logout()
+      toast.success("Вы успешно вышли из аккаунта")
+      setTimeout(() => {
+        window.location.href = process.env.NEXT_PUBLIC_BASE_PATH || "/"
+      }, 500)
+    } catch {
+      toast.error("Ошибка при выходе")
     }
-  }, [storeDoctor, initialDoctor, setDoctor])
-
-  // Sync appointments from server to store
-  useEffect(() => {
-    if (!apptFetched && initialAppointments.length > 0) {
-      setAppointments(initialAppointments)
-    } else if (!apptFetched) {
-      setAppointments([])
-    }
-  }, [apptFetched, initialAppointments, setAppointments])
+  }
 
   return (
     <div className="flex-1">
@@ -63,7 +48,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
               variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => logout()}
+              onClick={handleLogout}
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Выйти</span>

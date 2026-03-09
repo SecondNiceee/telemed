@@ -1,8 +1,7 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { getBaseUrl } from "@/lib/api/fetch"
-import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
-import type { ApiDoctor, ApiAppointment, PayloadListResponse } from "@/lib/api/types"
+import { serverApiFetch, AppointmentsApi } from "@/lib/api"
+import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 import { ChatPage } from "@/components/chat/chat-page"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -14,6 +13,10 @@ export const metadata = {
   description: "Чат с пациентами",
 }
 
+interface DoctorMeResponse {
+  user: ApiDoctor | null
+}
+
 export default async function LkMedChatPage({
   searchParams,
 }: {
@@ -23,37 +26,30 @@ export default async function LkMedChatPage({
   const initialAppointmentId = params.appointment ? parseInt(params.appointment, 10) : null
   
   const requestHeaders = await headers()
+  const cookie = requestHeaders.get("cookie") ?? ""
 
-  // Check doctors-token cookie for doctor auth on server
-  const doctor = await getSessionFromCookie<ApiDoctor>(
-    requestHeaders,
-    "doctors-token",
-    "doctors"
-  )
-
-  if (!doctor) {
-    redirect("/lk-med")
-  }
-
-  // Fetch doctor's appointments
+  let doctor: ApiDoctor | null = null
   let appointments: ApiAppointment[] = []
-  try {
-    const cookie = requestHeaders.get("cookie") ?? ""
-    const baseUrl = getBaseUrl()
 
-    const apptRes = await fetch(
-      `${baseUrl}/api/appointments?limit=100&depth=1&sort=-date`,
-      {
-        headers: { cookie },
-        cache: "no-store",
-      }
-    )
-    if (apptRes.ok) {
-      const data: PayloadListResponse<ApiAppointment> = await apptRes.json()
-      appointments = data.docs
+  try {
+    // Fetch doctor
+    const doctorData = await serverApiFetch<DoctorMeResponse>("/api/doctors/me", {
+      cookie,
+      cache: "no-store",
+    })
+    doctor = doctorData.user ?? null
+
+    if (!doctor) {
+      redirect("/lk-med/login")
     }
+
+    // Fetch appointments
+    appointments = await AppointmentsApi.fetchDoctorAppointmentsServer({ cookie })
   } catch (e) {
-    console.error("Failed to fetch appointments:", e)
+    // redirect() throws a special Next.js error — rethrow it
+    if (e && typeof e === "object" && "digest" in e) throw e
+    console.error(e)
+    redirect("/lk-med/login")
   }
 
   // Filter to only confirmed/completed appointments (active chats)

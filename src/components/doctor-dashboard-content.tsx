@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { cn } from "@/lib/utils"
 import {
   ChevronLeft,
@@ -13,7 +13,6 @@ import {
   User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import type { ApiAppointment } from "@/lib/api/types"
 
 type ConsultationTab = "active" | "completed"
@@ -265,22 +264,15 @@ function getStatusColor(status: ApiAppointment["status"]) {
   }
 }
 
+interface DoctorDashboardContentProps {
+  userName: string
+  appointments: ApiAppointment[]
+}
+
 export function DoctorDashboardContent({
   userName,
-}: {
-  userName: string
-}) {
-  const {
-    appointments,
-    loading: apptLoading,
-    fetched: apptFetched,
-    fetchAppointments,
-  } = useDoctorAppointmentStore()
-
-  useEffect(() => {
-    fetchAppointments()
-  }, [fetchAppointments])
-
+  appointments,
+}: DoctorDashboardContentProps) {
   const [tab, setTab] = useState<ConsultationTab>("active")
   const [selection, setSelection] = useState<DateSelection>({
     mode: "all",
@@ -406,11 +398,7 @@ export function DoctorDashboardContent({
             )}
 
             {/* Appointments List */}
-            {apptLoading && !apptFetched ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-              </div>
-            ) : filteredAppointments.length === 0 ? (
+            {filteredAppointments.length === 0 ? (
               <div className="rounded-xl border border-border bg-card p-12 flex flex-col items-center justify-center text-center">
                 <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-5">
                   <Video className="w-7 h-7 text-muted-foreground" />

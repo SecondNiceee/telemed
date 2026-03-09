@@ -1,6 +1,5 @@
 import React from "react"
 import type { Metadata } from 'next'
-import { AppInit } from '@/components/app-init'
 import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
@@ -19,7 +18,6 @@ export default function RootLayout({
   return (
     <html lang="ru" >
       <body className={`font-sans antialiased`} >
-        <AppInit />
         <Toaster position="top-center" richColors />
         {children}
       </body>

@@ -18,10 +18,11 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { resolveImageUrl } from "@/lib/utils/image";
-import { useUserStore } from "@/stores/user-store";
-import { useUserAppointmentStore } from "@/stores/user-appointments-store";
+import { AuthApi } from "@/lib/api/auth";
+import { AppointmentsApi } from "@/lib/api/appointments";
 import { LoginModal } from "@/components/login-modal";
 import type { DoctorScheduleDate } from "@/lib/api/types";
+import type { User } from "@/payload-types";
 
 interface BookingClientProps {
   doctorId: number;
@@ -52,12 +53,23 @@ export function BookingClient({
   doctorEmail,
   schedule,
 }: BookingClientProps) {
-  const { user, fetchUser } = useUserStore();
-  const { createAppointment, creating } = useUserAppointmentStore();
+  const [user, setUser] = useState<User | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    const checkAuth = async () => {
+      try {
+        const userData = await AuthApi.me();
+        setUser(userData);
+      } catch {
+        setUser(null);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+    checkAuth();
+  }, []);
 
   // Build a map of date -> available time slots from doctor's schedule
   const scheduleMap = useMemo(() => {
@@ -173,14 +185,20 @@ export function BookingClient({
     setBookingError(null);
   };
 
+  const handleLoginSuccess = () => {
+    // Refetch user after login
+    AuthApi.me().then(setUser).catch(() => setUser(null));
+  };
+
   const handleBooking = async () => {
     if (!user) return;
     if (!selectedDate || !selectedTime) return;
 
     setBookingError(null);
+    setCreating(true);
 
     try {
-      await createAppointment({
+      await AppointmentsApi.create({
         doctor: doctorId,
         user: user.id,
         doctorName,
@@ -189,22 +207,14 @@ export function BookingClient({
         date: selectedDate,
         time: selectedTime,
         price: doctorPrice,
-        // Pass full doctor data so the store has all info immediately
-        doctorData: {
-          id: doctorId,
-          email: doctorEmail,
-          name: doctorName,
-          price: doctorPrice,
-          experience: doctorExperience,
-          degree: doctorDegree,
-          bio: doctorBio,
-        },
       });
       setIsBooked(true);
     } catch (err) {
       setBookingError(
         err instanceof Error ? err.message : "Произошла ошибка при записи"
       );
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -409,7 +419,7 @@ export function BookingClient({
                       </div>
                     ) : (
                       <p className="text-center py-6 text-muted-foreground">
-                        На ��ту дату нет свободных слотов
+                        На эту дату нет свободных слотов
                       </p>
                     )}
                   </div>
@@ -442,7 +452,9 @@ export function BookingClient({
                         </p>
                       </div>
 
-                      {user ? (
+                      {userLoading ? (
+                        <div className="h-11 w-48 rounded-md bg-muted animate-pulse" />
+                      ) : user ? (
                         <Button
                           variant="outline"
                           size="lg"
@@ -462,7 +474,7 @@ export function BookingClient({
                           )}
                         </Button>
                       ) : (
-                        <LoginModal>
+                        <LoginModal onSuccess={handleLoginSuccess}>
                           <Button
                             variant="outline"
                             size="lg"
