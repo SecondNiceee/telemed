@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { useChatStore } from '@/stores/chat-store'
 import type { ApiMessage } from '@/lib/api/messages'
@@ -20,12 +20,49 @@ const SocketContext = createContext<SocketContextValue | null>(null)
 
 interface SocketProviderProps {
   children: ReactNode
+  currentSenderType?: 'user' | 'doctor'
+  currentSenderId?: number
 }
 
-export function SocketProvider({ children }: SocketProviderProps) {
+// Play notification sound
+function playNotificationSound() {
+  try {
+    // Create audio context for notification sound
+    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+    
+    // Pleasant notification sound
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime) // A5
+    oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1) // C#6
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
+    
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.3)
+  } catch {
+    // Audio not supported or blocked
+    console.log('[Socket] Could not play notification sound')
+  }
+}
+
+export function SocketProvider({ children, currentSenderType, currentSenderId }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const { addMessage, setTypingUser, incrementUnreadCount, activeAppointmentId, markMessagesAsReadByType } = useChatStore()
+  
+  // Track current sender info in refs to use in socket event handlers
+  const currentSenderTypeRef = useRef(currentSenderType)
+  const currentSenderIdRef = useRef(currentSenderId)
+  
+  useEffect(() => {
+    currentSenderTypeRef.current = currentSenderType
+    currentSenderIdRef.current = currentSenderId
+  }, [currentSenderType, currentSenderId])
 
   useEffect(() => {
     // Connect to the separate Socket.io server on port 3001
@@ -56,13 +93,28 @@ export function SocketProvider({ children }: SocketProviderProps) {
     newSocket.on('new-message', (message: ApiMessage) => {
       addMessage(message)
       
-      // Increment unread count if not in the active chat
       const msgAppointmentId = typeof message.appointment === 'object' 
         ? message.appointment.id 
         : message.appointment
       
-      if (activeAppointmentId !== msgAppointmentId) {
-        incrementUnreadCount(msgAppointmentId)
+      // Check if this is a message from the other party (not from us)
+      const isOwnMessage = message.senderType === currentSenderTypeRef.current && 
+                           message.senderId === currentSenderIdRef.current
+      
+      // Play sound and increment unread if:
+      // 1. Not our own message AND
+      // 2. Either not in active chat OR tab is not visible
+      if (!isOwnMessage) {
+        const isTabVisible = document.visibilityState === 'visible'
+        const isInActiveChat = activeAppointmentId === msgAppointmentId
+        
+        if (!isInActiveChat || !isTabVisible) {
+          incrementUnreadCount(msgAppointmentId)
+          // Play notification sound if tab is not visible
+          if (!isTabVisible) {
+            playNotificationSound()
+          }
+        }
       }
     })
 
@@ -110,25 +162,38 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
   const sendMessage = useCallback((appointmentId: number, text: string) => {
     if (socket?.connected) {
-      socket.emit('send-message', { appointmentId, text })
+      socket.emit('send-message', { 
+        appointmentId, 
+        text, 
+        preferredSenderType: currentSenderTypeRef.current 
+      })
     }
   }, [socket])
 
   const markAsRead = useCallback((appointmentId: number) => {
     if (socket?.connected) {
-      socket.emit('mark-read', { appointmentId })
+      socket.emit('mark-read', { 
+        appointmentId, 
+        preferredSenderType: currentSenderTypeRef.current 
+      })
     }
   }, [socket])
 
   const startTyping = useCallback((appointmentId: number) => {
     if (socket?.connected) {
-      socket.emit('typing', { appointmentId })
+      socket.emit('typing', { 
+        appointmentId, 
+        preferredSenderType: currentSenderTypeRef.current 
+      })
     }
   }, [socket])
 
   const stopTyping = useCallback((appointmentId: number) => {
     if (socket?.connected) {
-      socket.emit('stop-typing', { appointmentId })
+      socket.emit('stop-typing', { 
+        appointmentId, 
+        preferredSenderType: currentSenderTypeRef.current 
+      })
     }
   }, [socket])
 

@@ -127,7 +127,10 @@ function ChatPageContent({
 
 export function ChatPage(props: ChatPageProps) {
   return (
-    <SocketProvider>
+    <SocketProvider 
+      currentSenderType={props.currentSenderType} 
+      currentSenderId={props.currentSenderId}
+    >
       <ChatPageContent {...props} />
     </SocketProvider>
   )

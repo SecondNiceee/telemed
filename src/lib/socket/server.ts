@@ -24,14 +24,17 @@ interface AuthenticatedSocket extends Socket {
 interface SendMessagePayload {
   appointmentId: number
   text: string
+  preferredSenderType?: 'user' | 'doctor'
 }
 
 interface JoinRoomPayload {
   appointmentId: number
+  preferredSenderType?: 'user' | 'doctor'
 }
 
 interface MarkReadPayload {
   appointmentId: number
+  preferredSenderType?: 'user' | 'doctor'
 }
 
 /**
@@ -188,7 +191,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
     // Send message
     socket.on('send-message', async (data: SendMessagePayload) => {
-      const { appointmentId, text } = data
+      const { appointmentId, text, preferredSenderType } = data
 
       if (!text?.trim()) {
         socket.emit('error', { message: 'Сообщение не может быть пустым' })
@@ -208,9 +211,36 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
         return
       }
 
-      // Use the actual access type and ID for creating the message
-      const senderType = accessResult.accessType!
-      const senderId = accessResult.accessId!
+      // Determine sender type - use preferred if valid, otherwise use detected
+      let senderType = accessResult.accessType!
+      let senderId = accessResult.accessId!
+      
+      // If client specifies a preferred sender type, validate and use it
+      if (preferredSenderType) {
+        // Check if the user can act as the preferred type for this appointment
+        try {
+          const appointment = await payload.findByID({
+            collection: 'appointments',
+            id: appointmentId,
+            overrideAccess: true,
+          })
+          
+          if (appointment) {
+            const appointmentUserId = typeof appointment.user === 'object' ? appointment.user.id : appointment.user
+            const appointmentDoctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
+            
+            if (preferredSenderType === 'user' && authSocket.data.allUserIds.includes(appointmentUserId)) {
+              senderType = 'user'
+              senderId = appointmentUserId
+            } else if (preferredSenderType === 'doctor' && authSocket.data.allDoctorIds.includes(appointmentDoctorId)) {
+              senderType = 'doctor'
+              senderId = appointmentDoctorId
+            }
+          }
+        } catch {
+          // Use default access result on error
+        }
+      }
 
       try {
         // Save message to database
@@ -248,7 +278,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
     // Mark messages as read
     socket.on('mark-read', async (data: MarkReadPayload) => {
-      const { appointmentId } = data
+      const { appointmentId, preferredSenderType } = data
 
       // Verify access (checks both user and doctor tokens)
       const accessResult = await verifyAppointmentAccess(
@@ -260,9 +290,36 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
       if (!accessResult.hasAccess) return
 
+      // Determine the actual sender type
+      let actualSenderType = accessResult.accessType!
+      
+      // If client specifies preferred type, validate and use it
+      if (preferredSenderType) {
+        try {
+          const appointment = await payload.findByID({
+            collection: 'appointments',
+            id: appointmentId,
+            overrideAccess: true,
+          })
+          
+          if (appointment) {
+            const appointmentUserId = typeof appointment.user === 'object' ? appointment.user.id : appointment.user
+            const appointmentDoctorId = typeof appointment.doctor === 'object' ? appointment.doctor.id : appointment.doctor
+            
+            if (preferredSenderType === 'user' && authSocket.data.allUserIds.includes(appointmentUserId)) {
+              actualSenderType = 'user'
+            } else if (preferredSenderType === 'doctor' && authSocket.data.allDoctorIds.includes(appointmentDoctorId)) {
+              actualSenderType = 'doctor'
+            }
+          }
+        } catch {
+          // Use default access result on error
+        }
+      }
+
       try {
         // Mark all unread messages from the OTHER party as read
-        const otherSenderType = accessResult.accessType === 'user' ? 'doctor' : 'user'
+        const otherSenderType = actualSenderType === 'user' ? 'doctor' : 'user'
 
         await payload.update({
           collection: 'messages',
@@ -278,7 +335,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
         const roomName = `appointment:${appointmentId}`
         io.to(roomName).emit('messages-read', {
           appointmentId,
-          readBy: accessResult.accessType,
+          readBy: actualSenderType,
         })
       } catch (err) {
         console.error('[Socket] Failed to mark messages as read:', err)
@@ -287,24 +344,32 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
     // Typing indicator
     socket.on('typing', (data: JoinRoomPayload) => {
-      const { appointmentId } = data
+      const { appointmentId, preferredSenderType } = data
       const roomName = `appointment:${appointmentId}`
+      
+      // Use preferred sender type if provided, otherwise use default
+      const senderType = preferredSenderType || authSocket.data.senderType
+      const senderId = senderType === 'user' ? authSocket.data.userId : authSocket.data.doctorId
       
       socket.to(roomName).emit('user-typing', {
         appointmentId,
-        senderType: authSocket.data.senderType,
-        senderId: authSocket.data.senderId,
+        senderType,
+        senderId: senderId || authSocket.data.senderId,
       })
     })
 
     socket.on('stop-typing', (data: JoinRoomPayload) => {
-      const { appointmentId } = data
+      const { appointmentId, preferredSenderType } = data
       const roomName = `appointment:${appointmentId}`
+      
+      // Use preferred sender type if provided, otherwise use default  
+      const senderType = preferredSenderType || authSocket.data.senderType
+      const senderId = senderType === 'user' ? authSocket.data.userId : authSocket.data.doctorId
       
       socket.to(roomName).emit('user-stop-typing', {
         appointmentId,
-        senderType: authSocket.data.senderType,
-        senderId: authSocket.data.senderId,
+        senderType,
+        senderId: senderId || authSocket.data.senderId,
       })
     })
 
