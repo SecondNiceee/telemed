@@ -25,6 +25,7 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [isTabVisible, setIsTabVisible] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -40,30 +41,50 @@ export function ChatWindow({
     ? appointment.doctorName || 'Врач'
     : appointment.userName || 'Пациент'
 
+  // Track tab visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsTabVisible(document.visibilityState === 'visible')
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   // Join room and load messages on mount
   useEffect(() => {
     setActiveChat(appointment.id)
     joinRoom(appointment.id)
     loadMessages(appointment.id)
-    markAsRead(appointment.id)
+    // Only mark as read if tab is visible
+    if (isTabVisible) {
+      markAsRead(appointment.id)
+    }
 
     return () => {
       leaveRoom(appointment.id)
       setActiveChat(null)
     }
-  }, [appointment.id, joinRoom, leaveRoom, loadMessages, markAsRead, setActiveChat])
+  }, [appointment.id, joinRoom, leaveRoom, loadMessages, markAsRead, setActiveChat, isTabVisible])
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [appointmentMessages])
 
-  // Mark as read when new messages arrive
+  // Mark as read when new messages arrive - ONLY if tab is visible
   useEffect(() => {
-    if (appointmentMessages.length > 0) {
+    if (appointmentMessages.length > 0 && isTabVisible) {
       markAsRead(appointment.id)
     }
-  }, [appointmentMessages.length, appointment.id, markAsRead])
+  }, [appointmentMessages.length, appointment.id, markAsRead, isTabVisible])
+
+  // Mark as read when tab becomes visible
+  useEffect(() => {
+    if (isTabVisible && appointmentMessages.length > 0) {
+      markAsRead(appointment.id)
+    }
+  }, [isTabVisible, appointmentMessages.length, appointment.id, markAsRead])
 
   const handleTyping = useCallback(() => {
     if (!isTyping) {
