@@ -10,7 +10,11 @@ export function getBaseUrl(): string {
   return process.env.SERVER_URL || 'http://localhost:3000'
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export interface ApiFetchOptions extends Omit<RequestInit, 'headers'> {
+  headers?: HeadersInit | Record<string, string>
+}
+
+export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise<T> {
   const baseUrl = getBaseUrl()
   const url = `${baseUrl}${path}`
 
@@ -51,4 +55,26 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   }
 
   return response.json() as Promise<T>
+}
+
+/**
+ * Server-side apiFetch helper that accepts cookie string from headers().
+ * Usage in RSC:
+ *   const hdrs = await headers()
+ *   const cookie = hdrs.get('cookie') ?? ''
+ *   const data = await serverApiFetch('/api/users/me', { cookie })
+ */
+export async function serverApiFetch<T>(
+  path: string,
+  options: { cookie?: string } & ApiFetchOptions = {},
+): Promise<T> {
+  const { cookie, ...init } = options
+  return apiFetch<T>(path, {
+    ...init,
+    cache: 'no-store',
+    headers: {
+      ...init.headers,
+      ...(cookie ? { cookie } : {}),
+    },
+  })
 }

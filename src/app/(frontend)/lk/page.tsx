@@ -3,8 +3,8 @@ import { Footer } from "@/components/footer"
 import { LkContent } from "@/components/lk-content"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
-import { getBaseUrl } from "@/lib/api/fetch"
-import type { ApiAppointment, PayloadListResponse } from "@/lib/api/types"
+import { AuthApi, AppointmentsApi } from "@/lib/api"
+import type { ApiAppointment } from "@/lib/api/types"
 
 export const dynamic = "force-dynamic"
 
@@ -15,30 +15,15 @@ export default async function LkPage() {
   try {
     const hdrs = await headers()
     const cookie = hdrs.get("cookie") ?? ""
-    const baseUrl = getBaseUrl()
     
     // Fetch user
-    const userRes = await fetch(`${baseUrl}/api/users/me`, {
-      headers: { cookie },
-      cache: "no-store",
-    })
-    if (userRes.ok) {
-      const data = await userRes.json()
-      user = data.user ?? null
-    }
+    user = await AuthApi.meServer({ cookie })
     if (!user) {
       redirect("/")
     }
     
     // Fetch appointments on server
-    const apptRes = await fetch(`${baseUrl}/api/appointments?limit=100&depth=1&sort=-date`, {
-      headers: { cookie },
-      cache: "no-store",
-    })
-    if (apptRes.ok) {
-      const data: PayloadListResponse<ApiAppointment> = await apptRes.json()
-      appointments = data.docs
-    }
+    appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie })
   } catch (e) {
     // redirect() throws a special Next.js error — rethrow it
     if (e && typeof e === "object" && "digest" in e) throw e
