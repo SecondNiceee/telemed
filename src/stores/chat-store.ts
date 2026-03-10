@@ -24,7 +24,7 @@ interface ChatState {
   
   setMessages: (appointmentId: number, messages: ApiMessage[]) => void
   
-  loadMessages: (appointmentId: number) => Promise<void>
+  loadMessages: (appointmentId: number, forceRefresh?: boolean) => Promise<void>
   
   markAsRead: (appointmentId: number) => void
   
@@ -95,9 +95,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
   },
 
-  loadMessages: async (appointmentId) => {
+  loadMessages: async (appointmentId, forceRefresh = false) => {
+    const state = get()
+    
     // Prevent duplicate loading
-    if (get().loadingMessages[appointmentId]) return
+    if (state.loadingMessages[appointmentId]) return
+    
+    // Skip if messages already loaded (unless force refresh)
+    if (!forceRefresh && state.messages[appointmentId]?.length > 0) return
 
     set((state) => ({
       loadingMessages: {

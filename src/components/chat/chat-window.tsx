@@ -51,21 +51,25 @@ export function ChatWindow({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
-  // Join room and load messages on mount
+  // Join room and load messages on mount - only when appointment changes
   useEffect(() => {
     setActiveChat(appointment.id)
     joinRoom(appointment.id)
     loadMessages(appointment.id)
-    // Only mark as read if tab is visible
-    if (isTabVisible) {
-      markAsRead(appointment.id)
-    }
 
     return () => {
       leaveRoom(appointment.id)
       setActiveChat(null)
     }
-  }, [appointment.id, joinRoom, leaveRoom, loadMessages, markAsRead, setActiveChat, isTabVisible])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointment.id])
+  
+  // Mark as read when chat opens and tab is visible
+  useEffect(() => {
+    if (isTabVisible) {
+      markAsRead(appointment.id)
+    }
+  }, [appointment.id, isTabVisible, markAsRead])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -216,7 +220,7 @@ export function ChatWindow({
         </div>
         {!isConnected && (
           <p className="text-xs text-destructive mt-2">
-            Нет подключения к серверу. Переподключение...
+            Нет подключения к серве��у. Переподключение...
           </p>
         )}
       </div>
