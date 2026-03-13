@@ -2,7 +2,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Footer } from "@/components/footer"
 import { LkMedContent } from "@/components/lk-med-content"
-import { serverApiFetch, AppointmentsApi } from "@/lib/api"
+import { serverApiFetch, AppointmentsApi } from "@/lib/api/index"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 export const metadata = {
@@ -38,12 +38,14 @@ export default async function LkMedPage() {
   } catch (error) {
     // If request fails, doctor is not authenticated
     // redirect() throws a special Next.js error — rethrow it
+    console.log(error);
     if (error && typeof error === "object" && "digest" in error) throw error
     doctor = null
   }
 
   // Redirect to login if not authenticated
   if (!doctor) {
+    console.log("Доктор был не найден")
     redirect("/lk-med/login")
   }
 
