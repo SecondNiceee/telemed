@@ -14,9 +14,6 @@ interface AuthenticatedSocket extends Socket {
     doctorId?: number
     senderType: 'user' | 'doctor'
     senderId: number
-    // Store both IDs for access verification when user has both tokens
-    allUserIds: number[]
-    allDoctorIds: number[]
     // Track rooms where user is typing (for cleanup on disconnect)
     typingInRooms: Set<string>
   }
@@ -70,33 +67,28 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     // Так я могу увидеть куки из хэдэров
     const cookies = socket.handshake.headers.cookie || ''
     
-    // Создам переменные начальные
-    const allUserIds: number[] = []
-    const allDoctorIds: number[] = []
+    let userId: number | undefined
+    let doctorId: number | undefined
     let primarySenderType: 'user' | 'doctor' | null = null
     let primarySenderId: number | null = null
 
-
-    // Забираю токен пользователя. И ставлю primarySenderType=usser
-    const userToken = getCookieValue(cookies, 'payload-token');
-
+    // Забираю токен пользователя
+    const userToken = getCookieValue(cookies, 'payload-token')
     if (userToken) {
       const decoded = verifyToken(userToken)
       if (decoded?.id) {
-        allUserIds.push(decoded.id)
-        // Default to user if both exist
+        userId = decoded.id
         primarySenderType = 'user'
         primarySenderId = decoded.id
       }
     }
 
-    // Забираю токен доктора, и ставлю primarySenderType=doctor ??
+    // Забираю токен доктора
     const doctorToken = getCookieValue(cookies, 'doctors-token')
     if (doctorToken) {
       const decoded = verifyToken(doctorToken)
       if (decoded?.id) {
-        allDoctorIds.push(decoded.id)
-        // Тут ставится сервер primarySenderTyep, если не установлен юзер
+        doctorId = decoded.id
         if (!primarySenderType) {
           primarySenderType = 'doctor'
           primarySenderId = decoded.id
@@ -104,20 +96,18 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       }
     }
 
-    // Если так и не получили primarySenderType то мы выкидываемся просто  и сокеты лопаются
+    // Если не авторизован - отклоняем
     if (!primarySenderType || !primarySenderId) {
       return next(new Error('Authentication required'))
     }
 
-    // Ставим userId и doctorId! в дату, что очень удобно и круто
+    // Ставим userId и doctorId в дату сокета
     ;(socket as AuthenticatedSocket).data = {
-      userId: allUserIds[0],
-      doctorId: allDoctorIds[0],
+      userId,
+      doctorId,
       senderType: primarySenderType,
       senderId: primarySenderId,
-      allUserIds,
-      allDoctorIds,
-      typingInRooms: new Set(), // Что такоё typingInRooms
+      typingInRooms: new Set(),
     }
     
     return next()
@@ -141,8 +131,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.allUserIds,
-        authSocket.data.allDoctorIds
+        authSocket.data.userId,
+        authSocket.data.doctorId
       )
 
       if (!accessResult.hasAccess) {
@@ -214,8 +204,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.allUserIds,
-        authSocket.data.allDoctorIds
+        authSocket.data.userId,
+        authSocket.data.doctorId
       )
 
       // Отказываем в доступе в случае неудалчи
@@ -239,10 +229,10 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
           ? (appointment.doctor as { id: number }).id 
           : appointment.doctor as number
         
-        if (preferredSenderType === 'user' && authSocket.data.allUserIds.includes(appointmentUserId)) {
+        if (preferredSenderType === 'user' && authSocket.data.userId === appointmentUserId) {
           senderType = 'user'
           senderId = appointmentUserId
-        } else if (preferredSenderType === 'doctor' && authSocket.data.allDoctorIds.includes(appointmentDoctorId)) {
+        } else if (preferredSenderType === 'doctor' && authSocket.data.doctorId === appointmentDoctorId) {
           senderType = 'doctor'
           senderId = appointmentDoctorId
         }
@@ -299,8 +289,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.allUserIds,
-        authSocket.data.allDoctorIds
+        authSocket.data.userId,
+        authSocket.data.doctorId
       )
 
       if (!accessResult.hasAccess) {
@@ -322,9 +312,9 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
           ? (appointment.doctor as { id: number }).id 
           : appointment.doctor as number
         
-        if (preferredSenderType === 'user' && authSocket.data.allUserIds.includes(appointmentUserId)) {
+        if (preferredSenderType === 'user' && authSocket.data.userId === appointmentUserId) {
           actualSenderType = 'user'
-        } else if (preferredSenderType === 'doctor' && authSocket.data.allDoctorIds.includes(appointmentDoctorId)) {
+        } else if (preferredSenderType === 'doctor' && authSocket.data.doctorId === appointmentDoctorId) {
           actualSenderType = 'doctor'
         }
       }
@@ -371,8 +361,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.allUserIds,
-        authSocket.data.allDoctorIds
+        authSocket.data.userId,
+        authSocket.data.doctorId
       )
 
       if (!accessResult.hasAccess) {
@@ -413,8 +403,8 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
-        authSocket.data.allUserIds,
-        authSocket.data.allDoctorIds
+        authSocket.data.userId,
+        authSocket.data.doctorId
       )
 
       if (!accessResult.hasAccess) {

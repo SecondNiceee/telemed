@@ -5,13 +5,13 @@ import { Payload } from "payload"
 export default async function verifyAppointmentAccess(
     payload: Payload,
     appointmentId: number,
-    allUserIds: number[],
-    allDoctorIds: number[]
+    userId?: number,
+    doctorId?: number
   ): Promise<{ 
     hasAccess: boolean
     accessType?: 'user' | 'doctor'
     accessId?: number
-    appointment?: Appointment // Return appointment for reuseq
+    appointment?: Appointment
   }> {
     try {
       const appointment = await payload.findByID({
@@ -22,24 +22,20 @@ export default async function verifyAppointmentAccess(
   
       if (!appointment) return { hasAccess: false }
   
-      // Check if any of the user IDs match
+      // Check if user ID matches
       const appointmentUserId = typeof appointment.user === 'object' 
         ? (appointment.user as { id: number }).id 
         : appointment.user
-      for (const userId of allUserIds) {
-        if (appointmentUserId === userId) {
-          return { hasAccess: true, accessType: 'user', accessId: userId, appointment }
-        }
+      if (userId && appointmentUserId === userId) {
+        return { hasAccess: true, accessType: 'user', accessId: userId, appointment }
       }
   
-      // Check if any of the doctor IDs match
+      // Check if doctor ID matches
       const appointmentDoctorId = typeof appointment.doctor === 'object' 
         ? (appointment.doctor as { id: number }).id 
         : appointment.doctor
-      for (const doctorId of allDoctorIds) {
-        if (appointmentDoctorId === doctorId) {
-          return { hasAccess: true, accessType: 'doctor', accessId: doctorId, appointment }
-        }
+      if (doctorId && appointmentDoctorId === doctorId) {
+        return { hasAccess: true, accessType: 'doctor', accessId: doctorId, appointment }
       }
   
       return { hasAccess: false }
