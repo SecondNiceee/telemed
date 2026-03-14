@@ -1,13 +1,12 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io'
 import type { Payload } from 'payload'
-import jwt from 'jsonwebtoken'
+import getCookieValue from './utils/getCookieValue'
+import verifyToken from './utils/verifyToken'
+import isValidAppointmentId from './utils/isValidAppointmentId'
+import verifyAppointmentAccess from './utils/verifyAppointmentAccess'
+import validateMessageText from './utils/validateMessageText'
+import isValidSenderType from './utils/isValidSenderType'
 
-interface DecodedToken {
-  id: number
-  email?: string
-  collection?: string
-  role?: string
-}
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -39,36 +38,9 @@ interface MarkReadPayload {
   preferredSenderType?: 'user' | 'doctor'
 }
 
-// [RATE LIMITING] In-memory rate limiter storage
-interface RateLimitEntry {
-  count: number
-  resetAt: number
-}
-const rateLimitMap = new Map<string, RateLimitEntry>()
-const RATE_LIMIT_MAX = 10 // max messages per window
-const RATE_LIMIT_WINDOW_MS = 1000 // 1 second window
 
-/**
- * [RATE LIMITING] Check if socket is rate limited
- * Returns true if request should be blocked
- */
-function isRateLimited(socketId: string): boolean {
-  const now = Date.now()
-  const entry = rateLimitMap.get(socketId)
 
-  if (!entry || now > entry.resetAt) {
-    // New window
-    rateLimitMap.set(socketId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
-    return false
-  }
 
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return true
-  }
-
-  entry.count++
-  return false
-}
 
 /**
  * [RATE LIMITING] Cleanup expired rate limit entries periodically
@@ -82,111 +54,8 @@ function cleanupRateLimits() {
   }
 }
 
-/**
- * Parse cookie string and get value by name
- */
-function getCookieValue(cookieString: string, name: string): string | null {
-  const match = cookieString.match(new RegExp(`${name}=([^;]+)`))
-  return match ? match[1] : null
-}
 
-/**
- * [SECURITY FIX] Verify JWT token with signature validation
- * Previously used jwt.decode() which doesn't verify signature - security vulnerability
- */
-function verifyToken(token: string): DecodedToken | null {
-  try {
-    const secret = process.env.PAYLOAD_SECRET
-    if (!secret) {
-      console.error('[Socket] PAYLOAD_SECRET is not set')
-      return null
-    }
-    // Use jwt.verify() instead of jwt.decode() to validate signature
-    return jwt.verify(token, secret) as DecodedToken
-  } catch {
-    return null
-  }
-}
-
-/**
- * [INPUT VALIDATION] Validate appointmentId
- */
-function isValidAppointmentId(appointmentId: unknown): appointmentId is number {
-  return typeof appointmentId === 'number' && Number.isInteger(appointmentId) && appointmentId > 0
-}
-
-/**
- * [INPUT VALIDATION] Validate message text
- * Returns sanitized text or null if invalid
- */
-function validateMessageText(text: unknown): string | null {
-  if (typeof text !== 'string') return null
-  const trimmed = text.trim()
-  if (trimmed.length === 0) return null
-  // Truncate to max 5000 characters
-  return trimmed.slice(0, 5000)
-}
-
-/**
- * [INPUT VALIDATION] Validate preferredSenderType
- */
-function isValidSenderType(senderType: unknown): senderType is 'user' | 'doctor' | undefined {
-  return senderType === undefined || senderType === 'user' || senderType === 'doctor'
-}
-
-/**
- * [OPTIMIZATION] Verify access and return appointment data for reuse
- * Now returns the appointment object to avoid duplicate DB queries
- */
-async function verifyAppointmentAccess(
-  payload: Payload,
-  appointmentId: number,
-  allUserIds: number[],
-  allDoctorIds: number[]
-): Promise<{ 
-  hasAccess: boolean
-  accessType?: 'user' | 'doctor'
-  accessId?: number
-  appointment?: Record<string, unknown> // Return appointment for reuse
-}> {
-  try {
-    const appointment = await payload.findByID({
-      collection: 'appointments',
-      id: appointmentId,
-      overrideAccess: true,
-    })
-
-    if (!appointment) return { hasAccess: false }
-
-    // Check if any of the user IDs match
-    const appointmentUserId = typeof appointment.user === 'object' 
-      ? (appointment.user as { id: number }).id 
-      : appointment.user
-    for (const userId of allUserIds) {
-      if (appointmentUserId === userId) {
-        return { hasAccess: true, accessType: 'user', accessId: userId, appointment }
-      }
-    }
-
-    // Check if any of the doctor IDs match
-    const appointmentDoctorId = typeof appointment.doctor === 'object' 
-      ? (appointment.doctor as { id: number }).id 
-      : appointment.doctor
-    for (const doctorId of allDoctorIds) {
-      if (appointmentDoctorId === doctorId) {
-        return { hasAccess: true, accessType: 'doctor', accessId: doctorId, appointment }
-      }
-    }
-
-    return { hasAccess: false }
-  } catch {
-    return { hasAccess: false }
-  }
-}
-
-/**
- * Initialize Socket.IO server with event handlers
- */
+// Сокет io сервер запускается.
 export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   // [RATE LIMITING] Cleanup expired entries every 30 seconds
   const cleanupInterval = setInterval(cleanupRateLimits, 30000)
@@ -196,18 +65,21 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     clearInterval(cleanupInterval)
   })
 
-  // Authentication middleware - collect ALL tokens
+  // Проверка пользователя
   io.use((socket, next) => {
+    // Так я могу увидеть куки из хэдэров
     const cookies = socket.handshake.headers.cookie || ''
     
+    // Создам переменные начальные
     const allUserIds: number[] = []
     const allDoctorIds: number[] = []
     let primarySenderType: 'user' | 'doctor' | null = null
     let primarySenderId: number | null = null
-    
-    // [SECURITY FIX] Use verifyToken instead of decodeToken
-    // Try to get user token
-    const userToken = getCookieValue(cookies, 'payload-token')
+
+
+    // Забираю токен пользователя. И ставлю primarySenderType=usser
+    const userToken = getCookieValue(cookies, 'payload-token');
+
     if (userToken) {
       const decoded = verifyToken(userToken)
       if (decoded?.id) {
@@ -218,13 +90,13 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       }
     }
 
-    // Try doctor token - always check regardless of user token
+    // Забираю токен доктора, и ставлю primarySenderType=doctor ??
     const doctorToken = getCookieValue(cookies, 'doctors-token')
     if (doctorToken) {
       const decoded = verifyToken(doctorToken)
       if (decoded?.id) {
         allDoctorIds.push(decoded.id)
-        // Override to doctor if no user, or keep user as primary
+        // Тут ставится сервер primarySenderTyep, если не установлен юзер
         if (!primarySenderType) {
           primarySenderType = 'doctor'
           primarySenderId = decoded.id
@@ -232,11 +104,12 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       }
     }
 
-    // Require at least one valid token
+    // Если так и не получили primarySenderType то мы выкидываемся просто  и сокеты лопаются
     if (!primarySenderType || !primarySenderId) {
       return next(new Error('Authentication required'))
     }
 
+    // Ставим userId и doctorId! в дату, что очень удобно и круто
     ;(socket as AuthenticatedSocket).data = {
       userId: allUserIds[0],
       doctorId: allDoctorIds[0],
@@ -244,27 +117,27 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       senderId: primarySenderId,
       allUserIds,
       allDoctorIds,
-      typingInRooms: new Set(), // [CLEANUP] Track typing rooms
+      typingInRooms: new Set(), // Что такоё typingInRooms
     }
     
     return next()
   })
 
   io.on('connection', (socket: Socket) => {
-    const authSocket = socket as AuthenticatedSocket
+    const authSocket = socket as AuthenticatedSocket // Тут уже есть данные после io.use
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
 
-    // Join room for a specific appointment chat
+    // Когда чувак входит в чат (именно в какую - то конкрутную консультаицю)
     socket.on('join-room', async (data: JoinRoomPayload) => {
       const { appointmentId } = data
 
-      // [INPUT VALIDATION] Validate appointmentId
+      // Тут откидываем, если он глупец
       if (!isValidAppointmentId(appointmentId)) {
         socket.emit('error', { message: 'Некорректный ID консультации' })
         return
       }
       
-      // Verify access to the appointment (checks both user and doctor tokens)
+      // Дан ли доступ
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
@@ -273,40 +146,44 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       )
 
       if (!accessResult.hasAccess) {
-        // [SECURITY LOGGING] Log denied access
+        // Если нет, то сокеты ломаются
         payload.logger.warn(`⚠️ Denied access: socket=${socket.id}, appointment=${appointmentId}`)
         socket.emit('error', { message: 'Нет доступа к этой консультации' })
         return
       }
 
+      // Создаем комнатку
       const roomName = `appointment:${appointmentId}`
+      // Подключаемся к ней
       socket.join(roomName)
       console.log(`[Socket] ${accessResult.accessType}:${accessResult.accessId} joined room ${roomName}`)
       
+      // Отправляем что подключено к комнатке
       socket.emit('joined-room', { appointmentId, roomName })
     })
 
-    // Leave room
+    // Теперь leave-room , чтобы выййти из комнатки
     socket.on('leave-room', (data: JoinRoomPayload) => {
       const { appointmentId } = data
 
-      // [INPUT VALIDATION] Validate appointmentId
+      // Протсо проврека валидации
       if (!isValidAppointmentId(appointmentId)) {
         return
       }
 
+      // определяем комнатку и выходим
       const roomName = `appointment:${appointmentId}`
       socket.leave(roomName)
       
-      // [CLEANUP] Remove from typing rooms if was typing
+      // Удаляем из экземпляра сокета эту комнату
       authSocket.data.typingInRooms.delete(roomName)
       
       console.log(`[Socket] ${authSocket.data.senderType}:${authSocket.data.senderId} left room ${roomName}`)
     })
 
-    // Send message
+    // Событие на отсылку сообщений
     socket.on('send-message', async (data: SendMessagePayload) => {
-      // [RATE LIMITING] Check rate limit
+      // Самое главное!
       if (isRateLimited(socket.id)) {
         socket.emit('error', { message: 'Слишком много запросов' })
         return
@@ -314,24 +191,26 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
       const { appointmentId, text, preferredSenderType } = data
 
-      // [INPUT VALIDATION] Validate all inputs
+      // Опять дефолтна проверка
       if (!isValidAppointmentId(appointmentId)) {
         socket.emit('error', { message: 'Некорректный ID консультации' })
         return
       }
 
+      // Удаляем пробельчики
       const validatedText = validateMessageText(text)
       if (!validatedText) {
         socket.emit('error', { message: 'Сообщение не может быть пустым' })
         return
       }
 
+      // Проверяем чтобы senderType относится к тому, к кому нужно
       if (!isValidSenderType(preferredSenderType)) {
         socket.emit('error', { message: 'Некорректный тип отправителя' })
         return
       }
 
-      // [OPTIMIZATION] Verify access and get appointment in one query
+      // Проверяем доступ опять
       const accessResult = await verifyAppointmentAccess(
         payload,
         appointmentId,
@@ -339,18 +218,18 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
         authSocket.data.allDoctorIds
       )
 
+      // Отказываем в доступе в случае неудалчи
       if (!accessResult.hasAccess) {
-        // [SECURITY LOGGING] Log denied access
         payload.logger.warn(`⚠️ Denied access: socket=${socket.id}, appointment=${appointmentId}`)
         socket.emit('error', { message: 'Нет доступа к этой консультации' })
         return
       }
 
-      // Determine sender type - use preferred if valid, otherwise use detected
+      // Достпут
       let senderType = accessResult.accessType!
       let senderId = accessResult.accessId!
       
-      // [OPTIMIZATION] Reuse appointment from verifyAppointmentAccess instead of fetching again
+      // Ставим senderType
       if (preferredSenderType && accessResult.appointment) {
         const appointment = accessResult.appointment
         const appointmentUserId = typeof appointment.user === 'object' 
@@ -385,7 +264,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
 
         const roomName = `appointment:${appointmentId}`
 
-        // Broadcast to all clients in the room (including sender)
+        // Вызываем у всех в этой комнате это событие
         io.to(roomName).emit('new-message', {
           id: message.id,
           appointment: appointmentId,
@@ -403,11 +282,11 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
       }
     })
 
-    // Mark messages as read
+    // Событие прочитки сообщений.
     socket.on('mark-read', async (data: MarkReadPayload) => {
       const { appointmentId, preferredSenderType } = data
 
-      // [INPUT VALIDATION] Validate inputs
+      // [
       if (!isValidAppointmentId(appointmentId)) {
         return
       }

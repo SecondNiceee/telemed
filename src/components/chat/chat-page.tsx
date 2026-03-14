@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react'
 import { ChatSidebar } from './chat-sidebar'
 import { ChatWindow } from './chat-window'
 import { SocketProvider, useSocket } from '@/components/socket-provider'
-import { useChatStore } from '@/stores/chat-store'
 import type { ApiAppointment } from '@/lib/api/types'
 import { MessageSquare } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface ChatPageProps {
   appointments: ApiAppointment[]

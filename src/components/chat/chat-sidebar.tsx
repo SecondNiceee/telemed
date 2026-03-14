@@ -41,11 +41,11 @@ export function ChatSidebar({
   onSelectAppointment,
   currentSenderType,
 }: ChatSidebarProps) {
-  const { unreadCounts } = useChatStore()
-  const [lastMessages, setLastMessages] = useState<Record<number, ApiMessage | null>>({})
+  const { unreadCounts } = useChatStore() // Тут я беру из store unreadCounts, там это Reacord<number, number>
+  const [lastMessages, setLastMessages] = useState<Record<number, ApiMessage | null>>({}) // Последне сообщения, просто обычный useState
   const [loading, setLoading] = useState(true)
 
-  // Load last messages for all appointments
+  // Загружаю последние сообщени
   useEffect(() => {
     async function loadLastMessages() {
       setLoading(true)
@@ -61,7 +61,6 @@ export function ChatSidebar({
           }
         })
       )
-      
       setLastMessages(results)
       setLoading(false)
     }
@@ -73,7 +72,7 @@ export function ChatSidebar({
     }
   }, [appointments])
 
-  // Update last message when new messages arrive
+  // Когда приходит новое сообщение, обновлюя тему теорему
   const { messages } = useChatStore()
   useEffect(() => {
     const newLastMessages = { ...lastMessages }
@@ -95,7 +94,7 @@ export function ChatSidebar({
     }
   }, [messages])
 
-  // Sort appointments by last message time
+  // Всегда сортировка по приходу нового сообщения
   const sortedAppointments = [...appointments].sort((a, b) => {
     const lastA = lastMessages[a.id]
     const lastB = lastMessages[b.id]

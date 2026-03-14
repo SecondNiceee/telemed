@@ -234,6 +234,7 @@ export const Appointments: CollectionConfig = {
         description: 'Заполняется автоматически',
       },
     },
+    // Почему специализация в свою очередь. Не привязана к специалиазации (то есть Category);
     {
       name: 'specialty',
       type: 'text',

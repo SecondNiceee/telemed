@@ -220,7 +220,7 @@ export function ChatWindow({
         </div>
         {!isConnected && (
           <p className="text-xs text-destructive mt-2">
-            Нет подключения к серве��у. Переподключение...
+            Нет подключения к серверу. Переподключение...
           </p>
         )}
       </div>
