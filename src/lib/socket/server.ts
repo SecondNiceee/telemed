@@ -4,7 +4,9 @@ import isValidAppointmentId from './utils/isValidAppointmentId'
 import verifyAppointmentAccess from './utils/verifyAppointmentAccess'
 import validateMessageText from './utils/validateMessageText'
 import isValidSenderType from './utils/isValidSenderType'
+import isRateLimited from './utils/isRateLimited'
 import { createAuthMiddleware } from './middleware/authMiddleware'
+import { rateLimitMap } from './config/rate-limit.config'
 
 
 interface AuthenticatedSocket extends Socket {

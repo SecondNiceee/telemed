@@ -1,4 +1,4 @@
-import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS, rateLimitMap } from "../server"
+import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS, rateLimitMap } from "../config/rate-limit.config"
 
 // Довольно замысловатая функция isRateLimited
 export default function isRateLimited(socketId: string): boolean {
