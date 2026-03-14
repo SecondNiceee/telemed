@@ -1,11 +1,12 @@
 import type { Server as SocketIOServer, Socket } from 'socket.io'
 import type { Payload } from 'payload'
-import getCookieValue from './utils/getCookieValue'
-import verifyToken from './utils/verifyToken'
 import isValidAppointmentId from './utils/isValidAppointmentId'
 import verifyAppointmentAccess from './utils/verifyAppointmentAccess'
 import validateMessageText from './utils/validateMessageText'
 import isValidSenderType from './utils/isValidSenderType'
+import isRateLimited from './utils/isRateLimited'
+import { createAuthMiddleware } from './middleware/authMiddleware'
+import { rateLimitMap } from './config/rate-limit.config'
 
 
 interface AuthenticatedSocket extends Socket {
@@ -63,55 +64,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   })
 
   // Проверка пользователя
-  io.use((socket, next) => {
-    // Так я могу увидеть куки из хэдэров
-    const cookies = socket.handshake.headers.cookie || ''
-    
-    let userId: number | undefined
-    let doctorId: number | undefined
-    let primarySenderType: 'user' | 'doctor' | null = null
-    let primarySenderId: number | null = null
-
-    // Забираю токен пользователя
-    const userToken = getCookieValue(cookies, 'payload-token')
-    if (userToken) {
-      const decoded = verifyToken(userToken)
-      if (decoded?.id) {
-        userId = decoded.id
-        primarySenderType = 'user'
-        primarySenderId = decoded.id
-      }
-    }
-
-    // Забираю токен доктора
-    const doctorToken = getCookieValue(cookies, 'doctors-token')
-    if (doctorToken) {
-      const decoded = verifyToken(doctorToken)
-      if (decoded?.id) {
-        doctorId = decoded.id
-        if (!primarySenderType) {
-          primarySenderType = 'doctor'
-          primarySenderId = decoded.id
-        }
-      }
-    }
-
-    // Если не авторизован - отклоняем
-    if (!primarySenderType || !primarySenderId) {
-      return next(new Error('Authentication required'))
-    }
-
-    // Ставим userId и doctorId в дату сокета
-    ;(socket as AuthenticatedSocket).data = {
-      userId,
-      doctorId,
-      senderType: primarySenderType,
-      senderId: primarySenderId,
-      typingInRooms: new Set(),
-    }
-    
-    return next()
-  })
+  io.use(createAuthMiddleware())
 
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket // Тут уже есть данные после io.use
