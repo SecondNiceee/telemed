@@ -1,40 +1,15 @@
-import type { Server as SocketIOServer, Socket } from 'socket.io'
+import type { Server as SocketIOServer } from 'socket.io'
 import type { Payload } from 'payload'
+import type { AuthenticatedSocket, SendMessagePayload, JoinRoomPayload, MarkReadPayload } from './types'
 import isValidAppointmentId from './utils/isValidAppointmentId'
 import verifyAppointmentAccess from './utils/verifyAppointmentAccess'
 import validateMessageText from './utils/validateMessageText'
 import isValidSenderType from './utils/isValidSenderType'
 import isRateLimited from './utils/isRateLimited'
 import { createAuthMiddleware } from './middleware/authMiddleware'
+import { createJoinRoomHandler } from './handlers/joinRoomHandler'
+import { createLeaveRoomHandler } from './handlers/leaveRoomHandler'
 import { rateLimitMap } from './config/rate-limit.config'
-
-
-interface AuthenticatedSocket extends Socket {
-  data: {
-    userId?: number
-    doctorId?: number
-    senderType: 'user' | 'doctor'
-    senderId: number
-    // Track rooms where user is typing (for cleanup on disconnect)
-    typingInRooms: Set<string>
-  }
-}
-
-interface SendMessagePayload {
-  appointmentId: number
-  text: string
-  preferredSenderType?: 'user' | 'doctor'
-}
-
-interface JoinRoomPayload {
-  appointmentId: number
-  preferredSenderType?: 'user' | 'doctor'
-}
-
-interface MarkReadPayload {
-  appointmentId: number
-  preferredSenderType?: 'user' | 'doctor'
-}
 
 
 
@@ -70,59 +45,11 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     const authSocket = socket as AuthenticatedSocket // Тут уже есть данные после io.use
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
 
-    // Когда чувак входит в чат (именно в какую - то конкрутную консультаицю)
-    socket.on('join-room', async (data: JoinRoomPayload) => {
-      const { appointmentId } = data
+    // Когда чувак входит в чат (именно в какую - то конкретную консультацию)
+    socket.on('join-room', createJoinRoomHandler(payload))
 
-      // Тут откидываем, если он глупец
-      if (!isValidAppointmentId(appointmentId)) {
-        socket.emit('error', { message: 'Некорректный ID консультации' })
-        return
-      }
-      
-      // Дан ли доступ
-      const accessResult = await verifyAppointmentAccess(
-        payload,
-        appointmentId,
-        authSocket.data.userId,
-        authSocket.data.doctorId
-      )
-
-      if (!accessResult.hasAccess) {
-        // Если нет, то сокеты ломаются
-        payload.logger.warn(`⚠️ Denied access: socket=${socket.id}, appointment=${appointmentId}`)
-        socket.emit('error', { message: 'Нет доступа к этой консультации' })
-        return
-      }
-
-      // Создаем комнатку
-      const roomName = `appointment:${appointmentId}`
-      // Подключаемся к ней
-      socket.join(roomName)
-      console.log(`[Socket] ${accessResult.accessType}:${accessResult.accessId} joined room ${roomName}`)
-      
-      // Отправляем что подключено к комнатке
-      socket.emit('joined-room', { appointmentId, roomName })
-    })
-
-    // Теперь leave-room , чтобы выййти из комнатки
-    socket.on('leave-room', (data: JoinRoomPayload) => {
-      const { appointmentId } = data
-
-      // Протсо проврека валидации
-      if (!isValidAppointmentId(appointmentId)) {
-        return
-      }
-
-      // определяем комнатку и выходим
-      const roomName = `appointment:${appointmentId}`
-      socket.leave(roomName)
-      
-      // Удаляем из экземпляра сокета эту комнату
-      authSocket.data.typingInRooms.delete(roomName)
-      
-      console.log(`[Socket] ${authSocket.data.senderType}:${authSocket.data.senderId} left room ${roomName}`)
-    })
+    // Теперь leave-room, чтобы выйти из комнатки
+    socket.on('leave-room', createLeaveRoomHandler())
 
     // Событие на отсылку сообщений
     socket.on('send-message', async (data: SendMessagePayload) => {
