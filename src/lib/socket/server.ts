@@ -9,6 +9,7 @@ import isRateLimited from './utils/isRateLimited'
 import { createAuthMiddleware } from './middleware/authMiddleware'
 import { createJoinRoomHandler } from './handlers/joinRoomHandler'
 import { createLeaveRoomHandler } from './handlers/leaveRoomHandler'
+import { createSendMessageHandler } from './handlers/sendMessageHandler'
 import { rateLimitMap } from './config/rate-limit.config'
 
 
@@ -52,105 +53,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('leave-room', createLeaveRoomHandler())
 
     // Событие на отсылку сообщений
-    socket.on('send-message', async (data: SendMessagePayload) => {
-      // Самое главное!
-      if (isRateLimited(socket.id)) {
-        socket.emit('error', { message: 'Слишком много запросов' })
-        return
-      }
-
-      const { appointmentId, text, preferredSenderType } = data
-
-      // Опять дефолтна проверка
-      if (!isValidAppointmentId(appointmentId)) {
-        socket.emit('error', { message: 'Некорректный ID консультации' })
-        return
-      }
-
-      // Удаляем пробельчики
-      const validatedText = validateMessageText(text)
-      if (!validatedText) {
-        socket.emit('error', { message: 'Сообщение не может быть пустым' })
-        return
-      }
-
-      // Проверяем чтобы senderType относится к тому, к кому нужно
-      if (!isValidSenderType(preferredSenderType)) {
-        socket.emit('error', { message: 'Некорректный тип отправителя' })
-        return
-      }
-
-      // Проверяем доступ опять
-      const accessResult = await verifyAppointmentAccess(
-        payload,
-        appointmentId,
-        authSocket.data.userId,
-        authSocket.data.doctorId
-      )
-
-      // Отказываем в доступе в случае неудалчи
-      if (!accessResult.hasAccess) {
-        payload.logger.warn(`⚠️ Denied access: socket=${socket.id}, appointment=${appointmentId}`)
-        socket.emit('error', { message: 'Нет доступа к этой консультации' })
-        return
-      }
-
-      // Достпут
-      let senderType = accessResult.accessType!
-      let senderId = accessResult.accessId!
-      
-      // Ставим senderType
-      if (preferredSenderType && accessResult.appointment) {
-        const appointment = accessResult.appointment
-        const appointmentUserId = typeof appointment.user === 'object' 
-          ? (appointment.user as { id: number }).id 
-          : appointment.user as number
-        const appointmentDoctorId = typeof appointment.doctor === 'object' 
-          ? (appointment.doctor as { id: number }).id 
-          : appointment.doctor as number
-        
-        if (preferredSenderType === 'user' && authSocket.data.userId === appointmentUserId) {
-          senderType = 'user'
-          senderId = appointmentUserId
-        } else if (preferredSenderType === 'doctor' && authSocket.data.doctorId === appointmentDoctorId) {
-          senderType = 'doctor'
-          senderId = appointmentDoctorId
-        }
-      }
-
-      try {
-        // Save message to database
-        const message = await payload.create({
-          collection: 'messages',
-          data: {
-            appointment: appointmentId,
-            senderType: senderType,
-            senderId: senderId,
-            text: validatedText,
-            read: false,
-          },
-          overrideAccess: true,
-        })
-
-        const roomName = `appointment:${appointmentId}`
-
-        // Вызываем у всех в этой комнате это событие
-        io.to(roomName).emit('new-message', {
-          id: message.id,
-          appointment: appointmentId,
-          senderType: message.senderType,
-          senderId: message.senderId,
-          text: message.text,
-          read: message.read,
-          createdAt: message.createdAt,
-        })
-
-        console.log(`[Socket] Message sent in room ${roomName} by ${senderType}:${senderId}`)
-      } catch (err) {
-        console.error('[Socket] Failed to save message:', err)
-        socket.emit('error', { message: 'Ошибка при отправке сообщения' })
-      }
-    })
+    socket.on('send-message', createSendMessageHandler(io, payload))
 
     // Событие прочитки сообщений.
     socket.on('mark-read', async (data: MarkReadPayload) => {
