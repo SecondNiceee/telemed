@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { CalendarX, Calendar, Clock, User as UserIcon, MessageSquare, LogOut } from "lucide-react"
 import Link from "next/link"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
-import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
+import { formatDate, getStatusLabel, getStatusColor, getUpcomingAppointment } from "@/lib/utils/date"
+import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor
@@ -24,6 +25,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
 
   const doctor = storeDoctor || initialDoctor
   const appointments = apptFetched ? storeAppointments : initialAppointments
+  const upcomingAppointment = getUpcomingAppointment(appointments)
 
   // Sync doctor from server to store
   useEffect(() => {
@@ -70,6 +72,16 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             </Button>
           </div>
         </div>
+
+        {/* Upcoming appointment countdown */}
+        {upcomingAppointment && (
+          <AppointmentCountdownBanner
+            appointment={upcomingAppointment}
+            variant="hero"
+            chatHref={`/lk-med/chat?appointment=${upcomingAppointment.id}`}
+            className="mb-8"
+          />
+        )}
 
         <h2 className="text-lg font-semibold text-foreground mb-4">
           Мои консультации
