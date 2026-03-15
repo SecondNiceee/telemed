@@ -17,7 +17,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload, s
         return
       }
 
-      const { appointmentId, text, preferredSenderType } = data
+      const { appointmentId, text, preferredSenderType, attachmentId } = data
 
       // Опять дефолтная проверка
       if (!isValidAppointmentId(appointmentId)) {
@@ -27,8 +27,16 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload, s
 
       // Удаляем пробелы
       const validatedText = validateMessageText(text)
-      if (!validatedText) {
+      
+      // Нужен хотя бы текст или attachment
+      if (!validatedText && !attachmentId) {
         socket.emit('error', { message: 'Сообщение не может быть пустым' })
+        return
+      }
+      
+      // Validate attachmentId if provided
+      if (attachmentId !== undefined && (typeof attachmentId !== 'number' || attachmentId <= 0)) {
+        socket.emit('error', { message: 'Некорректный ID файла' })
         return
       }
 
@@ -77,18 +85,59 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload, s
       }
 
       try {
+        // Build message data
+        const messageData: {
+          appointment: number
+          senderType: 'user' | 'doctor'
+          senderId: number
+          text?: string
+          attachment?: number
+          read: boolean
+        } = {
+          appointment: appointmentId,
+          senderType: senderType,
+          senderId: senderId,
+          read: false,
+        }
+        
+        if (validatedText) {
+          messageData.text = validatedText
+        }
+        
+        if (attachmentId) {
+          messageData.attachment = attachmentId
+        }
+        
         // Save message to database
         const message = await payload.create({
           collection: 'messages',
-          data: {
-            appointment: appointmentId,
-            senderType: senderType,
-            senderId: senderId,
-            text: validatedText,
-            read: false,
-          },
+          data: messageData,
           overrideAccess: true,
         })
+        
+        // Fetch attachment details if present
+        let attachmentData = null
+        if (attachmentId) {
+          try {
+            const media = await payload.findByID({
+              collection: 'media',
+              id: attachmentId,
+            })
+            if (media) {
+              attachmentData = {
+                id: media.id,
+                url: media.url,
+                filename: media.filename,
+                mimeType: media.mimeType,
+                filesize: media.filesize,
+                width: media.width,
+                height: media.height,
+              }
+            }
+          } catch {
+            // Ignore errors fetching attachment
+          }
+        }
 
         const roomName = `appointment:${appointmentId}`
 
@@ -98,7 +147,8 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload, s
           appointment: appointmentId,
           senderType: message.senderType,
           senderId: message.senderId,
-          text: message.text,
+          text: message.text || null,
+          attachment: attachmentData,
           read: message.read,
           createdAt: message.createdAt,
         })

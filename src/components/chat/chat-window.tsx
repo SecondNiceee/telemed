@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Send, ArrowLeft } from 'lucide-react'
+import { Send, ArrowLeft, Paperclip, X, FileIcon, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MessageBubble } from './message-bubble'
 import { useSocket } from '@/components/socket-provider'
 import { useChatStore } from '@/stores/chat-store'
 import type { ApiAppointment } from '@/lib/api/types'
+import type { ApiMessageAttachment } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
+import { getBaseUrl } from '@/lib/api/fetch'
 
 interface ChatWindowProps {
   appointment: ApiAppointment
@@ -26,6 +28,10 @@ export function ChatWindow({
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isTabVisible, setIsTabVisible] = useState(true)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [uploadedAttachment, setUploadedAttachment] = useState<ApiMessageAttachment | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -90,6 +96,70 @@ export function ChatWindow({
     }
   }, [isTabVisible, appointmentMessages.length, appointment.id, markAsRead])
 
+  // Clear attachment when appointment changes
+  useEffect(() => {
+    setSelectedFile(null)
+    setUploadedAttachment(null)
+    setIsUploading(false)
+  }, [appointment.id])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Max 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Файл слишком большой. Максимальный размер: 10MB')
+      return
+    }
+
+    setSelectedFile(file)
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const baseUrl = getBaseUrl()
+      const response = await fetch(`${baseUrl}/api/media`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Ошибка загрузки файла')
+      }
+
+      const data = await response.json()
+      setUploadedAttachment({
+        id: data.doc.id,
+        url: data.doc.url,
+        filename: data.doc.filename,
+        mimeType: data.doc.mimeType,
+        filesize: data.doc.filesize,
+        width: data.doc.width,
+        height: data.doc.height,
+      })
+    } catch (err) {
+      console.error('Upload error:', err)
+      alert('Не удалось загрузить файл')
+      setSelectedFile(null)
+    } finally {
+      setIsUploading(false)
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleRemoveAttachment = () => {
+    setSelectedFile(null)
+    setUploadedAttachment(null)
+  }
+
   const handleTyping = useCallback(() => {
     if (!isTyping) {
       setIsTyping(true)
@@ -110,10 +180,18 @@ export function ChatWindow({
 
   const handleSend = () => {
     const text = inputValue.trim()
-    if (!text) return
+    const hasAttachment = uploadedAttachment !== null
+    
+    // Need either text or attachment
+    if (!text && !hasAttachment) return
+    
+    // Don't send while uploading
+    if (isUploading) return
 
-    sendMessage(appointment.id, text)
+    sendMessage(appointment.id, text, uploadedAttachment?.id)
     setInputValue('')
+    setSelectedFile(null)
+    setUploadedAttachment(null)
     setIsTyping(false)
     stopTyping(appointment.id)
 
@@ -198,7 +276,62 @@ export function ChatWindow({
 
       {/* Input */}
       <div className="p-4 border-t border-border bg-card">
+        {/* Attachment preview */}
+        {selectedFile && (
+          <div className="mb-3 p-2 bg-muted rounded-lg flex items-center gap-2">
+            {uploadedAttachment && uploadedAttachment.mimeType?.startsWith('image/') ? (
+              <img 
+                src={uploadedAttachment.url} 
+                alt={selectedFile.name}
+                className="w-12 h-12 object-cover rounded"
+              />
+            ) : (
+              <div className="w-12 h-12 bg-background rounded flex items-center justify-center">
+                <FileIcon className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate">{selectedFile.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {isUploading ? 'Загрузка...' : `${(selectedFile.size / 1024).toFixed(1)} KB`}
+              </p>
+            </div>
+            {isUploading ? (
+              <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={handleRemoveAttachment}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        )}
+        
         <div className="flex items-center gap-2">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,.pdf,.doc,.docx,.txt"
+          />
+          
+          {/* Attach button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!isConnected || isUploading}
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
+          
           <Input
             value={inputValue}
             onChange={(e) => {
@@ -212,7 +345,7 @@ export function ChatWindow({
           />
           <Button
             onClick={handleSend}
-            disabled={!inputValue.trim() || !isConnected}
+            disabled={(!inputValue.trim() && !uploadedAttachment) || !isConnected || isUploading}
             size="icon"
           >
             <Send className="w-4 h-4" />

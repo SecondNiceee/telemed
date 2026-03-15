@@ -91,6 +91,21 @@ export const Messages: CollectionConfig = {
     },
     admin: () => true,
   },
+  hooks: {
+    beforeValidate: [
+      ({ data }) => {
+        // Require either text or attachment
+        const hasText = data?.text && data.text.trim().length > 0
+        const hasAttachment = data?.attachment
+        
+        if (!hasText && !hasAttachment) {
+          throw new Error('Сообщение должно содержать текст или прикрепленный файл')
+        }
+        
+        return data
+      },
+    ],
+  },
   fields: [
     {
       name: 'appointment',
@@ -120,8 +135,15 @@ export const Messages: CollectionConfig = {
     {
       name: 'text',
       type: 'textarea',
-      required: true,
+      required: false,
       label: 'Текст сообщения',
+    },
+    {
+      name: 'attachment',
+      type: 'upload',
+      relationTo: 'media',
+      required: false,
+      label: 'Прикрепленный файл',
     },
     {
       name: 'read',
