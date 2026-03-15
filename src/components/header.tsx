@@ -7,7 +7,6 @@ import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
-import { useDoctorStore } from "@/stores/doctor-store";
 import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
