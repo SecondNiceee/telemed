@@ -6,17 +6,28 @@ import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
 import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
-import { useRouter } from "next/navigation";
+import { useUserAppointmentStore } from "@/stores/user-appointments-store";
+import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
+import { getUpcomingAppointment } from "@/lib/utils/date";
+import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
 
   const router = useRouter();
+  const pathname = usePathname();
 
   const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
+  const { appointments, fetched: apptFetched } = useUserAppointmentStore();
+
+  const upcomingAppointment =
+    user && apptFetched ? getUpcomingAppointment(appointments) : null;
+
+  // Show banner only on homepage (/) for logged-in users with upcoming appointments
+  const showBanner = !!upcomingAppointment && pathname === "/";
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
@@ -203,6 +214,17 @@ export function Header() {
         )}
       </div>
 
+      {/* Upcoming appointment banner — shown only on homepage for users with appointments */}
+      {showBanner && (
+        <div className="border-t border-border/60 bg-card/50 px-4 sm:px-6 lg:px-8 py-3">
+          <div className="max-w-7xl mx-auto">
+            <AppointmentCountdownBanner
+              appointment={upcomingAppointment}
+              variant="header"
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 }
