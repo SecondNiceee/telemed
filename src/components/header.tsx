@@ -10,8 +10,6 @@ import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
-import { getUpcomingAppointment } from "@/lib/utils/date";
-import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
