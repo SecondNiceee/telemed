@@ -5,7 +5,11 @@ import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq-section";
 import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
+import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
 import { Suspense } from "react";
+import { headers } from "next/headers";
+import { AuthApi, AppointmentsApi } from "@/lib/api/index";
+import { getUpcomingAppointment } from "@/lib/utils/date";
 import type { SiteSettings } from "@/lib/api/site-settings";
 
 async function getSiteSettings(): Promise<SiteSettings | null> {
@@ -22,7 +26,19 @@ async function getSiteSettings(): Promise<SiteSettings | null> {
 }
 
 export default async function HomePage() {
-  const siteSettings = await getSiteSettings();
+  const [siteSettings, hdrs] = await Promise.all([getSiteSettings(), headers()]);
+  const cookie = hdrs.get("cookie") ?? "";
+
+  let upcomingAppointment = null;
+  try {
+    const user = await AuthApi.meServer({ cookie });
+    if (user) {
+      const appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie });
+      upcomingAppointment = getUpcomingAppointment(appointments);
+    }
+  } catch {
+    // Not logged in or error — just don't show banner
+  }
 
   return (
     <div className="min-h-screen flex flex-col">  
@@ -32,6 +48,15 @@ export default async function HomePage() {
           title={siteSettings?.heroTitle}
           subtitle={siteSettings?.heroSubtitle}
         />
+        {upcomingAppointment && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 mb-4">
+            <AppointmentCountdownBanner
+              appointment={upcomingAppointment}
+              variant="header"
+              chatHref="/lk"
+            />
+          </div>
+        )}
         <SectionReveal delay={0}>
           <Suspense
             fallback={
