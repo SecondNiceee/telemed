@@ -70,6 +70,7 @@ export function UserHeroBanner({ user, confirmedCount, completedCount, onLogout,
             <AppointmentCountdownBanner
               appointment={upcomingAppointment}
               variant="hero"
+              chatHref={`/lk/chat?appointment=${upcomingAppointment.id}`}
             />
           </div>
         )}
