@@ -4,16 +4,21 @@ import { Button } from "@/components/ui/button"
 import { LogOut, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import type { User } from "@/payload-types"
-import { getInitials } from "@/lib/utils/date"
+import { getInitials, getUpcomingAppointment } from "@/lib/utils/date"
+import type { ApiAppointment } from "@/lib/api/types"
+import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
 
 interface UserHeroBannerProps {
   user: User
   confirmedCount: number
   completedCount: number
   onLogout: () => void
+  appointments?: ApiAppointment[]
 }
 
-export function UserHeroBanner({ user, confirmedCount, completedCount, onLogout }: UserHeroBannerProps) {
+export function UserHeroBanner({ user, confirmedCount, completedCount, onLogout, appointments = [] }: UserHeroBannerProps) {
+  const upcomingAppointment = getUpcomingAppointment(appointments)
+
   return (
     <div className="bg-card border-b border-border">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -58,6 +63,16 @@ export function UserHeroBanner({ user, confirmedCount, completedCount, onLogout 
             </Button>
           </div>
         </div>
+
+        {/* Upcoming appointment countdown */}
+        {upcomingAppointment && (
+          <div className="mt-6">
+            <AppointmentCountdownBanner
+              appointment={upcomingAppointment}
+              variant="hero"
+            />
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-2 gap-3 mt-6">

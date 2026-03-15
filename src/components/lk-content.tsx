@@ -56,6 +56,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
         confirmedCount={confirmed}
         completedCount={completed}
         onLogout={logout}
+        appointments={appointments}
       />
 
       {/* Appointments list */}
