@@ -375,7 +375,8 @@ export interface Message {
   appointment: number | Appointment;
   senderType: 'user' | 'doctor';
   senderId: number;
-  text: string;
+  text?: string | null;
+  attachment?: (number | null) | Media;
   read?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -653,6 +654,7 @@ export interface MessagesSelect<T extends boolean = true> {
   senderType?: T;
   senderId?: T;
   text?: T;
+  attachment?: T;
   read?: T;
   updatedAt?: T;
   createdAt?: T;

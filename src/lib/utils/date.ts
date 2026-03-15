@@ -65,7 +65,8 @@ export function getUpcomingAppointment<T extends { date: string; time: string; s
     }))
     .filter(({ dt }) => dt > now)
     .sort((a, b) => a.dt.getTime() - b.dt.getTime())
-
+  
+  
   return upcoming[0]?.appt ?? null
 }
 
