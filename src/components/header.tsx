@@ -7,6 +7,7 @@ import { useState } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
+import { useDoctorStore } from "@/stores/doctor-store";
 import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
@@ -22,12 +23,13 @@ export function Header() {
 
   const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
   const { appointments, fetched: apptFetched } = useUserAppointmentStore();
+  const { doctor } = useDoctorStore();
 
   const upcomingAppointment =
     user && apptFetched ? getUpcomingAppointment(appointments) : null;
 
-  // Show banner only on homepage (/) for logged-in users with upcoming appointments
-  const showBanner = !!upcomingAppointment && pathname === "/";
+  // Show banner only on homepage (/) for regular users (payload-token), not for doctors
+  const showBanner = !!upcomingAppointment && pathname === "/" && !doctor;
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
