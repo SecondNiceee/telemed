@@ -11,9 +11,17 @@ export interface AuthenticatedSocket extends Socket {
   }
 }
 
+export interface MessageAttachment {
+  name: string
+  size: number
+  type: string
+  url: string
+}
+
 export interface SendMessagePayload {
   appointmentId: number
-  text: string
+  text?: string
+  attachments?: MessageAttachment[]
   preferredSenderType?: 'user' | 'doctor'
 }
 

@@ -120,8 +120,39 @@ export const Messages: CollectionConfig = {
     {
       name: 'text',
       type: 'textarea',
-      required: true,
+      required: false,
       label: 'Текст сообщения',
+    },
+    {
+      name: 'attachments',
+      type: 'array',
+      label: 'Вложения',
+      fields: [
+        {
+          name: 'name',
+          type: 'text',
+          required: true,
+          label: 'Имя файла',
+        },
+        {
+          name: 'size',
+          type: 'number',
+          required: true,
+          label: 'Размер (байт)',
+        },
+        {
+          name: 'type',
+          type: 'text',
+          required: true,
+          label: 'MIME тип',
+        },
+        {
+          name: 'url',
+          type: 'text',
+          required: true,
+          label: 'URL файла',
+        },
+      ],
     },
     {
       name: 'read',

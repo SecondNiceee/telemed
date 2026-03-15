@@ -1,12 +1,21 @@
 import { apiFetch } from './fetch'
 import type { PayloadListResponse } from './types'
 
+export interface MessageAttachment {
+  id?: string
+  name: string
+  size: number
+  type: string
+  url: string
+}
+
 export interface ApiMessage {
   id: number
   appointment: number | { id: number }
   senderType: 'user' | 'doctor'
   senderId: number
-  text: string
+  text?: string
+  attachments?: MessageAttachment[]
   read: boolean
   createdAt: string
   updatedAt: string
