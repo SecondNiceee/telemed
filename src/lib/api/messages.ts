@@ -1,12 +1,23 @@
 import { apiFetch } from './fetch'
 import type { PayloadListResponse } from './types'
 
+export interface ApiMessageAttachment {
+  id: number
+  url: string
+  filename: string
+  mimeType: string
+  filesize: number
+  width?: number
+  height?: number
+}
+
 export interface ApiMessage {
   id: number
   appointment: number | { id: number }
   senderType: 'user' | 'doctor'
   senderId: number
-  text: string
+  text?: string
+  attachment?: ApiMessageAttachment | number
   read: boolean
   createdAt: string
   updatedAt: string
@@ -18,7 +29,7 @@ export class MessagesApi {
    */
   static async fetchByAppointment(appointmentId: number): Promise<ApiMessage[]> {
     const data = await apiFetch<PayloadListResponse<ApiMessage>>(
-      `/api/messages?where[appointment][equals]=${appointmentId}&sort=createdAt&limit=500&depth=0`,
+      `/api/messages?where[appointment][equals]=${appointmentId}&sort=createdAt&limit=500&depth=1`,
       { credentials: 'include' }
     )
     return data.docs

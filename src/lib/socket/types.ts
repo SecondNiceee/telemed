@@ -15,6 +15,7 @@ export interface SendMessagePayload {
   appointmentId: number
   text: string
   preferredSenderType?: 'user' | 'doctor'
+  attachmentId?: number
 }
 
 export interface JoinRoomPayload {

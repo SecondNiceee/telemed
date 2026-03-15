@@ -10,7 +10,7 @@ interface SocketContextValue {
   isConnected: boolean
   joinRoom: (appointmentId: number) => void
   leaveRoom: (appointmentId: number) => void
-  sendMessage: (appointmentId: number, text: string) => void
+  sendMessage: (appointmentId: number, text: string, attachmentId?: number) => void
   markAsRead: (appointmentId: number) => void
   startTyping: (appointmentId: number) => void
   stopTyping: (appointmentId: number) => void
@@ -160,12 +160,13 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   }, [socket])
 
-  const sendMessage = useCallback((appointmentId: number, text: string) => {
+  const sendMessage = useCallback((appointmentId: number, text: string, attachmentId?: number) => {
     if (socket?.connected) {
       socket.emit('send-message', { 
         appointmentId, 
         text, 
-        preferredSenderType: currentSenderTypeRef.current 
+        preferredSenderType: currentSenderTypeRef.current,
+        attachmentId,
       })
     }
   }, [socket])
