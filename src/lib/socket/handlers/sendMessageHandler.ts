@@ -7,9 +7,9 @@ import validateMessageText from '../utils/validateMessageText'
 import isValidSenderType from '../utils/isValidSenderType'
 import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
 
-export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
-  return async (data: SendMessagePayload, socket: Socket) => {
-    const authSocket = socket as AuthenticatedSocket
+export function createSendMessageHandler(io: SocketIOServer, payload: Payload, socket: Socket) {
+  const authSocket = socket as AuthenticatedSocket
+  return async (data: SendMessagePayload) => {
 
       // Самое главное - rate limiting!
       if (isRateLimited(socket.id)) {

@@ -47,13 +47,13 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
 
     // Когда чувак входит в чат (именно в какую - то конкретную консультацию)
-    socket.on('join-room', createJoinRoomHandler(payload))
+    socket.on('join-room', (data: JoinRoomPayload) => createJoinRoomHandler(payload)(authSocket, data))
 
     // Теперь leave-room, чтобы выйти из комнатки
-    socket.on('leave-room', createLeaveRoomHandler())
+    socket.on('leave-room', (data: JoinRoomPayload) => createLeaveRoomHandler()(authSocket, data))
 
     // Событие на отсылку сообщений
-    socket.on('send-message', createSendMessageHandler(io, payload))
+    socket.on('send-message', createSendMessageHandler(io, payload, authSocket))
 
     // Событие прочитки сообщений.
     socket.on('mark-read', async (data: MarkReadPayload) => {
