@@ -6,23 +6,11 @@ import { FaqSection } from "@/components/faq-section";
 import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
 import { Suspense } from "react";
-import type { SiteSettings } from "@/lib/api/site-settings";
-
-async function getSiteSettings(): Promise<SiteSettings | null> {
-  try {
-    const baseUrl = process.env.SERVER_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/globals/site-settings`, {
-      next: { tags: ["site-settings"] },
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
+import { fetchSiteSettingsLocal } from "@/lib/api/site-settings.server";
 
 export default async function HomePage() {
-  const siteSettings = await getSiteSettings();
+  // Use Payload Local API directly to avoid fetch issues during build
+  const siteSettings = await fetchSiteSettingsLocal();
 
   return (
     <div className="min-h-screen flex flex-col">  

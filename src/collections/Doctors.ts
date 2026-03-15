@@ -1,7 +1,16 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
-import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
+
+// Safe wrapper for revalidateTag that works in build time
+const revalidateDoctorsCache = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(DOCTORS_CACHE_TAG)
+  } catch {
+    // revalidateTag is only available in Server Component context
+  }
+}
 
 
 /**
@@ -42,12 +51,12 @@ export const Doctors: CollectionConfig = {
     beforeOperation: [ensureReqUser],
     afterChange: [
       () => {
-        revalidateTag(DOCTORS_CACHE_TAG)
+        revalidateDoctorsCache()
       },
     ],
     afterDelete: [
       () => {
-        revalidateTag(DOCTORS_CACHE_TAG)
+        revalidateDoctorsCache()
       },
     ],
     beforeChange: [],

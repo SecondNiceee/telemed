@@ -1,6 +1,15 @@
 import type { GlobalConfig } from 'payload'
-import { revalidateTag } from 'next/cache'
 import { getCallerFromRequest } from '@/collections/helpers/auth'
+
+// Safe wrapper for revalidateTag that works in build time
+const revalidateSiteSettingsCache = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag('site-settings')
+  } catch {
+    // revalidateTag is only available in Server Component context
+  }
+}
 
 export const SiteSettings: GlobalConfig = {
   slug: 'site-settings',
@@ -75,7 +84,7 @@ export const SiteSettings: GlobalConfig = {
   hooks: {
     afterChange: [
       () => {
-        revalidateTag('site-settings')
+        revalidateSiteSettingsCache()
       },
     ],
   },

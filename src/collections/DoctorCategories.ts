@@ -1,10 +1,15 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
-import { revalidateTag } from 'next/cache'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
 import { getCallerFromRequest } from './helpers/auth'
 
-const revalidateCategories = () => {
-  revalidateTag(CATEGORIES_CACHE_TAG)
+// Safe wrapper for revalidateTag that works in build time
+const revalidateCategories = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(CATEGORIES_CACHE_TAG)
+  } catch {
+    // revalidateTag is only available in Server Component context
+  }
 }
 
 /**

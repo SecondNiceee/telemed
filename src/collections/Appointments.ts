@@ -2,9 +2,18 @@ import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
-import { revalidateTag } from 'next/cache'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { sendAppointmentEmail } from '@/utils/sendAppointmentEmail'
+
+// Safe wrapper for revalidateTag that works in build time
+const revalidateDoctorsCache = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(DOCTORS_CACHE_TAG)
+  } catch {
+    // revalidateTag is only available in Server Component context
+  }
+}
 
 /**
  * Populate req.user from the users cookie (payload-token).
@@ -129,7 +138,7 @@ export const Appointments: CollectionConfig = {
                 })
               }
 
-              revalidateTag(DOCTORS_CACHE_TAG)
+              revalidateDoctorsCache()
 
               // Send notification email to doctor
               if (doctor?.email) {
@@ -153,7 +162,7 @@ export const Appointments: CollectionConfig = {
             }
           })
         } else {
-          revalidateTag(DOCTORS_CACHE_TAG)
+          revalidateDoctorsCache()
         }
       },
     ],

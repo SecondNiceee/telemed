@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
-import { ApiCategory, fetchCategories, getErrorMessage } from "../lib/api/index";
+import { ApiCategory, getErrorMessage } from "../lib/api/index";
+import { fetchCategoriesLocal } from "../lib/api/categories.server";
 
 export async function CategoriesSection() {
   let categories: ApiCategory[] = [];
   let error: string | null = null;
 
   try {
-    categories = await fetchCategories();
+    // Use Payload Local API directly to avoid fetch issues during build
+    categories = await fetchCategoriesLocal();
   } catch (err) {
     error = getErrorMessage(err);
   }
