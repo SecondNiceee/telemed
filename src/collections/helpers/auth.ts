@@ -76,7 +76,6 @@ export function getCallerFromRequest(
 ): { role?: string; id?: string; collection?: AuthCollection } {
 
   // Fallback: decode JWT directly from cookies.
-  console.log("Я хотя бы тут")
   const cookieHeader = getCookieHeader(req);
   if (!cookieHeader) return {}
 
@@ -84,7 +83,6 @@ export function getCallerFromRequest(
 
     // Then check only the specific cookie for the requested callerType.
     const decoded = decodeCookie(cookieHeader, COOKIE_MAP[callerType]);
-    console.log(decoded);
     if (decoded?.id) {
       let role: string
       if (callerType === 'users') {

@@ -1,4 +1,4 @@
-import type { Server as SocketIOServer } from 'socket.io'
+import type { Socket, Server as SocketIOServer } from 'socket.io'
 import type { Payload } from 'payload'
 import type { AuthenticatedSocket, SendMessagePayload, JoinRoomPayload, MarkReadPayload } from './types'
 import isValidAppointmentId from './utils/isValidAppointmentId'
