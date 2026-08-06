@@ -1,0 +1,90 @@
+import type { GlobalConfig } from 'payload'
+import { getCallerFromRequest } from '@/collections/helpers/auth'
+
+// Safe wrapper for revalidateTag that works in build time
+const revalidateSiteSettingsCache = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag('site-settings')
+  } catch {
+    // revalidateTag is only available in Server Component context
+  }
+}
+
+export const SiteSettings: GlobalConfig = {
+  slug: 'site-settings',
+  label: 'Настройки сайта',
+  admin: {
+    group: 'Настройки',
+  },
+  access: {
+    read: () => true,
+    update: ({req}) => {
+      const user = getCallerFromRequest(req, "users");
+      return user.role === "admin"
+    },
+  },
+  fields: [
+    {
+      name: 'heroTitle',
+      type: 'text',
+      label: 'Заголовок Hero секции',
+      defaultValue: 'Забота о здоровье — без дороги в поликлинику',
+      required: true,
+    },
+    {
+      name: 'heroSubtitle',
+      type: 'textarea',
+      label: 'Подзаголовок Hero секции',
+      defaultValue: 'Платформа дистанционного наблюдения и консультаций.',
+    },
+    {
+      name: 'faq',
+      type: 'array',
+      label: 'FAQ',
+      labels: {
+        singular: 'Вопрос',
+        plural: 'Вопросы',
+      },
+      fields: [
+        {
+          name: 'question',
+          type: 'text',
+          label: 'Вопрос',
+          required: true,
+        },
+        {
+          name: 'answer',
+          type: 'textarea',
+          label: 'Ответ',
+          required: true,
+        },
+      ],
+      defaultValue: [
+        {
+          question: 'Как записаться на консультацию?',
+          answer: 'Выберите нужную категорию врача, подберите удобное время и оформите запись. Вы получите уведомление с ссылкой на видеоконсультацию.',
+        },
+        {
+          question: 'Какие врачи доступны на платформе?',
+          answer: 'На нашей платформе работают лицензированные кардиологи, терапевты и другие специалисты с подтвержденной квалификацией.',
+        },
+        {
+          question: 'Как проходит видеоконсультация?',
+          answer: 'Консультация проходит через защищенное видеосоединение прямо в браузере. Вам не нужно устанавливать дополнительные программы.',
+        },
+        {
+          question: 'Можно ли получить рецепт или больничный?',
+          answer: 'Да, врач может выписать электронный рецепт или направление на анализы по результатам консультации.',
+        },
+      ],
+    },
+  ],
+  hooks: {
+    afterChange: [
+      () => {
+        revalidateSiteSettingsCache()
+      },
+    ],
+  },
+}

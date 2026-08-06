@@ -1,0 +1,124 @@
+import { apiFetch } from './fetch'
+import { ApiDoctor, ApiCategory, PayloadListResponse } from './types'
+
+/** Cache tag used for all doctor queries. Revalidated via Doctors collection hooks. */
+export const DOCTORS_CACHE_TAG = 'doctors'
+
+export class DoctorsApi {
+  /**
+   * Fetch all doctors
+   */
+  static async fetchAll(): Promise<ApiDoctor[]> {
+    const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
+      '/api/doctors?limit=100&depth=1&sort=name',
+      { next: { tags: [DOCTORS_CACHE_TAG] } },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch doctors by category ID
+   */
+  static async fetchByCategory(categoryId: number): Promise<ApiDoctor[]> {
+    const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
+      `/api/doctors?where[categories][in]=${categoryId}&limit=100&depth=1&sort=name`,
+      { next: { tags: [DOCTORS_CACHE_TAG] } },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch doctors by organisation ID
+   */
+  static async fetchByOrganisation(orgId: number): Promise<ApiDoctor[]> {
+    const data = await apiFetch<PayloadListResponse<ApiDoctor>>(
+      `/api/doctors?where[organisation][equals]=${orgId}&limit=100&depth=1&sort=name`,
+      { next: { tags: [DOCTORS_CACHE_TAG] } },
+    )
+    return data.docs
+  }
+
+  /**
+   * Fetch doctors by organisation ID with pagination and search
+   */
+  static async fetchByOrganisationPaginated(
+    orgId: number,
+    options: { page?: number; limit?: number; search?: string } = {},
+  ): Promise<PayloadListResponse<ApiDoctor>> {
+    const { page = 1, limit = 10, search } = options
+    let url = `/api/doctors?where[organisation][equals]=${orgId}&limit=${limit}&page=${page}&depth=1&sort=name`
+    
+    if (search && search.trim()) {
+      url += `&where[name][contains]=${encodeURIComponent(search.trim())}`
+    }
+    
+    return apiFetch<PayloadListResponse<ApiDoctor>>(url, {
+      cache: 'no-store',
+    })
+  }
+
+  /**
+   * Fetch doctor by ID
+   */
+  static async fetchById(id: number | string): Promise<ApiDoctor> {
+    return apiFetch<ApiDoctor>(`/api/doctors/${id}?depth=1`, {
+      next: { tags: [DOCTORS_CACHE_TAG] },
+    })
+  }
+
+  /**
+   * Get resolved category objects from a doctor's categories field
+   */
+  static getCategories(doctor: ApiDoctor): ApiCategory[] {
+    if (!doctor.categories) return []
+    return doctor.categories.filter(
+      (cat): cat is ApiCategory => typeof cat !== 'number',
+    )
+  }
+
+  /**
+   * Get the primary specialty label for display
+   */
+  static getSpecialty(doctor: ApiDoctor): string {
+    const cats = this.getCategories(doctor)
+    if (cats.length === 0) return 'Врач'
+    return cats.map((c) => c.name).join(', ')
+  }
+
+  /**
+   * Get education as string array
+   */
+  static getEducation(doctor: ApiDoctor): string[] {
+    if (!doctor.education) return []
+    return doctor.education.map((e) => e.value).filter((v): v is string => Boolean(v))
+  }
+
+  /**
+   * Get services as string array
+   */
+  static getServices(doctor: ApiDoctor): string[] {
+    if (!doctor.services) return []
+    return doctor.services.map((s) => s.value).filter((v): v is string => Boolean(v))
+  }
+
+  /**
+   * Update doctor by ID
+   */
+  static async update(id: number | string, data: Partial<ApiDoctor>): Promise<ApiDoctor> {
+    return apiFetch<ApiDoctor>(`/api/doctors/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Delete doctor by ID
+   */
+  static async delete(id: number | string): Promise<void> {
+    await apiFetch<void>(`/api/doctors/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+  }
+}

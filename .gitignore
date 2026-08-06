@@ -1,0 +1,85 @@
+```gitignore
+# Dependencies
+node_modules/
+media/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn-cache/
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+out/
+public/build/
+webpack.config.js.tmp
+
+# Logs
+*.log
+.log
+
+# Environment variables
+.env
+.env.production
+.env.local
+.env.*
+!.env.example
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python specific (if applicable)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.sqlite
+*.sqlite3
+.hypothesis/
+.pytest_cache/
+
+# TypeScript/JavaScript specific
+*.tsbuildinfo
+*.js.map
+*.jsx.map
+*.ts.map
+*.tsx.map
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# MediaSoup recordings (temporary, uploaded to Payload then deleted)
+mediasoup-recordings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+```
