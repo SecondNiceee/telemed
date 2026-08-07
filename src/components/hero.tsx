@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Play, User } from "lucide-react";
+import Image from "next/image";
+import { Activity, ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
 
 interface HeroProps {
@@ -117,21 +118,57 @@ export function Hero({ user }: HeroProps) {
 
           </div>
 
-          {/* Right side - Video placeholder */}
-          <div className="relative animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            <div className="relative aspect-video rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
-              {/* Subtle gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-              
-              {/* Coming soon message */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
-                <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center backdrop-blur-sm mb-4">
-                  <Play className="w-7 h-7 text-primary ml-0.5" />
-                </div>
-                <span className="text-muted-foreground text-sm sm:text-base font-medium text-center text-balance">
-                  Здесь скоро появится видео о работе сервиса
+          {/* Right side - Imagery */}
+          <div className="relative animate-fade-up pb-16 sm:pb-20 lg:pb-24" style={{ animationDelay: "0.3s" }}>
+            {/* Main image */}
+            <div className="relative aspect-[4/3] rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
+              <Image
+                src="/images/hero/telemed-consultation.png"
+                alt="Врач-кардиолог проводит дистанционную консультацию с пациентом и анализирует данные ЭКГ на экране"
+                fill
+                priority
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent" aria-hidden="true" />
+
+              {/* Live status pill */}
+              <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/85 backdrop-blur-md px-3.5 py-1.5 shadow-lg">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
+                  Консультация онлайн
                 </span>
               </div>
+            </div>
+
+            {/* Floating ECG device card */}
+            <div className="absolute -bottom-2 left-4 sm:left-6 w-40 sm:w-52 rounded-2xl overflow-hidden border border-border/60 bg-card shadow-2xl shadow-primary/20">
+              <div className="relative aspect-[4/3]">
+                <Image
+                  src="/images/hero/ecg-monitoring.png"
+                  alt="Портативный ЭКГ-монитор с показаниями сердечного ритма в руках пациента"
+                  fill
+                  sizes="220px"
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border/60">
+                <Activity className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight text-pretty">
+                  ЭКГ передаётся автоматически
+                </span>
+              </div>
+            </div>
+
+            {/* Metric card */}
+            <div className="absolute -bottom-4 right-2 sm:right-4 rounded-2xl border border-border/60 bg-card/90 backdrop-blur-md px-4 py-3 shadow-2xl shadow-primary/15">
+              <p className="text-2xl sm:text-3xl font-extrabold gradient-text leading-none">24/7</p>
+              <p className="text-[11px] font-medium text-muted-foreground mt-1">
+                наблюдение кардиолога
+              </p>
             </div>
           </div>
 
