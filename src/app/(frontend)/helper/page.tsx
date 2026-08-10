@@ -1,15 +1,11 @@
 import Link from "next/link";
-import { USERS, DOCTORS, CATEGORIES, DEFAULT_ORGANISATION } from "../../../../scripts/seed-data.config";
+import { USERS, DOCTORS, CATEGORIES, DEFAULT_ORGANISATION, ADMIN } from "../../../../scripts/seed-data.config";
 import { CredentialsTable } from "./credentials-table";
+import { formatPhone } from "@/utils/phone";
 
 export const metadata = {
   title: "Helper — тестовые учётные данные",
   description: "Список всех тестовых аккаунтов из seed-скриптов",
-};
-
-const ADMIN = {
-  email: "col1596321@gmail.com",
-  password: "11559966332211kkKK",
 };
 
 export default function HelperPage() {
@@ -39,10 +35,11 @@ export default function HelperPage() {
             <Link href="/admin" className="text-primary underline-offset-2 hover:underline">
               /admin
             </Link>
+            . Вход выполняется по номеру телефона.
           </p>
           <CredentialsTable
-            columns={["Email", "Пароль"]}
-            rows={[[ADMIN.email, ADMIN.password]]}
+            columns={["Телефон", "Пароль"]}
+            rows={[[ADMIN.phone, ADMIN.password]]}
           />
         </section>
 
@@ -99,12 +96,12 @@ export default function HelperPage() {
             <Link href="/lk" className="text-primary underline-offset-2 hover:underline">
               /lk
             </Link>
-            . Пароль для всех пользователей:{" "}
+            . Вход по номеру телефона, пароль для всех пользователей:{" "}
             <code className="px-1.5 py-0.5 rounded bg-muted text-sm">User123!</code>
           </p>
           <CredentialsTable
-            columns={["Имя", "Email", "Пароль"]}
-            rows={USERS.map((u) => [u.name, u.email, u.password])}
+            columns={["Имя", "Телефон", "Формат ввода", "Пароль"]}
+            rows={USERS.map((u) => [u.name, u.phone, formatPhone(u.phone), u.password])}
           />
         </section>
 

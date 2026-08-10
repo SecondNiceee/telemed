@@ -7,6 +7,7 @@ import type { User } from "@/payload-types"
 import { getInitials, getUpcomingAppointment } from "@/lib/utils/date"
 import type { ApiAppointment } from "@/lib/api/types"
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
+import { formatPhone } from "@/utils/phone"
 
 interface UserHeroBannerProps {
   user: User
@@ -28,7 +29,7 @@ export function UserHeroBanner({ user, upcomingCount, activeCount, completedCoun
             {/* Avatar */}
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <span className="text-xl font-bold text-primary">
-                {getInitials(user.name, user.email)}
+                {getInitials(user.name, user.email ?? undefined)}
               </span>
             </div>
             <div>
@@ -38,7 +39,12 @@ export function UserHeroBanner({ user, upcomingCount, activeCount, completedCoun
               <h1 className="text-xl font-bold text-foreground text-balance">
                 {user.name || "Пользователь"}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{user.email}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {formatPhone(user.username)}
+              </p>
+              {user.email && (
+                <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

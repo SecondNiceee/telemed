@@ -3,9 +3,12 @@ import config from '../../src/payload.config.js'
 
 
 export const testUser = {
+  /** Логин — номер телефона (users.username) */
+  username: '+79999999999',
   email: 'dev@payloadcms.com',
   password: 'test',
-  role : "user" as "user",
+  role: 'user' as const,
+  phoneVerified: true,
 }
 
 /**
@@ -18,8 +21,8 @@ export async function seedTestUser(): Promise<void> {
   await payload.delete({
     collection: 'users',
     where: {
-      email: {
-        equals: testUser.email,
+      username: {
+        equals: testUser.username,
       },
     },
   })
@@ -39,8 +42,8 @@ export async function cleanupTestUser(): Promise<void> {
   await payload.delete({
     collection: 'users',
     where: {
-      email: {
-        equals: testUser.email,
+      username: {
+        equals: testUser.username,
       },
     },
   })
