@@ -20,6 +20,7 @@ import {
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
+import { ConsultationDisclaimerDialog } from "@/components/consultation-disclaimer-dialog";
 import type { DoctorScheduleDate } from "@/lib/api/types";
 
 interface DoctorBookingSectionProps {
@@ -92,6 +93,7 @@ export function DoctorBookingSection({
   const [connectionType, setConnectionType] = useState<'chat' | 'audio' | 'video'>('chat');
   const [isBooked, setIsBooked] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   const weekDays = useMemo(() => {
     const days = [];
@@ -168,6 +170,13 @@ export function DoctorBookingSection({
     setBookingError(null);
   };
 
+  const handleBookingClick = () => {
+    if (!user) return;
+    if (!selectedDate || !selectedTime) return;
+    setBookingError(null);
+    setDisclaimerOpen(true);
+  };
+
   const handleBooking = async () => {
     if (!user) return;
     if (!selectedDate || !selectedTime) return;
@@ -196,8 +205,10 @@ export function DoctorBookingSection({
           bio: doctorBio,
         },
       });
+      setDisclaimerOpen(false);
       setIsBooked(true);
     } catch (err) {
+      setDisclaimerOpen(false);
       setBookingError(
         err instanceof Error ? err.message : "Произошла ошибка при записи"
       );
@@ -428,7 +439,7 @@ export function DoctorBookingSection({
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={handleBooking}
+                  onClick={handleBookingClick}
                   disabled={creating}
                   className="border-primary text-primary hover:bg-primary/5 transition-all px-6 w-full sm:w-auto"
                 >
@@ -458,6 +469,13 @@ export function DoctorBookingSection({
             </div>
           </div>
         )}
+
+        <ConsultationDisclaimerDialog
+          open={disclaimerOpen}
+          onOpenChange={setDisclaimerOpen}
+          onConfirm={handleBooking}
+          confirming={creating}
+        />
       </CardContent>
     </Card>
   );

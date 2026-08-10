@@ -69,8 +69,8 @@ export function Header() {
               <span className="text-[19px] font-bold tracking-[-0.03em] text-foreground">
                 Smartcardio
               </span>
-              <span className="text-[10px] font-semibold tracking-[0.25em] uppercase text-primary/70">
-                Телемедицина
+              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-primary/70">
+                Видеоконсультация с врачом
               </span>
             </div>
           </Link>

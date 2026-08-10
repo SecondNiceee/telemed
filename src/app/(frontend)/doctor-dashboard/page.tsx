@@ -7,7 +7,7 @@ import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Личный кабинет врача | smartcardio",
-  description: "Личный кабинет врача на платформе smartcardio Телемедицина",
+  description: "Личный кабинет врача на платформе smartcardio Видеоконсультация с врачом",
 }
 
 export default async function DoctorDashboardPage() {

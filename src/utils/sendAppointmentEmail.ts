@@ -58,7 +58,7 @@ function buildAppointmentEmailHtml({
           <tr>
             <td style="background:#1a56db;padding:32px 40px;">
               <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">smartcardio</p>
-              <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Телемедицина</p>
+              <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Видеоконсультация с врачом</p>
             </td>
           </tr>
 
@@ -186,7 +186,7 @@ function buildPatientAppointmentEmailHtml({
           <tr>
             <td style="background:#1a56db;padding:32px 40px;">
               <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">smartcardio</p>
-              <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Телемедицина</p>
+              <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Видеоконсультация с врачом</p>
             </td>
           </tr>
 

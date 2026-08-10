@@ -64,10 +64,10 @@ export function AdvantagesSection() {
         <div className="text-center mb-16">
           <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-            Телемедицина
+            Видеоконсультация с врачом
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-5">
-            Кому подходит телемедицина?
+            Кому подходит видеоконсультация с врачом?
           </h2>
           <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto">
             Дистанционные консультации для различных ситуаций

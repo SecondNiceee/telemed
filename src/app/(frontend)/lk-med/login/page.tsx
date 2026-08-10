@@ -6,7 +6,7 @@ import { DoctorLoginForm } from "@/components/doctor-login-form"
 
 export const metadata = {
   title: "Вход для врачей | smartcardio",
-  description: "Авторизация в личном кабинете врача на платформе smartcardio Телемедицина",
+  description: "Авторизация в личном кабинете врача на платформе smartcardio Видеоконсультация с врачом",
 }
 
 export const dynamic = "force-dynamic"

@@ -28,7 +28,7 @@ export const Users: CollectionConfig = {
       <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.07);">
         <tr><td style="background:#1a56db;padding:32px 40px;">
           <p style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">smartcardio</p>
-          <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Телемедицина</p>
+          <p style="margin:6px 0 0;color:#a5c0f7;font-size:13px;">Видеоконсультация с врачом</p>
         </td></tr>
         <tr><td style="padding:40px 40px 32px;">
           <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#111827;">Подтвердите ваш email</h1>
