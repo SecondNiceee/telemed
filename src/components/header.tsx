@@ -9,7 +9,6 @@ import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
-import { resolveImageUrl } from "@/lib/utils/image";
 import { getUpcomingAppointment } from "@/lib/utils/date";
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
 
@@ -61,7 +60,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-3 group">
             <div className="flex-shrink-0 w-10 h-10 rounded-xl overflow-hidden ring-1 ring-border/60 shadow-sm shadow-primary/10">
               <img
-                src={resolveImageUrl(`/images/logo.jpg`)}
+                src="/images/logo.jpg"
                 alt="Smartcardio"
                 width={40}
                 height={40}

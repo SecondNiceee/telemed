@@ -2,9 +2,8 @@ import 'dotenv/config'
 import { PeerServer } from 'peer'
 
 const PEER_PORT = parseInt(process.env.PEER_PORT || '3002', 10)
-// PeerJS клиент автоматически добавляет /peerjs к пути
-// Nginx strip'ает /telemed-dev, поэтому запрос приходит как /peerjs
-// Сервер должен слушать на / (root) чтобы принимать /peerjs
+// PeerJS клиент автоматически добавляет /peerjs к пути,
+// поэтому сервер слушает на / (root) чтобы принимать /peerjs
 const PEER_PATH = '/'
 const NEXT_URL = process.env.SERVER_URL || 'http://localhost:3000'
 const ALLOWED_ORIGINS = process.env.SOCKET_ALLOWED_ORIGINS?.replace(/\/+$/, '') || 'http://localhost:3000'

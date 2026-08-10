@@ -177,7 +177,7 @@ export function VideoCallProvider({ children }: VideoCallProviderProps) {
       
       const peerHost = process.env.NEXT_PUBLIC_PEER_HOST || 'smartcardio.ru'
       const peerPort = parseInt(process.env.NEXT_PUBLIC_PEER_PORT || '443', 10)
-      const peerPath = process.env.NEXT_PUBLIC_PEER_PATH || '/telemed-dev/peerjs'
+      const peerPath = process.env.NEXT_PUBLIC_PEER_PATH || '/peerjs'
       // Use secure connection only for non-localhost hosts
       const isSecure = peerHost !== 'localhost' && peerHost !== '127.0.0.1'
       

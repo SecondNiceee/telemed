@@ -16,7 +16,6 @@ import { useUserStore } from "@/stores/user-store"
 import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MailCheck } from "lucide-react"
-import { resolveImageUrl } from "@/lib/utils/image"
 import { formatPhoneInput, normalizePhone } from "@/utils/phone"
 
 type Tab = "login" | "register"
@@ -210,7 +209,7 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
         <DialogHeader>
           <div className="flex flex-col items-center gap-3 mb-1">
             <img
-              src={resolveImageUrl("/images/logo.jpg")}
+              src="/images/logo.jpg"
               alt="SmartCardio"
               width={48}
               height={48}

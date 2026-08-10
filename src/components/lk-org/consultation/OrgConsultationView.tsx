@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Clock, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { resolveImageUrl } from "@/lib/utils/image"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { MessageBubble } from "@/components/chat/message-bubble"
@@ -89,7 +88,7 @@ export function OrgConsultationView({
               <div className="w-14 h-14 rounded-full overflow-hidden bg-muted shrink-0">
                 {doctor.photo ? (
                   <img
-                    src={resolveImageUrl((doctor.photo as Media).url)}
+                    src={(doctor.photo as Media).url ?? "/placeholder.svg"}
                     alt={doctor.name || "Врач"}
                     className="w-full h-full object-cover"
                   />
@@ -233,11 +232,11 @@ export function OrgConsultationView({
                         {/* Video player */}
                         {videoUrl && (
                           <VideoPlayer
-                            src={resolveImageUrl(videoUrl)}
+                            src={videoUrl}
                             title="Запись консультации"
                             onDownload={() => {
                               const link = document.createElement('a')
-                              link.href = resolveImageUrl(videoUrl)
+                              link.href = videoUrl
                               link.download = `recording-${recording.id}.webm`
                               link.click()
                             }}
@@ -297,11 +296,11 @@ export function OrgConsultationView({
                         {/* Audio player */}
                         {audioUrl && (
                           <AudioPlayer
-                            src={resolveImageUrl(audioUrl)}
+                            src={audioUrl}
                             title="Аудиозапись консультации"
                             onDownload={() => {
                               const link = document.createElement('a')
-                              link.href = resolveImageUrl(audioUrl)
+                              link.href = audioUrl
                               link.download = `recording-${recording.id}.webm`
                               link.click()
                             }}

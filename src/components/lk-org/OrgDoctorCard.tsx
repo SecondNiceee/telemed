@@ -4,7 +4,6 @@ import Link from "next/link"
 import { memo, useCallback } from "react"
 import { Clock, ChevronRight, User, Edit2, Trash2, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { resolveImageUrl } from "@/lib/utils/image"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { Media } from "@/payload-types"
@@ -34,7 +33,7 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
           <div className="h-[-webkit-fill-available] w-24 rounded-l-xl overflow-hidden bg-muted shrink-0">
             {doctor.photo ? (
               <img
-                src={resolveImageUrl((doctor.photo as Media).url)}
+                src={(doctor.photo as Media).url ?? "/placeholder.svg"}
                 alt={doctor.name || "Врач"}
                 className="w-full  object-cover h-[-webkit-fill-available]"
               />

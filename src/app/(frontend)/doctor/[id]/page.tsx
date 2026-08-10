@@ -13,7 +13,6 @@ import {
   getErrorMessage,
   type ApiDoctor,
 } from "@/lib/api/index";
-import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
 import { DoctorPageClient } from "./doctor-page-client";
 
@@ -73,8 +72,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
     );
   }
 
-  const doctorPhotoUrl = (doctor.photo as Media)?.url;
-  const photoUrl = doctorPhotoUrl ? resolveImageUrl(doctorPhotoUrl) : null;
+  const photoUrl = (doctor.photo as Media)?.url ?? null;
   const specialty = getDoctorSpecialty(doctor);
   const education = getDoctorEducation(doctor);
   const services = getDoctorServices(doctor);

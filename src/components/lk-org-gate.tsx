@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
 import type { ApiDoctor } from "@/lib/api/types"
-import { resolveImageUrl } from "@/lib/utils/image"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
 
 interface LkOrgGateProps {
@@ -48,7 +47,7 @@ export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }
           <div className="rounded-xl border border-border bg-card p-6 sm:p-8">
             <div className="flex flex-col items-center gap-3 mb-6">
               <img
-                src={resolveImageUrl("/images/logo.jpg")}
+                src="/images/logo.jpg"
                 alt="SmartCardio"
                 width={48}
                 height={48}

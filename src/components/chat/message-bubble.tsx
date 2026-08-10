@@ -3,7 +3,6 @@
 import { Check, CheckCheck, FileIcon, Download } from 'lucide-react'
 import type { ApiMessageAttachment } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
-import { resolveImageUrl } from '@/lib/utils/image'
 
 // Simplified message type that works with both full ApiMessage and partial data
 interface SimplifiedMessage {
@@ -104,8 +103,7 @@ function AttachmentPreview({
   isOwn: boolean 
 }) {
   const isImage = isImageMimeType(attachment.mimeType)
-  // Resolve URL with basePath
-  const resolvedUrl = resolveImageUrl(attachment.url)
+  const resolvedUrl = attachment.url
 
   if (isImage) {
     return (
