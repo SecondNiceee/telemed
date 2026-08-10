@@ -1,12 +1,12 @@
 import { ApiError } from './errors'
-import { getBasePath } from '../utils/basePath'
 
 export function getBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    return getBasePath() // client-side: prepend basePath for relative URLs
+    // Client-side: root-relative URLs resolve against the current origin
+    return ''
   }
-  
-  // Server-side: use full URL for fetch (basePath is handled by Next.js server)
+
+  // Server-side: fetch needs an absolute URL
   return process.env.SERVER_URL || 'http://localhost:3000'
 }
 

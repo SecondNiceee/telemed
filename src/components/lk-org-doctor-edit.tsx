@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getBasePath } from "@/lib/utils/basePath"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiCategory, ApiDoctor } from "@/lib/api/types"
@@ -52,8 +51,6 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-
-  const basePath = getBasePath()
 
   const {
     register,
@@ -207,7 +204,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
           JSON.stringify({ alt: data.name || "Doctor photo" }),
         )
 
-        const uploadRes = await fetch(`${basePath}/api/media`, {
+        const uploadRes = await fetch('/api/media', {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -269,7 +266,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
           ? servicesFiltered.map((v) => ({ value: v }))
           : []
 
-      const updateRes = await fetch(`${basePath}/api/doctors/${doctorId}`, {
+      const updateRes = await fetch(`/api/doctors/${doctorId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

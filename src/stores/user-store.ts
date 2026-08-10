@@ -96,10 +96,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ loading: false })
     }
     // Only redirect if not already on home page
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/'
-    const currentPath = window.location.pathname
-    if (currentPath !== '/' && currentPath !== basePath) {
-      window.location.href = basePath
+    if (window.location.pathname !== '/') {
+      window.location.href = '/'
     }
   },
 

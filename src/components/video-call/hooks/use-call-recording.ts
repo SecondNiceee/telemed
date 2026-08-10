@@ -3,7 +3,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { UseCallRecordingReturn } from '@/lib/video-call/types'
-import { getBasePath } from '@/lib/utils/basePath'
 
 // Интервал отправки chunks (30 секунд)
 const CHUNK_INTERVAL_MS = 30000
@@ -86,8 +85,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       formData.append('isLast', isLast.toString())
       formData.append('mimeType', state.mimeType)
 
-      const basePath = getBasePath()
-      const response = await fetch(`${basePath}/api/recording-chunks`, {
+      const response = await fetch('/api/recording-chunks', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -371,8 +369,7 @@ export function useCallRecording(): UseCallRecordingReturn {
       : undefined
 
     try {
-      const basePath = getBasePath()
-      const response = await fetch(`${basePath}/api/recording-chunks/finalize`, {
+      const response = await fetch('/api/recording-chunks/finalize', {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -648,13 +645,12 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
       console.log('[Recording] Client-side upload, size:', blob.size, 'isAudioOnly:', isAudioOnly)
 
       // Upload video to media
-      const basePath = getBasePath()
       const formData = new FormData()
       const filename = `consultation-${appointmentId}-${Date.now()}.webm`
       formData.append('file', blob, filename)
       formData.append('alt', `Запись консультации #${appointmentId}`)
 
-      const mediaResponse = await fetch(`${basePath}/api/media`, {
+      const mediaResponse = await fetch('/api/media', {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -676,7 +672,7 @@ const stopRecording = useCallback(async (): Promise<Blob | null> => {
       }
 
       // Create call-recording entry
-      const recordingResponse = await fetch(`${basePath}/api/call-recordings`, {
+      const recordingResponse = await fetch('/api/call-recordings', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

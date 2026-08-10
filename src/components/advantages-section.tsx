@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { getBasePath } from "@/lib/utils/basePath";
 
 const ADVANTAGES = [
   {
@@ -27,8 +26,6 @@ const ADVANTAGES = [
 ];
 
 export function AdvantagesSection() {
-  const basePath = getBasePath();
-
   return (
     <section className="py-12 sm:py-16 bg-background relative overflow-hidden">
       {/* Animated background */}
@@ -85,7 +82,7 @@ export function AdvantagesSection() {
                 {/* Image */}
                 <div className="relative w-full aspect-[4/3] overflow-hidden">
                   <Image
-                    src={`${basePath}${advantage.image}`}
+                    src={advantage.image || "/placeholder.svg"}
                     alt={advantage.title}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
