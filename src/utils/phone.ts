@@ -1,7 +1,8 @@
 /**
  * Утилиты для работы с российскими номерами телефона.
  *
- * Канонический формат хранения в БД (поле `users.username`): +7XXXXXXXXXX
+ * Телефон — обычное контактное поле профиля (`users.phone`), логин — email.
+ * Канонический формат хранения в БД: +7XXXXXXXXXX
  */
 
 /** Строгий формат хранения номера */
@@ -57,13 +58,4 @@ export function formatPhoneInput(raw: string): string {
   if (digits.length > 8) result += `-${digits.slice(8, 10)}`
 
   return result
-}
-
-/** Скрывает середину номера: +7 (999) ***-**-67 */
-export function maskPhone(phone: string | null | undefined): string {
-  const normalized = normalizePhone(phone)
-  if (!normalized) return phone ?? ''
-
-  const d = normalized.slice(2)
-  return `+7 (${d.slice(0, 3)}) ***-**-${d.slice(8, 10)}`
 }

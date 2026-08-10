@@ -1,14 +1,12 @@
 import { getPayload } from 'payload'
 import config from '../../src/payload.config.js'
 
-
 export const testUser = {
-  /** Логин — номер телефона (users.username) */
-  username: '+79999999999',
+  /** Логин — email */
   email: 'dev@payloadcms.com',
   password: 'test',
-  role: 'user' as const,
-  phoneVerified: true,
+  phone: '+79999999999',
+  role: 'admin' as const,
 }
 
 /**
@@ -21,15 +19,21 @@ export async function seedTestUser(): Promise<void> {
   await payload.delete({
     collection: 'users',
     where: {
-      username: {
-        equals: testUser.username,
+      email: {
+        equals: testUser.email,
       },
     },
+    overrideAccess: true,
   })
 
   await payload.create({
     collection: 'users',
-    data: testUser,
+    data: {
+      ...testUser,
+      // Вход возможен только с подтверждённым email
+      _verified: true,
+    },
+    overrideAccess: true,
   })
 }
 
@@ -42,9 +46,10 @@ export async function cleanupTestUser(): Promise<void> {
   await payload.delete({
     collection: 'users',
     where: {
-      username: {
-        equals: testUser.username,
+      email: {
+        equals: testUser.email,
       },
     },
+    overrideAccess: true,
   })
 }
