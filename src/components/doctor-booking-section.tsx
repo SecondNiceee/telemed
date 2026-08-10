@@ -22,7 +22,6 @@ import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
 import { ConsultationDisclaimerDialog } from "@/components/consultation-disclaimer-dialog";
 import type { DoctorScheduleDate } from "@/lib/api/types";
-import { formatPhone } from "@/utils/phone";
 
 interface DoctorBookingSectionProps {
   doctorId: number;
@@ -189,7 +188,7 @@ export function DoctorBookingSection({
         doctor: doctorId,
         user: user.id,
         doctorName,
-        userName: user.name || formatPhone(user.username),
+        userName: user.name || user.email,
         specialty: doctorSpecialty,
         date: selectedDate,
         time: selectedTime,

@@ -35,11 +35,11 @@ export default function HelperPage() {
             <Link href="/admin" className="text-primary underline-offset-2 hover:underline">
               /admin
             </Link>
-            . Вход выполняется по номеру телефона.
+            . Вход выполняется по email.
           </p>
           <CredentialsTable
-            columns={["Телефон", "Пароль"]}
-            rows={[[ADMIN.phone, ADMIN.password]]}
+            columns={["Email", "Телефон", "Пароль"]}
+            rows={[[ADMIN.email, formatPhone(ADMIN.phone), ADMIN.password]]}
           />
         </section>
 
@@ -96,12 +96,12 @@ export default function HelperPage() {
             <Link href="/lk" className="text-primary underline-offset-2 hover:underline">
               /lk
             </Link>
-            . Вход по номеру телефона, пароль для всех пользователей:{" "}
+            . Вход по email, пароль для всех пользователей:{" "}
             <code className="px-1.5 py-0.5 rounded bg-muted text-sm">User123!</code>
           </p>
           <CredentialsTable
-            columns={["Имя", "Телефон", "Формат ввода", "Пароль"]}
-            rows={USERS.map((u) => [u.name, u.phone, formatPhone(u.phone), u.password])}
+            columns={["Имя", "Email", "Телефон", "Пароль"]}
+            rows={USERS.map((u) => [u.name, u.email, formatPhone(u.phone), u.password])}
           />
         </section>
 

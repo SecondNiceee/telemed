@@ -2,8 +2,8 @@
  * Скрипт создания администратора Payload CMS
  *
  * Создает пользователя с ролью admin для доступа к /admin панели.
- * Вход выполняется по номеру телефона (поле users.username).
- * Если пользователь с таким телефоном уже существует, обновляет его роль на admin.
+ * Вход выполняется по email. Телефон — обязательное поле профиля.
+ * Если пользователь с таким email уже существует, обновляет его роль на admin.
  *
  * Запуск: pnpm tsx scripts/create-admin.ts
  */
@@ -19,13 +19,13 @@ async function createAdmin() {
   const payload = await getPayload({ config })
 
   console.log('✅ Подключение установлено')
-  console.log(`📱 Телефон: ${ADMIN.phone}`)
+  console.log(`📧 Email: ${ADMIN.email}`)
 
-  // Проверяем, существует ли пользователь с таким телефоном
+  // Проверяем, существует ли пользователь с таким email
   const existingUsers = await payload.find({
     collection: 'users',
     where: {
-      username: { equals: ADMIN.phone },
+      email: { equals: ADMIN.email },
     },
     limit: 1,
     overrideAccess: true,
@@ -33,36 +33,37 @@ async function createAdmin() {
 
   if (existingUsers.docs.length > 0) {
     const existingUser = existingUsers.docs[0]
-    console.log(`⚠️  Пользователь с телефоном ${ADMIN.phone} уже существует (ID: ${existingUser.id})`)
+    console.log(`⚠️  Пользователь с email ${ADMIN.email} уже существует (ID: ${existingUser.id})`)
 
-    if (existingUser.role === 'admin' && existingUser.phoneVerified) {
-      console.log('✅ Пользователь уже является подтверждённым администратором')
+    if (existingUser.role === 'admin') {
+      console.log('✅ Пользователь уже является администратором')
     } else {
-      // Обновляем роль на admin и подтверждаем телефон
+      // Обновляем роль на admin
       await payload.update({
         collection: 'users',
         id: existingUser.id,
         data: {
           role: 'admin',
-          phoneVerified: true,
+          phone: ADMIN.phone,
+          _verified: true,
         },
         overrideAccess: true,
       })
-      console.log('✅ Роль пользователя обновлена на admin, телефон подтверждён')
+      console.log('✅ Роль пользователя обновлена на admin')
     }
   } else {
-    // Создаем нового пользователя-админа с подтверждённым телефоном
+    // Создаем нового пользователя-админа с подтверждённым email
     const newAdmin = await payload.create({
       collection: 'users',
       data: {
-        username: ADMIN.phone,
-        ...(ADMIN.email ? { email: ADMIN.email } : {}),
+        email: ADMIN.email,
+        phone: ADMIN.phone,
         password: ADMIN.password,
         name: ADMIN.name,
         role: 'admin',
-        phoneVerified: true,
+        _verified: true,
       },
-      overrideAccess: true, // Обход проверок доступа для установки phoneVerified
+      overrideAccess: true, // Обход проверок доступа для установки роли и _verified
     })
 
     console.log(`✅ Администратор создан успешно (ID: ${newAdmin.id})`)
@@ -70,7 +71,7 @@ async function createAdmin() {
 
   console.log('\n📋 Данные для входа:')
   console.log(`   URL: ${process.env.SERVER_URL || 'http://localhost:3000'}/admin`)
-  console.log(`   Телефон: ${ADMIN.phone}`)
+  console.log(`   Email: ${ADMIN.email}`)
   console.log(`   Пароль: ${ADMIN.password}`)
 
   console.log('\n🎉 Готово!')

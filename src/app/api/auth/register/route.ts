@@ -1,32 +1,30 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 import { normalizePhone } from '@/utils/phone'
-import { getResendWaitMs, issueCodeForUser, RESEND_COOLDOWN_MS } from '@/utils/verificationCode'
 
 type RegisterBody = {
   name?: string
-  phone?: string
   email?: string
+  phone?: string
   password?: string
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RegisterBody
-    const { name, phone: rawPhone, email, password } = body
+    const { name, email, phone: rawPhone, password } = body
+
+    // Basic validation
+    if (!email || !password) {
+      return NextResponse.json({ message: 'Email и пароль обязательны' }, { status: 400 })
+    }
 
     const phone = normalizePhone(rawPhone)
 
     if (!phone) {
-      return NextResponse.json(
-        { message: 'Укажите корректный номер телефона' },
-        { status: 400 },
-      )
-    }
-
-    if (!password) {
-      return NextResponse.json({ message: 'Пароль обязателен' }, { status: 400 })
+      return NextResponse.json({ message: 'Укажите корректный номер телефона' }, { status: 400 })
     }
 
     if (password.length < 8) {
@@ -38,80 +36,72 @@ export async function POST(req: NextRequest) {
 
     const payload = await getPayload({ config })
 
+    // Check if user already exists
     const existing = await payload.find({
       collection: 'users',
-      where: { username: { equals: phone } },
+      where: { email: { equals: email } },
       limit: 1,
       showHiddenFields: true,
       overrideAccess: true,
     })
 
-    const candidate = existing.docs[0]
+    const candidate = existing.docs[0] as
+      | ((typeof existing.docs)[0] & { _verified?: boolean; _verificationToken?: string })
+      | undefined
 
     if (candidate) {
-      if (candidate.phoneVerified) {
+      if (candidate._verified) {
         return NextResponse.json(
-          { message: 'Пользователь с таким телефоном уже существует' },
+          { message: 'Пользователь с таким email уже существует' },
           { status: 409 },
         )
       }
 
-      // Регистрация не была завершена — обновляем данные и отправляем новый код
-      const waitMs = getResendWaitMs(candidate.verificationCodeSentAt)
-      if (waitMs > 0) {
-        return NextResponse.json(
-          {
-            message: `Код уже отправлен. Повторить можно через ${Math.ceil(waitMs / 1000)} сек.`,
-            retryAfter: Math.ceil(waitMs / 1000),
-          },
-          { status: 429 },
-        )
-      }
-
-      await payload.update({
+      // User exists but not verified — update data and resend verification email
+      const updatedUser = (await payload.update({
         collection: 'users',
         id: candidate.id,
         data: {
           name: name ?? candidate.name ?? '',
-          ...(email ? { email } : {}),
+          phone,
           password,
         },
         overrideAccess: true,
-      })
+        showHiddenFields: true,
+      })) as typeof candidate
 
-      await issueCodeForUser({ payload, userId: candidate.id, phone })
+      const token = updatedUser?._verificationToken ?? candidate._verificationToken
+
+      if (token) {
+        await sendVerificationEmail({
+          payload,
+          email,
+          token,
+          name: updatedUser?.name ?? name ?? undefined,
+        })
+      }
 
       return NextResponse.json(
-        {
-          message: 'Код подтверждения отправлен повторно.',
-          phone,
-          resendAfter: RESEND_COOLDOWN_MS / 1000,
-        },
+        { message: 'Письмо с подтверждением отправлено повторно.' },
         { status: 200 },
       )
     }
 
-    const created = await payload.create({
+    // Create new user — Payload will send verification email automatically
+    await payload.create({
       collection: 'users',
       data: {
-        username: phone,
         name: name ?? '',
-        ...(email ? { email } : {}),
+        email,
+        phone,
         password,
         role: 'user',
-        phoneVerified: false,
       },
       overrideAccess: true,
     })
 
-    await issueCodeForUser({ payload, userId: created.id, phone })
-
     return NextResponse.json(
-      {
-        message: 'Мы отправили код подтверждения по SMS.',
-        phone,
-        resendAfter: RESEND_COOLDOWN_MS / 1000,
-      },
+      { message: 'Подтвердите почту перед входом в аккаунт.' },
       { status: 201 },
     )
   } catch (error: unknown) {

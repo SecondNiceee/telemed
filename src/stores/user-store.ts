@@ -15,10 +15,10 @@ interface UserState {
   refetchUser: () => Promise<void>
   /** Set user manually */
   setUser: (user: User | null) => void
-  /** Login with phone/password, stores user on success */
-  login: (phone: string, password: string) => Promise<User>
-  /** Register a new user (self-registration). Отправляет SMS с кодом. */
-  register: (name: string, phone: string, password: string, email?: string) => Promise<void>
+  /** Login with email/password, stores user on success */
+  login: (email: string, password: string) => Promise<User>
+  /** Register a new user (self-registration). Отправляет письмо для подтверждения email. */
+  register: (name: string, email: string, phone: string, password: string) => Promise<void>
   /** Logout and redirect to home */
   logout: () => Promise<void>
   /** Reset store to initial state */

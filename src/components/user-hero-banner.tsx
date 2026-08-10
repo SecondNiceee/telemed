@@ -39,11 +39,11 @@ export function UserHeroBanner({ user, upcomingCount, activeCount, completedCoun
               <h1 className="text-xl font-bold text-foreground text-balance">
                 {user.name || "Пользователь"}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {formatPhone(user.username)}
-              </p>
-              {user.email && (
-                <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{user.email}</p>
+              {user.phone && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {formatPhone(user.phone)}
+                </p>
               )}
             </div>
           </div>

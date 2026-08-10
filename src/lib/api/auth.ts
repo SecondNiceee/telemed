@@ -15,15 +15,10 @@ interface MeResponse {
 
 interface RegisterData {
   name: string
+  email: string
   /** Телефон в любом виде — будет нормализован до +7XXXXXXXXXX */
   phone: string
   password: string
-  email?: string
-}
-
-interface CodeResponse {
-  message: string
-  resendAfter?: number
 }
 
 interface ServerOptions {
@@ -34,14 +29,13 @@ interface ServerOptions {
 
 export class AuthApi {
   /**
-   * Login with phone number and password.
-   * Телефон хранится в поле `username` коллекции users.
+   * Login with email and password
    */
-  static async login(phone: string, password: string): Promise<LoginResponse> {
+  static async login(email: string, password: string): Promise<LoginResponse> {
     return apiFetch<LoginResponse>('/api/users/login', {
       method: 'POST',
       credentials: 'include',
-      body: JSON.stringify({ username: normalizePhone(phone) ?? phone, password }),
+      body: JSON.stringify({ email, password }),
     })
   }
 
@@ -83,32 +77,22 @@ export class AuthApi {
   }
 
   /**
-   * Register a new user. Отправляет SMS с кодом подтверждения.
+   * Register a new user. Отправляет письмо для подтверждения email.
    */
-  static async register(data: RegisterData): Promise<CodeResponse> {
-    return apiFetch<CodeResponse>('/api/auth/register', {
+  static async register(data: RegisterData): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ ...data, phone: normalizePhone(data.phone) ?? data.phone }),
     })
   }
 
   /**
-   * Подтверждение телефона кодом из SMS.
+   * Verify email with the token from the verification email link.
+   * Payload endpoint: POST /api/users/verify/{token}
    */
-  static async verifyPhone(phone: string, code: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>('/api/auth/verify-phone', {
+  static async verifyEmail(token: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>(`/api/users/verify/${token}`, {
       method: 'POST',
-      body: JSON.stringify({ phone: normalizePhone(phone) ?? phone, code }),
-    })
-  }
-
-  /**
-   * Повторная отправка кода подтверждения.
-   */
-  static async resendCode(phone: string): Promise<CodeResponse> {
-    return apiFetch<CodeResponse>('/api/auth/resend-code', {
-      method: 'POST',
-      body: JSON.stringify({ phone: normalizePhone(phone) ?? phone }),
     })
   }
 }

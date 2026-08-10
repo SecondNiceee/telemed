@@ -18,18 +18,19 @@ export interface CategoryConfig {
 
 export interface AdminConfig {
   name: string
-  /** Телефон в формате +7XXXXXXXXXX — логин администратора (users.username) */
+  /** Email — логин администратора */
+  email: string
+  /** Телефон в формате +7XXXXXXXXXX — обязательное поле профиля */
   phone: string
-  email?: string
   password: string
 }
 
 export interface UserConfig {
   name: string
-  /** Телефон в формате +7XXXXXXXXXX — используется как логин (users.username) */
+  /** Email — используется как логин и подтверждается по ссылке из письма */
+  email: string
+  /** Телефон в формате +7XXXXXXXXXX — обязательное поле профиля */
   phone: string
-  /** Необязательный email (для уведомлений, не для входа) */
-  email?: string
   password: string
 }
 
@@ -47,7 +48,7 @@ export interface DoctorConfig {
   slotDuration: '15' | '30' | '45' | '60' | '90'
 }
 
-// Тестовые пользователи (10 штук). Вход по телефону, email — опционально.
+// Тестовые пользователи (10 штук). Вход по email, телефон — обязательное поле профиля.
 export const USERS: UserConfig[] = [
   { name: 'Александр Волков', phone: '+79000000001', email: 'volkov@smartcardio.ru', password: 'User123!' },
   { name: 'Мария Соколова', phone: '+79000000002', email: 'sokolova@smartcardio.ru', password: 'User123!' },
@@ -61,11 +62,11 @@ export const USERS: UserConfig[] = [
   { name: 'Наталья Михайлова', phone: '+79000000010', email: 'mikhaylova@smartcardio.ru', password: 'User123!' },
 ]
 
-// Администратор (вход в /admin по телефону)
+// Администратор (вход в /admin по email)
 export const ADMIN: AdminConfig = {
   name: 'Administrator',
-  phone: '+79000000000',
   email: 'col1596321@gmail.com',
+  phone: '+79000000000',
   password: '11559966332211kkKK',
 }
 
