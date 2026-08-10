@@ -7,7 +7,7 @@ import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Кабинет организации | smartcardio",
-  description: "Управление врачами организации на платформе smartcardio Телемедицина",
+  description: "Управление врачами организации на платформе smartcardio Видеоконсультация с врачом",
 }
 
 export interface OrgStats {

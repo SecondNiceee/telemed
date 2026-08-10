@@ -7,7 +7,7 @@ import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 export const metadata = {
   title: "Кабинет врача | smartcardio",
-  description: "Личный кабинет врача на платформе smartcardio Телемедицина",
+  description: "Личный кабинет врача на платформе smartcardio Видеоконсультация с врачом",
 }
 
 export const dynamic = "force-dynamic"

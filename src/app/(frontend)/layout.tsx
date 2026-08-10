@@ -9,8 +9,8 @@ import './globals.css'
 
 
 export const metadata: Metadata = {
-  title: 'smartcardio Телемедицина',
-  description: 'Онлайн консультации с лучшими врачами. Запишитесь на прием не выходя из дома.',
+  title: 'smartcardio Видеоконсультация с врачом',
+  description: 'Онлайн консультации с врачами. Запишитесь на видеоконсультацию не выходя из дома.',
 }
 
 export default function RootLayout({

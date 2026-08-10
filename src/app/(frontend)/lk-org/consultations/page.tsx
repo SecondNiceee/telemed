@@ -7,7 +7,7 @@ import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Консультации организации | smartcardio",
-  description: "Просмотр консультаций врачей организации на платформе smartcardio Телемедицина",
+  description: "Просмотр консультаций врачей организации на платформе smartcardio Видеоконсультация с врачом",
 }
 
 interface PageProps {

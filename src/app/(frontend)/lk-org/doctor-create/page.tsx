@@ -6,7 +6,7 @@ import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
   title: "Добавить врача | smartcardio",
-  description: "Добавление нового врача в кабинете организации на платформе smartcardio Телемедицина",
+  description: "Добавление нового врача в кабинете организации на платформе smartcardio Видеоконсультация с врачом",
 }
 
 export default async function DoctorCreatePage() {

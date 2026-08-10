@@ -19,7 +19,7 @@ export function Footer() {
               <span className="text-xl font-semibold">smartcardio</span>
             </Link>
             <p className="text-background/70 text-sm leading-relaxed">
-              Современная платформа телемедицины для онлайн консультаций с врачами.
+              Современная платформа для видеоконсультаций с врачами онлайн.
             </p>
           </div>
 
@@ -82,6 +82,14 @@ export function Footer() {
               </li>
             </ul>
           </div>
+        </div>
+
+        <div className="mt-6 pt-6 border-t border-background/20">
+          <p className="text-background/60 text-xs leading-relaxed max-w-3xl text-pretty">
+            Сервис оказывает информационно-консультационные услуги. Консультации не являются
+            медицинской помощью. Сервис не ставит диагнозы, не назначает лечение, не выписывает
+            рецепты. При необходимости обратитесь в медицинское учреждение.
+          </p>
         </div>
 
         <div className="mt-6 pt-6 border-t border-background/20 flex flex-col sm:flex-row items-center justify-center gap-4">

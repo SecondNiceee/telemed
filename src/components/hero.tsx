@@ -83,7 +83,7 @@ export function Hero({ user }: HeroProps) {
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.05] tracking-[-0.03em] animate-fade-up" 
               style={{ animationDelay: "0.1s" }}
             >
-              <span className="text-balance">Телемедицина</span>
+              <span className="text-balance">Видеоконсультация с врачом</span>
               <br />
               <span className="gradient-text">с интеграцией данных ЭКГ</span>
             </h1>

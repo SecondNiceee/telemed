@@ -62,8 +62,8 @@ export function DoctorLoginForm() {
                 <span className="text-2xl font-bold tracking-tight text-foreground">
                   Smartcardio
                 </span>
-                <span className="text-xs font-semibold tracking-widest uppercase text-primary/70">
-                  Телемедицина
+                <span className="text-xs font-semibold tracking-wide uppercase text-primary/70">
+                  Видеоконсультация с врачом
                 </span>
               </div>
             </div>
