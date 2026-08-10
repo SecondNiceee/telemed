@@ -1,7 +1,6 @@
 const ERROR_MESSAGES_BY_NAME: Record<string, string> = {
-  UnverifiedEmail:
-    'Email ещё не подтверждён. Перейдите по ссылке из письма или пройдите регистрацию повторно.',
-  AuthenticationError: 'Неверный email или пароль.',
+  UnverifiedEmail: 'Телефон ещё не подтверждён. Запросите новый код и завершите регистрацию.',
+  AuthenticationError: 'Неверный телефон или пароль.',
   Unauthorized: 'Вы не авторизованы. Пожалуйста, войдите в систему.',
   Forbidden: 'У вас нет доступа к этому ресурсу.',
   NotFound: 'Запрашиваемый ресурс не найден.',
@@ -12,11 +11,14 @@ const ERROR_MESSAGES_BY_NAME: Record<string, string> = {
 
 export class ApiError extends Error {
   status: number
+  /** Полное тело ответа сервера — например { retryAfter: 42 } */
+  data?: unknown
 
-  constructor(status: number, message: string, name?: string) {
+  constructor(status: number, message: string, name?: string, data?: unknown) {
     super(message)
     this.name = name ?? 'ApiError'
     this.status = status
+    this.data = data
   }
 }
 
