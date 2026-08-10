@@ -53,20 +53,20 @@ async function createAdmin(payload: Payload) {
 
   const existingUsers = await payload.find({
     collection: 'users',
-    where: { username: { equals: ADMIN.phone } },
+    where: { email: { equals: ADMIN.email } },
     limit: 1,
     overrideAccess: true,
   })
 
   if (existingUsers.docs.length > 0) {
     const existingUser = existingUsers.docs[0]
-    if (existingUser.role === 'admin' && existingUser.phoneVerified) {
+    if (existingUser.role === 'admin') {
       console.log(`✅ Администратор уже существует (ID: ${existingUser.id})`)
     } else {
       await payload.update({
         collection: 'users',
         id: existingUser.id,
-        data: { role: 'admin', phoneVerified: true },
+        data: { role: 'admin', phone: ADMIN.phone, _verified: true },
         overrideAccess: true,
       })
       console.log(`✅ Роль обновлена на admin (ID: ${existingUser.id})`)
@@ -77,18 +77,18 @@ async function createAdmin(payload: Payload) {
   const newAdmin = await payload.create({
     collection: 'users',
     data: {
-      username: ADMIN.phone,
-      ...(ADMIN.email ? { email: ADMIN.email } : {}),
+      email: ADMIN.email,
+      phone: ADMIN.phone,
       password: ADMIN.password,
       name: ADMIN.name,
       role: 'admin',
-      phoneVerified: true,
+      _verified: true,
     },
     overrideAccess: true,
   })
 
   console.log(`✅ Администратор создан (ID: ${newAdmin.id})`)
-  console.log(`   Телефон: ${ADMIN.phone}`)
+  console.log(`   Email: ${ADMIN.email}`)
   console.log(`   Пароль: ${ADMIN.password}`)
   return newAdmin
 }
@@ -253,7 +253,7 @@ async function createUsers(payload: Payload) {
   for (const user of USERS) {
     const existing = await payload.find({
       collection: 'users',
-      where: { username: { equals: user.phone } },
+      where: { email: { equals: user.email } },
       limit: 1,
       overrideAccess: true,
     })
@@ -264,12 +264,13 @@ async function createUsers(payload: Payload) {
         id: existing.docs[0].id,
         data: {
           name: user.name,
+          phone: user.phone,
           role: 'user',
-          phoneVerified: true,
+          _verified: true,
         },
         overrideAccess: true,
       })
-      console.log(`🔄 Обновлён пользователь: ${user.name} (${user.phone})`)
+      console.log(`🔄 Обновлён пользователь: ${user.name} (${user.email})`)
       updated++
       continue
     }
@@ -277,17 +278,17 @@ async function createUsers(payload: Payload) {
     const newUser = await payload.create({
       collection: 'users',
       data: {
-        username: user.phone,
-        ...(user.email ? { email: user.email } : {}),
+        email: user.email,
+        phone: user.phone,
         password: user.password,
         name: user.name,
         role: 'user',
-        phoneVerified: true,
+        _verified: true,
       },
       overrideAccess: true,
     })
 
-    console.log(`✅ Создан пользователь: ${user.name} (${user.phone}, ID: ${newUser.id})`)
+    console.log(`✅ Создан пользователь: ${user.name} (${user.email}, ID: ${newUser.id})`)
     created++
   }
 
@@ -346,7 +347,7 @@ async function seedAll() {
   console.log('\n📋 Сводка учётных данных:')
   console.log('─'.repeat(50))
   console.log('🔐 Администратор:')
-  console.log(`   Телефон: ${ADMIN.phone}`)
+  console.log(`   Email: ${ADMIN.email}`)
   console.log(`   Пароль: ${ADMIN.password}`)
   console.log(`   URL: ${process.env.SERVER_URL || 'http://localhost:3000'}/admin`)
   console.log('')
@@ -357,8 +358,8 @@ async function seedAll() {
   console.log('👨‍⚕️ Врачи:')
   console.log(`   Пароль для всех: Doctor123!`)
   console.log('')
-  console.log('👥 Пользователи (вход по телефону):')
-  console.log(`   Телефоны: ${USERS[0].phone} … ${USERS[USERS.length - 1].phone}`)
+  console.log('👥 Пользователи (вход по email):')
+  console.log(`   Email: ${USERS[0].email} … ${USERS[USERS.length - 1].email}`)
   console.log(`   Пароль для всех: User123!`)
   console.log('─'.repeat(50))
 

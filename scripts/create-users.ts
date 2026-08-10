@@ -1,8 +1,8 @@
 /**
  * Скрипт создания тестовых пользователей
  *
- * Создает 10 обычных пользователей с подтверждённым телефоном.
- * Логин — номер телефона (users.username), email опционален.
+ * Создает 10 обычных пользователей с подтверждённым email.
+ * Логин — email, телефон — обязательное поле профиля.
  * Если пользователь уже существует - обновляет его данные.
  *
  * Запуск: pnpm tsx scripts/create-users.ts
@@ -26,11 +26,11 @@ async function createUsers() {
 
   for (const user of USERS) {
     try {
-      // Проверяем, существует ли пользователь (логин — телефон)
+      // Проверяем, существует ли пользователь (логин — email)
       const existing = await payload.find({
         collection: 'users',
         where: {
-          username: { equals: user.phone },
+          email: { equals: user.email },
         },
         limit: 1,
         overrideAccess: true,
@@ -38,11 +38,11 @@ async function createUsers() {
 
       const userData = {
         name: user.name,
-        username: user.phone,
-        ...(user.email ? { email: user.email } : {}),
+        email: user.email,
+        phone: user.phone,
         password: user.password,
         role: 'user' as const,
-        phoneVerified: true,
+        _verified: true,
       }
 
       if (existing.docs.length > 0) {
@@ -54,7 +54,7 @@ async function createUsers() {
           data: userData,
           overrideAccess: true,
         })
-        console.log(`[update] ${user.name} (${user.phone})`)
+        console.log(`[update] ${user.name} (${user.email})`)
         updated++
       } else {
         // Создаем нового пользователя
@@ -63,7 +63,7 @@ async function createUsers() {
           data: userData,
           overrideAccess: true,
         })
-        console.log(`[create] ${user.name} (${user.phone})`)
+        console.log(`[create] ${user.name} (${user.email})`)
         created++
       }
     } catch (error) {
@@ -77,7 +77,7 @@ async function createUsers() {
 
   console.log('\nДанные для входа:')
   console.log(`URL: ${process.env.SERVER_URL || 'http://localhost:3000'}`)
-  console.log(`Телефоны: ${USERS.map((u) => u.phone).join(', ')}`)
+  console.log(`Email: ${USERS.map((u) => u.email).join(', ')}`)
   console.log('Пароль для всех: User123!')
 
   console.log('\nГотово!')

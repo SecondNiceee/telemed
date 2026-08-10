@@ -12,7 +12,6 @@ import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { getUpcomingAppointment } from "@/lib/utils/date";
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
-import { formatPhone } from "@/utils/phone";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,8 +36,8 @@ export function Header() {
   // Show banner only on homepage (/) for logged-in users with upcoming appointments
   const showBanner = !!upcomingAppointment && pathname === "/";
 
-  /** Имя пользователя, либо его телефон (email больше не обязателен) */
-  const userLabel = user ? user.name || formatPhone(user.username) : "";
+  /** Имя пользователя, либо его email */
+  const userLabel = user ? user.name || user.email : "";
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
