@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { BackgroundDecor } from "@/components/background-decor"
 import type { FaqItem } from "@/lib/api/site-settings"
 
 interface FaqSectionProps {
@@ -16,6 +17,11 @@ const FAQ_ITEMS: { question: string; answer: string }[] = [
     question: "С какими вопросами можно обратиться?",
     answer:
       "Вы можете обратиться, если хотите обсудить жалобы, результаты анализов и обследований, получить второе мнение, уточнить дальнейший план наблюдения или понять, нужен ли очный приём. Онлайн-формат особенно удобен для плановых консультаций и разбора уже имеющихся медицинских данных.",
+  },
+  {
+    question: "Как подготовиться к консультации?",
+    answer:
+      "Заранее подготовьте список жалоб, принимаемых лекарств, диагнозов, перенесённых заболеваний и операций. Если у вас есть результаты ЭКГ, Холтера, УЗИ, анализов, выписки или заключения других специалистов, загрузите их в личный кабинет до консультации.",
   },
   {
     question: "Что я получу после консультации?",
@@ -38,8 +44,9 @@ export function FaqSection(_props: FaqSectionProps) {
   const items = FAQ_ITEMS
 
   return (
-    <section className="py-12 sm:py-16 bg-secondary/30" id="faq">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden py-12 sm:py-16 bg-secondary/30" id="faq">
+      <BackgroundDecor id="faq" />
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-4">
             FAQ
