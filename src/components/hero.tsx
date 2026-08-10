@@ -132,17 +132,6 @@ export function Hero({ user }: HeroProps) {
                 className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent" aria-hidden="true" />
-
-              {/* Live status pill */}
-              <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/85 backdrop-blur-md px-3.5 py-1.5 shadow-lg">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
-                  Консультация онлайн
-                </span>
-              </div>
             </div>
 
           </div>

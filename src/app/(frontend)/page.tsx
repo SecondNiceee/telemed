@@ -7,9 +7,10 @@ import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
 import { ReviewsSection } from "@/components/reviews-section";
 import { AdvantagesSection } from "@/components/advantages-section";
-import { EcgDeviceSection } from "@/components/ecg-device-section";
-import { AutoEcgTransferSection } from "@/components/auto-ecg-transfer-section";
-import { HowItWorksSection } from "@/components/how-it-works-section";
+// Временно скрытые секции (см. ниже в разметке)
+// import { EcgDeviceSection } from "@/components/ecg-device-section";
+// import { AutoEcgTransferSection } from "@/components/auto-ecg-transfer-section";
+// import { HowItWorksSection } from "@/components/how-it-works-section";
 import { Suspense } from "react";
 import { fetchSiteSettingsLocal } from "@/lib/api/site-settings.server";
 import { headers } from "next/headers";
@@ -50,15 +51,21 @@ export default async function HomePage() {
         <SectionReveal delay={100}>
           <AdvantagesSection />
         </SectionReveal>
+        {/* Временно скрыто: секция "Автоматическая передача данных ЭКГ"
         <SectionReveal delay={110}>
           <AutoEcgTransferSection />
         </SectionReveal>
+        */}
+        {/* Временно скрыто: секция "Подробнее о приборе"
         <SectionReveal delay={115}>
           <EcgDeviceSection />
         </SectionReveal>
+        */}
+        {/* Временно скрыто: секция "Как это работает"
         <SectionReveal delay={118}>
           <HowItWorksSection />
         </SectionReveal>
+        */}
         <SectionReveal delay={120}>
           <ReviewsSection />
         </SectionReveal>
