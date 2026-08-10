@@ -39,8 +39,10 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
   if (!response.ok) {
     let errorMessage = `Ошибка ${response.status}`
     let errorName: string | undefined
+    let errorBody: unknown
     try {
       const body = await response.json()
+      errorBody = body
       if (body?.errors?.[0]?.message) {
         errorMessage = body.errors[0].message
       } else if (body?.message) {
@@ -51,7 +53,7 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
       // ignore JSON parse errors, use default message
     }
 
-    throw new ApiError(response.status, errorMessage, errorName)
+    throw new ApiError(response.status, errorMessage, errorName, errorBody)
   }
 
   return response.json() as Promise<T>

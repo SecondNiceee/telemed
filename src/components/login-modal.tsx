@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { useUserStore } from "@/stores/user-store"
 import { AuthApi } from "@/lib/api/auth"
-import { getErrorMessage } from "@/lib/api/errors"
+import { ApiError, getErrorMessage } from "@/lib/api/errors"
 import { Loader2, MessageSquareLock } from "lucide-react"
 import { resolveImageUrl } from "@/lib/utils/image"
 import { formatPhone, formatPhoneInput, normalizePhone } from "@/utils/phone"
@@ -173,7 +173,17 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
       setResendIn(result.resendAfter ?? RESEND_SECONDS)
       setRegStep("code")
     } catch (err) {
-      setRegError(getErrorMessage(err))
+      // Код уже был отправлен недавно — сразу показываем шаг ввода кода с таймером
+      if (err instanceof ApiError && err.status === 429) {
+        const retryAfter = (err.data as { retryAfter?: number } | undefined)?.retryAfter
+        setCode("")
+        setCodeError(getErrorMessage(err))
+        autoSubmittedRef.current = false
+        setResendIn(retryAfter ?? RESEND_SECONDS)
+        setRegStep("code")
+      } else {
+        setRegError(getErrorMessage(err))
+      }
     } finally {
       setSubmitting(false)
     }

@@ -2,6 +2,16 @@ import { APIError, type CollectionConfig } from 'payload'
 import { getCallerFromRequest } from './helpers/auth'
 import { normalizePhone, PHONE_STORAGE_REGEX } from '@/utils/phone'
 
+/**
+ * Поля, которые нельзя менять через публичный REST API.
+ * Серверные роуты (register/verify-phone/resend-code) работают с overrideAccess: true
+ * и эти проверки не затрагивают.
+ */
+const adminOnlyField = ({ req }: { req: Parameters<typeof getCallerFromRequest>[0] }) => {
+  const caller = getCallerFromRequest(req, 'users')
+  return caller.role === 'admin'
+}
+
 export const Users: CollectionConfig = {
   slug: 'users',
   admin: {
@@ -20,9 +30,16 @@ export const Users: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    // Регистрация идёт только через /api/auth/register (Local API, overrideAccess: true),
+    // поэтому публичное создание через REST закрыто
+    create: ({ req }) => getCallerFromRequest(req, 'users').role === 'admin',
+    // Пользователь правит только себя — иначе можно было бы сменить чужой пароль
+    update: ({ req, id }) => {
+      const caller = getCallerFromRequest(req, 'users')
+      if (caller.role === 'admin') return true
+      return Boolean(caller.id && id !== undefined && String(id) === caller.id)
+    },
+    delete: ({ req }) => getCallerFromRequest(req, 'users').role === 'admin',
     admin: ({ req }) => {
       const user = getCallerFromRequest(req, 'users')
       return user.role === 'admin'
@@ -50,6 +67,8 @@ export const Users: CollectionConfig = {
       admin: {
         description: 'Формат: +7XXXXXXXXXX',
       },
+      // Менять телефон можно только из админки — иначе можно обойти подтверждение
+      access: { update: adminOnlyField },
       hooks: {
         beforeValidate: [
           ({ value }) => {
@@ -79,6 +98,7 @@ export const Users: CollectionConfig = {
       admin: {
         position: 'sidebar',
       },
+      access: { update: adminOnlyField, create: adminOnlyField },
     },
     {
       name: 'phoneVerified',
@@ -89,6 +109,8 @@ export const Users: CollectionConfig = {
       admin: {
         position: 'sidebar',
       },
+      // Подтверждение выставляется только серверным роутом /api/auth/verify-phone
+      access: { update: adminOnlyField, create: adminOnlyField },
     },
     {
       name: 'name',
@@ -100,18 +122,21 @@ export const Users: CollectionConfig = {
       type: 'text',
       label: 'Код подтверждения',
       hidden: true,
+      access: { read: adminOnlyField, update: adminOnlyField, create: adminOnlyField },
     },
     {
       name: 'verificationCodeExpiresAt',
       type: 'date',
       label: 'Код действителен до',
       hidden: true,
+      access: { read: adminOnlyField, update: adminOnlyField, create: adminOnlyField },
     },
     {
       name: 'verificationCodeSentAt',
       type: 'date',
       label: 'Код отправлен',
       hidden: true,
+      access: { read: adminOnlyField, update: adminOnlyField, create: adminOnlyField },
     },
     {
       name: 'verificationAttempts',
@@ -119,6 +144,7 @@ export const Users: CollectionConfig = {
       label: 'Неудачных попыток',
       defaultValue: 0,
       hidden: true,
+      access: { read: adminOnlyField, update: adminOnlyField, create: adminOnlyField },
     },
   ],
 }
