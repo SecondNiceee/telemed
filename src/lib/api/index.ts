@@ -32,7 +32,7 @@ import { CategoriesApi } from './categories'
 import { DoctorsApi } from './doctors'
 import type { ApiDoctor } from './types'
 
-export const login = (email: string, password: string) => AuthApi.login(email, password)
+export const login = (phone: string, password: string) => AuthApi.login(phone, password)
 export const me = () => AuthApi.me()
 export const logout = () => AuthApi.logout()
 
