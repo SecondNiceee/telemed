@@ -1,12 +1,15 @@
 /**
  * Обёртка над внешним SMS API.
  *
- * Все настройки берутся из env:
- *   SMS_API_URL  — endpoint отправки (POST)
- *   SMS_API_KEY  — токен авторизации (уходит в заголовок Authorization: Bearer ...)
- *   SMS_SENDER   — имя отправителя (опционально)
+ * Формат запроса:
+ *   POST {SMS_API}/api/sms/send
+ *   Authorization: Bearer {SMS_API_KEY}
+ *   Content-Type: application/json
+ *   { "to": "+71234567890", "text": "Код: 123456", "unicode": false }
  *
- * Если формат вашего API отличается — правится только `sendSms()` ниже.
+ * Env (только серверные, без NEXT_PUBLIC — sendSms вызывается лишь из route handlers):
+ *   SMS_API      — базовый адрес сервиса, например https://sms.example.com
+ *   SMS_API_KEY  — токен авторизации
  */
 
 interface SendSmsOptions {
@@ -14,16 +17,17 @@ interface SendSmsOptions {
   phone: string
   /** Текст сообщения */
   text: string
+  /** Передать true, если сервис должен отправить сообщение как unicode */
+  unicode?: boolean
 }
 
-export async function sendSms({ phone, text }: SendSmsOptions): Promise<void> {
-  const apiUrl = process.env.SMS_API_URL
+export async function sendSms({ phone, text, unicode = false }: SendSmsOptions): Promise<void> {
+  const apiBase = process.env.SMS_API
   const apiKey = process.env.SMS_API_KEY
-  const sender = process.env.SMS_SENDER
 
-  if (!apiUrl) {
+  if (!apiBase) {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('SMS_API_URL не задан — SMS отправить невозможно')
+      throw new Error('SMS_API не задан — SMS отправить невозможно')
     }
     // В разработке просто печатаем сообщение в консоль
     console.log(`[sms:dev] ${phone} → ${text}`)
@@ -35,13 +39,16 @@ export async function sendSms({ phone, text }: SendSmsOptions): Promise<void> {
   }
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`
 
-  const response = await fetch(apiUrl, {
+  // Убираем возможный слэш на конце, чтобы не получить двойной //api/sms/send
+  const endpoint = `${apiBase.replace(/\/+$/, '')}/api/sms/send`
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      phone,
-      message: text,
-      ...(sender ? { sender } : {}),
+      to: phone,
+      text,
+      unicode,
     }),
   })
 
