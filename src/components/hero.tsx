@@ -1,8 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowRight, User } from "lucide-react";
+import { ArrowRight, Play, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
-import { resolveImageUrl } from "@/lib/utils/image";
 
 interface HeroProps {
   user?: UserType | null;
@@ -119,32 +117,22 @@ export function Hero({ user }: HeroProps) {
 
           </div>
 
-          {/* Right side - Imagery */}
+          {/* Right side - Video placeholder */}
           <div className="relative animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            {/* Main image */}
-            <div className="relative aspect-[4/3] rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
-              <Image
-                src={resolveImageUrl("/images/hero/telemed-consultation.png")}
-                alt="Врач-кардиолог проводит дистанционную консультацию с пациентом и анализирует данные ЭКГ на экране"
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent" aria-hidden="true" />
+            <div className="relative aspect-video rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
+              {/* Subtle gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
 
-              {/* Live status pill */}
-              <div className="absolute top-4 left-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/85 backdrop-blur-md px-3.5 py-1.5 shadow-lg">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground">
-                  Консультация онлайн
+              {/* Coming soon message */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center backdrop-blur-sm mb-4">
+                  <Play className="w-7 h-7 text-primary ml-0.5" />
+                </div>
+                <span className="text-muted-foreground text-sm sm:text-base font-medium text-center text-balance">
+                  Здесь скоро появится видео о работе сервиса
                 </span>
               </div>
             </div>
-
           </div>
 
         </div>
