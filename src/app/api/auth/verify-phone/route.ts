@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
         phoneVerified: true,
         verificationCode: null,
         verificationCodeExpiresAt: null,
+        verificationCodeSentAt: null,
         verificationAttempts: 0,
       },
       overrideAccess: true,

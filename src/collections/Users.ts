@@ -30,9 +30,16 @@ export const Users: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: () => true,
-    update: () => true,
-    delete: () => true,
+    // Регистрация идёт только через /api/auth/register (Local API, overrideAccess: true),
+    // поэтому публичное создание через REST закрыто
+    create: ({ req }) => getCallerFromRequest(req, 'users').role === 'admin',
+    // Пользователь правит только себя — иначе можно было бы сменить чужой пароль
+    update: ({ req, id }) => {
+      const caller = getCallerFromRequest(req, 'users')
+      if (caller.role === 'admin') return true
+      return Boolean(caller.id && id !== undefined && String(id) === caller.id)
+    },
+    delete: ({ req }) => getCallerFromRequest(req, 'users').role === 'admin',
     admin: ({ req }) => {
       const user = getCallerFromRequest(req, 'users')
       return user.role === 'admin'
