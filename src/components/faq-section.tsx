@@ -7,11 +7,35 @@ import {
 import type { FaqItem } from "@/lib/api/site-settings"
 
 interface FaqSectionProps {
-  items: FaqItem[]
+  /** Оставлено для совместимости: список вопросов задан в коде ниже. */
+  items?: FaqItem[]
 }
 
-export function FaqSection({ items }: FaqSectionProps) {
-  if (!items || items.length === 0) return null
+const FAQ_ITEMS: { question: string; answer: string }[] = [
+  {
+    question: "С какими вопросами можно обратиться?",
+    answer:
+      "Вы можете обратиться, если хотите обсудить жалобы, результаты анализов и обследований, получить второе мнение, уточнить дальнейший план наблюдения или понять, нужен ли очный приём. Онлайн-формат особенно удобен для плановых консультаций и разбора уже имеющихся медицинских данных.",
+  },
+  {
+    question: "Что я получу после консультации?",
+    answer:
+      "После консультации вы получите рекомендации врача и медицинское заключение в электронном виде, если это предусмотрено форматом услуги. Документ будет доступен в личном кабинете.",
+  },
+  {
+    question: "Когда онлайн-консультация не подходит?",
+    answer:
+      "Онлайн-консультация не подходит при состояниях, требующих срочной медицинской помощи: например, сильная боль в груди, выраженная одышка, обморок, внезапная слабость или онемение, нарушение речи, резкое ухудшение самочувствия. В таких случаях нужно вызвать скорую помощь или обратиться в ближайшее медицинское учреждение.",
+  },
+  {
+    question: "Нужно ли устанавливать приложение?",
+    answer:
+      "Консультация проходит онлайн через браузер. Устанавливать дополнительные программы не нужно: достаточно телефона, планшета или компьютера с камерой, микрофоном и доступом в интернет.",
+  },
+]
+
+export function FaqSection(_props: FaqSectionProps) {
+  const items = FAQ_ITEMS
 
   return (
     <section className="py-12 sm:py-16 bg-secondary/30" id="faq">
@@ -31,7 +55,7 @@ export function FaqSection({ items }: FaqSectionProps) {
         <Accordion type="single" collapsible className="w-full">
           {items.map((item, index) => (
             <AccordionItem
-              key={item.id || index}
+              key={item.question}
               value={`item-${index}`}
               className="border border-border/50 rounded-xl mb-3 bg-background px-6 data-[state=open]:shadow-sm"
             >

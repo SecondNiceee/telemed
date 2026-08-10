@@ -69,11 +69,9 @@ export default async function HomePage() {
         <SectionReveal delay={120}>
           <ReviewsSection />
         </SectionReveal>
-        {siteSettings?.faq && siteSettings.faq.length > 0 && (
-          <SectionReveal delay={140}>
-            <FaqSection items={siteSettings.faq} />
-          </SectionReveal>
-        )}
+        <SectionReveal delay={140}>
+          <FaqSection />
+        </SectionReveal>
       </main>
       <Footer />
     </div>
