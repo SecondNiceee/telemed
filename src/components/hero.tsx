@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Activity, ArrowRight, User } from "lucide-react";
+import { ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
+import { resolveImageUrl } from "@/lib/utils/image";
 
 interface HeroProps {
   user?: UserType | null;
@@ -119,11 +120,11 @@ export function Hero({ user }: HeroProps) {
           </div>
 
           {/* Right side - Imagery */}
-          <div className="relative animate-fade-up pb-16 sm:pb-20 lg:pb-24" style={{ animationDelay: "0.3s" }}>
+          <div className="relative animate-fade-up" style={{ animationDelay: "0.3s" }}>
             {/* Main image */}
             <div className="relative aspect-[4/3] rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
               <Image
-                src="/images/hero/telemed-consultation.png"
+                src={resolveImageUrl("/images/hero/telemed-consultation.png")}
                 alt="Врач-кардиолог проводит дистанционную консультацию с пациентом и анализирует данные ЭКГ на экране"
                 fill
                 priority
@@ -144,32 +145,6 @@ export function Hero({ user }: HeroProps) {
               </div>
             </div>
 
-            {/* Floating ECG device card */}
-            <div className="absolute -bottom-2 left-4 sm:left-6 w-40 sm:w-52 rounded-2xl overflow-hidden border border-border/60 bg-card shadow-2xl shadow-primary/20">
-              <div className="relative aspect-[4/3]">
-                <Image
-                  src="/images/hero/ecg-monitoring.png"
-                  alt="Портативный ЭКГ-монитор с показаниями сердечного ритма в руках пациента"
-                  fill
-                  sizes="220px"
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2.5 border-t border-border/60">
-                <Activity className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-[11px] sm:text-xs font-semibold text-foreground leading-tight text-pretty">
-                  ЭКГ передаётся автоматически
-                </span>
-              </div>
-            </div>
-
-            {/* Metric card */}
-            <div className="absolute -bottom-4 right-2 sm:right-4 rounded-2xl border border-border/60 bg-card/90 backdrop-blur-md px-4 py-3 shadow-2xl shadow-primary/15">
-              <p className="text-2xl sm:text-3xl font-extrabold gradient-text leading-none">24/7</p>
-              <p className="text-[11px] font-medium text-muted-foreground mt-1">
-                наблюдение кардиолога
-              </p>
-            </div>
           </div>
 
         </div>
