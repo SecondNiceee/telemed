@@ -62,10 +62,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setUser: (user) => set({ user, fetched: true }),
 
-  login: async (phone, password) => {
+  login: async (email, password) => {
     set({ loading: true })
     try {
-      const result = await AuthApi.login(phone, password)
+      const result = await AuthApi.login(email, password)
       set({ user: result.user, fetched: true })
       return result.user
     } finally {
@@ -73,14 +73,12 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  register: async (name, phone, password, email) => {
+  register: async (name, email, phone, password) => {
     set({ loading: true })
     try {
-      await AuthApi.register({ name, phone, password, email })
-      // Телефон ещё не подтверждён, поэтому пользователя в стор не пишем —
-      // сначала нужно ввести код из SMS.
-    } catch (err) {
-      throw err
+      await AuthApi.register({ name, email, phone, password })
+      // Email ещё не подтверждён, поэтому пользователя в стор не пишем —
+      // сначала нужно перейти по ссылке из письма.
     } finally {
       set({ loading: false })
     }
