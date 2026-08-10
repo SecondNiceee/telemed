@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Stethoscope, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { resolveImageUrl } from "@/lib/utils/image"
 
 export function DoctorLoginForm() {
   const router = useRouter()
@@ -51,7 +50,7 @@ export function DoctorLoginForm() {
             <div className="flex items-center gap-3 mb-6">
               <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-border/60 shadow-lg shadow-primary/10">
                 <img
-                  src={resolveImageUrl("/images/logo.jpg")}
+                  src="/images/logo.jpg"
                   alt="Smartcardio"
                   width={56}
                   height={56}

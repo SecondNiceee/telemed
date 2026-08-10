@@ -6,7 +6,6 @@ import { Footer } from "@/components/footer"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { AppointmentsApi } from "@/lib/api/appointments"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
-import { resolveImageUrl } from "@/lib/utils/image"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 import type { Media } from "@/payload-types"
 
@@ -106,7 +105,7 @@ export default async function DoctorDashboardPage({ params }: DoctorDashboardPag
               <div className="w-16 h-16 rounded-full overflow-hidden bg-muted shrink-0">
                 {doctor.photo ? (
                   <img
-                    src={resolveImageUrl((doctor.photo as Media).url)}
+                    src={(doctor.photo as Media).url ?? "/placeholder.svg"}
                     alt={doctor.name || "Врач"}
                     className="w-full h-full object-cover"
                   />

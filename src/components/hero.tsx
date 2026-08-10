@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
-import { resolveImageUrl } from "@/lib/utils/image";
 
 interface HeroProps {
   user?: UserType | null;
@@ -124,7 +123,7 @@ export function Hero({ user }: HeroProps) {
             {/* Main image */}
             <div className="relative aspect-[4/3] rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
               <Image
-                src={resolveImageUrl("/images/hero/telemed-consultation.png")}
+                src="/images/hero/telemed-consultation.png"
                 alt="Врач-кардиолог проводит дистанционную консультацию с пациентом и анализирует данные ЭКГ на экране"
                 fill
                 priority

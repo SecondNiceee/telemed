@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, User } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
-import { resolveImageUrl } from "@/lib/utils/image";
 import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
 
@@ -25,7 +24,7 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
             <div className="relative w-full sm:w-50 sm:h-auto flex-shrink-0">
               {(doctor?.photo as Media)?.url ? (
                 <img
-                  src={resolveImageUrl((doctor?.photo as Media)?.url)}
+                  src={(doctor?.photo as Media)?.url ?? "/placeholder.svg"}
                   alt={doctor.name || "Врач"}
                   className="w-full h-full object-cover absolute inset-0"
                 />
