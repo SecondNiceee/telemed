@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getBasePath } from "@/lib/utils/basePath";
 
 const features = [
   {
@@ -30,8 +29,6 @@ const features = [
 ];
 
 export function EcgDeviceSection() {
-  const basePath = getBasePath();
-
   return (
     <section className="py-12 sm:py-16 bg-background relative overflow-hidden">
       {/* Animated background */}
@@ -93,7 +90,7 @@ export function EcgDeviceSection() {
             >
               <div className="relative w-full aspect-[4/3] overflow-hidden bg-muted">
                 <Image
-                  src={`${basePath}${feature.image}` || `${basePath}/placeholder.svg`}
+                        src={feature.image || "/placeholder.svg"}
                   alt={feature.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

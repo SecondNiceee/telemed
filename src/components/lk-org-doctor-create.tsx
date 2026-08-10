@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getBasePath } from "@/lib/utils/basePath"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import type { ApiCategory } from "@/lib/api/types"
 import {
@@ -60,8 +59,6 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const basePath = getBasePath()
 
   const {
     register,
@@ -135,7 +132,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
         formData.append("alt", data.name || "Doctor photo")
         formData.append("_payload", JSON.stringify({ alt: data.name || "Doctor photo" }))
 
-        const uploadRes = await fetch(`${basePath}/api/media`, {
+        const uploadRes = await fetch('/api/media', {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -184,7 +181,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
         payload.services = servicesFiltered.map((v) => ({ value: v }))
       }
 
-      const createRes = await fetch(`${basePath}/api/doctors`, {
+      const createRes = await fetch('/api/doctors', {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

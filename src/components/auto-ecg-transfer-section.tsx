@@ -1,11 +1,8 @@
 "use client";
 
 import { Activity, Wifi, FileCheck } from "lucide-react";
-import { getBasePath } from "@/lib/utils/basePath";
 
 export function AutoEcgTransferSection() {
-  const basePath = getBasePath();
-
   return (
     <section className="py-12 sm:py-16 bg-white relative overflow-hidden">
 
@@ -33,7 +30,7 @@ export function AutoEcgTransferSection() {
           <div className="relative">
             <div className="relative w-[55%] sm:w-[60%] lg:w-[64%] mx-auto">
               <video
-                src={`${basePath}/chuck.webm`}
+                src="/chuck.webm"
                 autoPlay
                 loop
                 muted
