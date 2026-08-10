@@ -42,6 +42,7 @@ export function CredentialsTable({ columns, rows }: CredentialsTableProps) {
                 const key = `${rIdx}-${cIdx}`;
                 const isCopyable =
                   /@/.test(cell) ||
+                  /^\+7\d{10}$/.test(cell) ||
                   /^[A-Za-z0-9!@#$%^&*]{6,}$/.test(cell);
                 return (
                   <td key={cIdx} className="px-4 py-3 align-top">

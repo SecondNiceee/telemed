@@ -19,12 +19,9 @@ import {
   CATEGORIES, 
   DOCTORS, 
   DEFAULT_ORGANISATION,
+  ADMIN,
   type DoctorConfig 
 } from './seed-data.config'
-
-const ADMIN_EMAIL = 'col1596321@gmail.com'
-const ADMIN_PASSWORD = '11559966332211kkKK'
-const ADMIN_NAME = 'Administrator'
 
 // Helper to format dates for schedule
 function formatDate(date: Date): string {
@@ -56,19 +53,20 @@ async function createAdmin(payload: Payload) {
 
   const existingUsers = await payload.find({
     collection: 'users',
-    where: { email: { equals: ADMIN_EMAIL } },
+    where: { username: { equals: ADMIN.phone } },
     limit: 1,
+    overrideAccess: true,
   })
 
   if (existingUsers.docs.length > 0) {
     const existingUser = existingUsers.docs[0]
-    if (existingUser.role === 'admin') {
+    if (existingUser.role === 'admin' && existingUser.phoneVerified) {
       console.log(`✅ Администратор уже существует (ID: ${existingUser.id})`)
     } else {
       await payload.update({
         collection: 'users',
         id: existingUser.id,
-        data: { role: 'admin', _verified: true },
+        data: { role: 'admin', phoneVerified: true },
         overrideAccess: true,
       })
       console.log(`✅ Роль обновлена на admin (ID: ${existingUser.id})`)
@@ -79,18 +77,19 @@ async function createAdmin(payload: Payload) {
   const newAdmin = await payload.create({
     collection: 'users',
     data: {
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-      name: ADMIN_NAME,
+      username: ADMIN.phone,
+      ...(ADMIN.email ? { email: ADMIN.email } : {}),
+      password: ADMIN.password,
+      name: ADMIN.name,
       role: 'admin',
-      _verified: true,
+      phoneVerified: true,
     },
     overrideAccess: true,
   })
 
   console.log(`✅ Администратор создан (ID: ${newAdmin.id})`)
-  console.log(`   Email: ${ADMIN_EMAIL}`)
-  console.log(`   Пароль: ${ADMIN_PASSWORD}`)
+  console.log(`   Телефон: ${ADMIN.phone}`)
+  console.log(`   Пароль: ${ADMIN.password}`)
   return newAdmin
 }
 
@@ -254,8 +253,9 @@ async function createUsers(payload: Payload) {
   for (const user of USERS) {
     const existing = await payload.find({
       collection: 'users',
-      where: { email: { equals: user.email } },
+      where: { username: { equals: user.phone } },
       limit: 1,
+      overrideAccess: true,
     })
 
     if (existing.docs.length > 0) {
@@ -265,11 +265,11 @@ async function createUsers(payload: Payload) {
         data: {
           name: user.name,
           role: 'user',
-          _verified: true,
+          phoneVerified: true,
         },
         overrideAccess: true,
       })
-      console.log(`🔄 Обновлён пользователь: ${user.name}`)
+      console.log(`🔄 Обновлён пользователь: ${user.name} (${user.phone})`)
       updated++
       continue
     }
@@ -277,16 +277,17 @@ async function createUsers(payload: Payload) {
     const newUser = await payload.create({
       collection: 'users',
       data: {
-        email: user.email,
+        username: user.phone,
+        ...(user.email ? { email: user.email } : {}),
         password: user.password,
         name: user.name,
         role: 'user',
-        _verified: true,
+        phoneVerified: true,
       },
       overrideAccess: true,
     })
 
-    console.log(`✅ Создан пользователь: ${user.name} (ID: ${newUser.id})`)
+    console.log(`✅ Создан пользователь: ${user.name} (${user.phone}, ID: ${newUser.id})`)
     created++
   }
 
@@ -345,8 +346,8 @@ async function seedAll() {
   console.log('\n📋 Сводка учётных данных:')
   console.log('─'.repeat(50))
   console.log('🔐 Администратор:')
-  console.log(`   Email: ${ADMIN_EMAIL}`)
-  console.log(`   Пароль: ${ADMIN_PASSWORD}`)
+  console.log(`   Телефон: ${ADMIN.phone}`)
+  console.log(`   Пароль: ${ADMIN.password}`)
   console.log(`   URL: ${process.env.SERVER_URL || 'http://localhost:3000'}/admin`)
   console.log('')
   console.log('🏥 Организация:')
@@ -356,7 +357,8 @@ async function seedAll() {
   console.log('👨‍⚕️ Врачи:')
   console.log(`   Пароль для всех: Doctor123!`)
   console.log('')
-  console.log('👥 Пользователи:')
+  console.log('👥 Пользователи (вход по телефону):')
+  console.log(`   Телефоны: ${USERS[0].phone} … ${USERS[USERS.length - 1].phone}`)
   console.log(`   Пароль для всех: User123!`)
   console.log('─'.repeat(50))
 

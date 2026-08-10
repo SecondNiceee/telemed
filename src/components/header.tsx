@@ -12,6 +12,7 @@ import { AuthApi } from "@/lib/api/auth";
 import { resolveImageUrl } from "@/lib/utils/image";
 import { getUpcomingAppointment } from "@/lib/utils/date";
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
+import { formatPhone } from "@/utils/phone";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -35,6 +36,9 @@ export function Header() {
 
   // Show banner only on homepage (/) for logged-in users with upcoming appointments
   const showBanner = !!upcomingAppointment && pathname === "/";
+
+  /** Имя пользователя, либо его телефон (email больше не обязателен) */
+  const userLabel = user ? user.name || formatPhone(user.username) : "";
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
@@ -106,7 +110,7 @@ export function Header() {
                   className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors font-medium"
                 >
                   <UserIcon className="w-4 h-4" />
-                  <span className="max-w-[180px] truncate">{user.name || user.email}</span>
+                  <span className="max-w-[180px] truncate">{userLabel}</span>
                 </Link>
                 <button
                   onClick={logoutUser}
@@ -184,7 +188,7 @@ export function Header() {
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <UserIcon className="w-4 h-4" />
-                      <span className="truncate">{user.name || user.email}</span>
+                      <span className="truncate">{userLabel}</span>
                     </Link>
                     <button
                       onClick={() => {

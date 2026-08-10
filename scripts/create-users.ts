@@ -1,7 +1,8 @@
 /**
  * Скрипт создания тестовых пользователей
  *
- * Создает 10 обычных пользователей с верифицированным email.
+ * Создает 10 обычных пользователей с подтверждённым телефоном.
+ * Логин — номер телефона (users.username), email опционален.
  * Если пользователь уже существует - обновляет его данные.
  *
  * Запуск: pnpm tsx scripts/create-users.ts
@@ -25,21 +26,23 @@ async function createUsers() {
 
   for (const user of USERS) {
     try {
-      // Проверяем, существует ли пользователь
+      // Проверяем, существует ли пользователь (логин — телефон)
       const existing = await payload.find({
         collection: 'users',
         where: {
-          email: { equals: user.email },
+          username: { equals: user.phone },
         },
         limit: 1,
+        overrideAccess: true,
       })
 
       const userData = {
         name: user.name,
-        email: user.email,
+        username: user.phone,
+        ...(user.email ? { email: user.email } : {}),
         password: user.password,
         role: 'user' as const,
-        _verified: true,
+        phoneVerified: true,
       }
 
       if (existing.docs.length > 0) {
@@ -51,7 +54,7 @@ async function createUsers() {
           data: userData,
           overrideAccess: true,
         })
-        console.log(`[update] ${user.name} (${user.email})`)
+        console.log(`[update] ${user.name} (${user.phone})`)
         updated++
       } else {
         // Создаем нового пользователя
@@ -60,7 +63,7 @@ async function createUsers() {
           data: userData,
           overrideAccess: true,
         })
-        console.log(`[create] ${user.name} (${user.email})`)
+        console.log(`[create] ${user.name} (${user.phone})`)
         created++
       }
     } catch (error) {
@@ -74,6 +77,7 @@ async function createUsers() {
 
   console.log('\nДанные для входа:')
   console.log(`URL: ${process.env.SERVER_URL || 'http://localhost:3000'}`)
+  console.log(`Телефоны: ${USERS.map((u) => u.phone).join(', ')}`)
   console.log('Пароль для всех: User123!')
 
   console.log('\nГотово!')

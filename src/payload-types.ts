@@ -118,20 +118,18 @@ export interface Config {
 }
 export interface UserAuthOperations {
   forgotPassword: {
-    email: string;
-    password: string;
+    username: string;
   };
   login: {
-    email: string;
     password: string;
+    username: string;
   };
   registerFirstUser: {
-    email: string;
     password: string;
+    username: string;
   };
   unlock: {
-    email: string;
-    password: string;
+    username: string;
   };
 }
 export interface DoctorAuthOperations {
@@ -177,16 +175,23 @@ export interface OrganisationAuthOperations {
 export interface User {
   id: number;
   role: 'user' | 'admin';
+  phoneVerified?: boolean | null;
   name?: string | null;
+  verificationCode?: string | null;
+  verificationCodeExpiresAt?: string | null;
+  verificationCodeSentAt?: string | null;
+  verificationAttempts?: number | null;
   updatedAt: string;
   createdAt: string;
-  email: string;
+  email?: string | null;
+  /**
+   * Формат: +7XXXXXXXXXX
+   */
+  username: string;
   resetPasswordToken?: string | null;
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
-  _verified?: boolean | null;
-  _verificationToken?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -592,16 +597,20 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   role?: T;
+  phoneVerified?: T;
   name?: T;
+  verificationCode?: T;
+  verificationCodeExpiresAt?: T;
+  verificationCodeSentAt?: T;
+  verificationAttempts?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
+  username?: T;
   resetPasswordToken?: T;
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
-  _verified?: T;
-  _verificationToken?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:

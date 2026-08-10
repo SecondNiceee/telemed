@@ -16,9 +16,20 @@ export interface CategoryConfig {
   icon: string
 }
 
+export interface AdminConfig {
+  name: string
+  /** Телефон в формате +7XXXXXXXXXX — логин администратора (users.username) */
+  phone: string
+  email?: string
+  password: string
+}
+
 export interface UserConfig {
   name: string
-  email: string
+  /** Телефон в формате +7XXXXXXXXXX — используется как логин (users.username) */
+  phone: string
+  /** Необязательный email (для уведомлений, не для входа) */
+  email?: string
   password: string
 }
 
@@ -36,19 +47,27 @@ export interface DoctorConfig {
   slotDuration: '15' | '30' | '45' | '60' | '90'
 }
 
-// Тестовые пользователи (10 штук)
+// Тестовые пользователи (10 штук). Вход по телефону, email — опционально.
 export const USERS: UserConfig[] = [
-  { name: 'Александр Волков', email: 'volkov@smartcardio.ru', password: 'User123!' },
-  { name: 'Мария Соколова', email: 'sokolova@smartcardio.ru', password: 'User123!' },
-  { name: 'Дмитрий Морозов', email: 'morozov@smartcardio.ru', password: 'User123!' },
-  { name: 'Екатерина Лебедева', email: 'lebedeva@smartcardio.ru', password: 'User123!' },
-  { name: 'Сергей Новиков', email: 'novikov@smartcardio.ru', password: 'User123!' },
-  { name: 'Анастасия Козлова', email: 'kozlova@smartcardio.ru', password: 'User123!' },
-  { name: 'Андрей Попов', email: 'popov@smartcardio.ru', password: 'User123!' },
-  { name: 'Ольга Васильева', email: 'vasilyeva@smartcardio.ru', password: 'User123!' },
-  { name: 'Павел Зайцев', email: 'zaytsev@smartcardio.ru', password: 'User123!' },
-  { name: 'Наталья Михайлова', email: 'mikhaylova@smartcardio.ru', password: 'User123!' },
+  { name: 'Александр Волков', phone: '+79000000001', email: 'volkov@smartcardio.ru', password: 'User123!' },
+  { name: 'Мария Соколова', phone: '+79000000002', email: 'sokolova@smartcardio.ru', password: 'User123!' },
+  { name: 'Дмитрий Морозов', phone: '+79000000003', email: 'morozov@smartcardio.ru', password: 'User123!' },
+  { name: 'Екатерина Лебедева', phone: '+79000000004', email: 'lebedeva@smartcardio.ru', password: 'User123!' },
+  { name: 'Сергей Новиков', phone: '+79000000005', email: 'novikov@smartcardio.ru', password: 'User123!' },
+  { name: 'Анастасия Козлова', phone: '+79000000006', email: 'kozlova@smartcardio.ru', password: 'User123!' },
+  { name: 'Андрей Попов', phone: '+79000000007', email: 'popov@smartcardio.ru', password: 'User123!' },
+  { name: 'Ольга Васильева', phone: '+79000000008', email: 'vasilyeva@smartcardio.ru', password: 'User123!' },
+  { name: 'Павел Зайцев', phone: '+79000000009', email: 'zaytsev@smartcardio.ru', password: 'User123!' },
+  { name: 'Наталья Михайлова', phone: '+79000000010', email: 'mikhaylova@smartcardio.ru', password: 'User123!' },
 ]
+
+// Администратор (вход в /admin по телефону)
+export const ADMIN: AdminConfig = {
+  name: 'Administrator',
+  phone: '+79000000000',
+  email: 'col1596321@gmail.com',
+  password: '11559966332211kkKK',
+}
 
 // Организация по умолчанию для врачей
 export const DEFAULT_ORGANISATION: OrganisationConfig = {
@@ -175,7 +194,7 @@ export const DOCTORS: DoctorConfig[] = [
     experience: 6,
     degree: 'Врач второй категории',
     price: 1500,
-    bio: 'Молодой специалист с современным подходом к медицине. Специализируется на профилактике заболеваний и здоровом образе жизни.',
+    bio: 'Молодой специалист с современным подходом к медицине. Специализи��уется на профилактике заболеваний и здоровом образе жизни.',
     education: [
       'РНИМУ им. Н.И. Пирогова (2016)',
       'Ординатура по терапии (2018)',
