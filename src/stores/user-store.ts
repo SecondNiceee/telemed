@@ -15,10 +15,10 @@ interface UserState {
   refetchUser: () => Promise<void>
   /** Set user manually */
   setUser: (user: User | null) => void
-  /** Login with email/password, stores user on success */
-  login: (email: string, password: string) => Promise<User>
-  /** Register a new user (self-registration). Returns the created user doc. */
-  register: (name: string, email: string, password: string) => Promise<void>
+  /** Login with phone/password, stores user on success */
+  login: (phone: string, password: string) => Promise<User>
+  /** Register a new user (self-registration). Отправляет SMS с кодом. */
+  register: (name: string, phone: string, password: string, email?: string) => Promise<void>
   /** Logout and redirect to home */
   logout: () => Promise<void>
   /** Reset store to initial state */
@@ -62,10 +62,10 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   setUser: (user) => set({ user, fetched: true }),
 
-  login: async (email, password) => {
+  login: async (phone, password) => {
     set({ loading: true })
     try {
-      const result = await AuthApi.login(email, password)
+      const result = await AuthApi.login(phone, password)
       set({ user: result.user, fetched: true })
       return result.user
     } finally {
@@ -73,12 +73,12 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  register: async (name, email, password) => {
+  register: async (name, phone, password, email) => {
     set({ loading: true })
     try {
-      await AuthApi.register({ name, email, password })
-      // User is not yet verified so we don't set user in store here.
-      // They will need to confirm email first.
+      await AuthApi.register({ name, phone, password, email })
+      // Телефон ещё не подтверждён, поэтому пользователя в стор не пишем —
+      // сначала нужно ввести код из SMS.
     } catch (err) {
       throw err
     } finally {
