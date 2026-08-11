@@ -1,7 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
+import { PhoneMockup } from "@/components/phone-mockup";
 
 interface HeroProps {
   user?: UserType | null;
@@ -118,21 +118,19 @@ export function Hero({ user }: HeroProps) {
 
           </div>
 
-          {/* Right side - Imagery */}
-          <div className="relative animate-fade-up" style={{ animationDelay: "0.3s" }}>
-            {/* Main image */}
-            <div className="relative aspect-[4/3] rounded-3xl bg-card border border-border/60 shadow-2xl shadow-primary/10 overflow-hidden">
-              <Image
-                src="/images/hero/telemed-consultation.png"
-                alt="Врач-кардиолог проводит дистанционную консультацию с пациентом и анализирует данные ЭКГ на экране"
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent" aria-hidden="true" />
-            </div>
-
+          {/* Right side - Phone mockup with video */}
+          <div className="relative flex justify-center animate-fade-up" style={{ animationDelay: "0.3s" }}>
+            {/* Свечение за телефоном */}
+            <div
+              className="pointer-events-none absolute inset-0 -z-10"
+              style={{
+                background:
+                  "radial-gradient(ellipse 55% 55% at 50% 45%, oklch(0.52 0.28 300 / 0.35) 0%, transparent 70%)",
+                filter: "blur(50px)",
+              }}
+              aria-hidden="true"
+            />
+            <PhoneMockup src="/video/hero-video.mp4" className="animate-float-slow" />
           </div>
 
         </div>
