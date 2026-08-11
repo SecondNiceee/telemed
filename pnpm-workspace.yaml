@@ -1,0 +1,24 @@
+# Настройки pnpm.
+# Начиная с pnpm 11 поле "pnpm" в package.json больше не читается —
+# overrides и настройки сборки нативных пакетов живут здесь.
+# pnpm 9 и 10 тоже читают этот файл, так что версия одна для всех.
+
+overrides:
+  '@esbuild-kit/core-utils': ^3.3.2
+  '@esbuild-kit/esm-loader': ^2.6.5
+
+# Пакеты, которым разрешено запускать postinstall-скрипты (нативные сборки).
+# Формат для pnpm 9/10:
+onlyBuiltDependencies:
+  - sharp
+  - esbuild
+  - unrs-resolver
+  - mediasoup
+
+# Формат для pnpm 11+ (allowBuilds заменил onlyBuiltDependencies).
+# Старые версии pnpm просто игнорируют неизвестный ключ.
+allowBuilds:
+  sharp: true
+  esbuild: true
+  unrs-resolver: true
+  mediasoup: true
