@@ -46,7 +46,7 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
     <div className={className}>
       {/* Внешний корпус (титановая рамка) */}
       <div
-        className="relative mx-auto w-[280px] sm:w-[320px] lg:w-[340px] aspect-[1/2.03] rounded-[3rem] p-[3px]"
+        className="relative mx-auto w-[280px] sm:w-[320px] lg:w-[340px] aspect-[1/2.03] rounded-[3.1rem] p-[3px]"
         style={{
           background:
             "linear-gradient(150deg, oklch(0.82 0.01 285) 0%, oklch(0.42 0.01 285) 18%, oklch(0.68 0.01 285) 34%, oklch(0.30 0.01 285) 52%, oklch(0.72 0.01 285) 70%, oklch(0.36 0.01 285) 86%, oklch(0.80 0.01 285) 100%)",
@@ -77,8 +77,18 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
           aria-hidden="true"
         />
 
+        {/* Чёрный бортик корпуса — экран лежит внутри него, а не поверх телефона */}
+        <div className="h-full w-full rounded-[2.9rem] bg-black p-[9px] ring-1 ring-inset ring-white/10">
+
         {/* Внутренняя фаска + экран */}
-        <div className="relative h-full w-full overflow-hidden rounded-[2.85rem] bg-black ring-1 ring-inset ring-white/10">
+        <div
+          className="relative isolate h-full w-full overflow-hidden rounded-[2.35rem] bg-black"
+          style={{
+            /* clip-path надёжно обрезает <video> по радиусу:
+               overflow:hidden не влияет на композиционный слой видео в WebKit/Chrome */
+            clipPath: "inset(0 round 2.35rem)",
+          }}
+        >
           <video
             ref={videoRef}
             src={src}
@@ -88,7 +98,7 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
             muted
             playsInline
             preload="metadata"
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full rounded-[2.35rem] object-cover"
           />
 
           {/* Лёгкое затемнение по краям стекла */}
@@ -139,6 +149,7 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
           >
             {muted ? <VolumeX className="h-[18px] w-[18px]" /> : <Volume2 className="h-[18px] w-[18px]" />}
           </button>
+        </div>
         </div>
       </div>
     </div>
