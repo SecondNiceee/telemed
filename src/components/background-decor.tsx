@@ -31,7 +31,16 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
         fill="none"
         preserveAspectRatio="none"
       >
-        <path d={ecgPath} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Комплекс сдвинут к центру */}
+        <path
+          d={ecgPath}
+          transform="translate(180 0)"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M0 40 H180" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
       <svg
         className="absolute left-0 top-[82%] h-12 w-full text-primary/[0.08] md:h-16"
@@ -39,7 +48,16 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
         fill="none"
         preserveAspectRatio="none"
       >
-        <path d={ecgPath} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Комплекс сдвинут вправо */}
+        <path
+          d={ecgPath}
+          transform="translate(360 0)"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M0 40 H360" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}

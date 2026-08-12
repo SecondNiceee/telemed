@@ -82,16 +82,17 @@ export function Hero({ user }: HeroProps) {
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.05] tracking-[-0.03em] animate-fade-up" 
               style={{ animationDelay: "0.1s" }}
             >
-              <span className="text-balance">Консультация с врачом</span>
-              <br />
-              <span className="gradient-text">онлайн</span>
+              <span className="block whitespace-nowrap">Консультация с</span>
+              <span className="block whitespace-nowrap">
+                врачом <span className="gradient-text">онлайн</span>
+              </span>
             </h1>
 
             <p 
               className="text-lg sm:text-xl text-muted-foreground max-w-lg leading-relaxed animate-fade-up" 
               style={{ animationDelay: "0.15s" }}
             >
-              Платформа дистанционного наблюдения и консультаций.
+              Консультация врача, когда и где вам удобно. Просто выберите специалиста, забронируйте время - и общайтесь по видео.
             </p>
 
             <div 
