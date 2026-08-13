@@ -97,6 +97,9 @@ export function LkOrgCategoryCreate() {
   const { createCategory } = useCategoriesStore()
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Full technical details of the last failure, shown in a collapsible block
+  // so a bare "Failed to fetch" is never the only thing visible.
+  const [errorDetails, setErrorDetails] = useState<string | null>(null)
 
   // Icon picker state
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null)
@@ -140,7 +143,12 @@ export function LkOrgCategoryCreate() {
 
   const onSubmit = async (data: CategoryFormValues) => {
     setError(null)
+    setErrorDetails(null)
     setSuccess(null)
+
+    // Track which step we are on so a network failure can be attributed
+    // to the upload or to the category create request.
+    let step = "init"
 
     try {
       const slug =
@@ -157,22 +165,35 @@ export function LkOrgCategoryCreate() {
       let iconImageId: number | undefined
 
       if (uploadMode === "image" && imageFile) {
+        step = "upload-media"
+        console.log("[v0] step: upload-media", {
+          name: imageFile.name,
+          type: imageFile.type,
+          size: imageFile.size,
+        })
+
         setUploadingImage(true)
         try {
           const uploaded = await CategoriesApi.uploadMedia(imageFile)
           iconImageId = uploaded.id
+          console.log("[v0] step: upload-media OK", { iconImageId })
         } finally {
           setUploadingImage(false)
         }
       }
 
-      await createCategory({
+      step = "create-category"
+      const payload = {
         name: data.name,
         slug,
         description: data.description || undefined,
         icon: uploadMode === "lucide" ? (selectedIcon ?? undefined) : undefined,
         iconImage: iconImageId,
-      })
+      }
+      console.log("[v0] step: create-category", payload)
+
+      await createCategory(payload)
+      console.log("[v0] step: create-category OK")
 
       setSuccess(`Специальность "${data.name}" успешно создана!`)
       reset(defaultValues)
@@ -185,9 +206,40 @@ export function LkOrgCategoryCreate() {
         router.refresh()
       }, 1500)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Произошла ошибка при создании специальности",
-      )
+      // Always log the raw error object — `console.error` with the Error
+      // instance keeps the stack trace in the devtools console.
+      console.error(`[v0] category create failed at step "${step}"`, err)
+
+      const message =
+        err instanceof Error ? err.message : "Произошла ошибка при создании специальности"
+
+      setError(`${message} (шаг: ${step})`)
+
+      // Build a readable technical dump for the UI.
+      const parts: string[] = [`step: ${step}`]
+      if (err instanceof Error) {
+        parts.push(`name: ${err.name}`)
+        parts.push(`message: ${err.message}`)
+        const extra = err as unknown as {
+          status?: number
+          code?: string
+          body?: unknown
+          stack?: string
+        }
+        if (extra.status !== undefined) parts.push(`status: ${extra.status}`)
+        if (extra.code !== undefined) parts.push(`code: ${extra.code}`)
+        if (extra.body !== undefined) {
+          try {
+            parts.push(`body: ${JSON.stringify(extra.body, null, 2)}`)
+          } catch {
+            parts.push(`body: ${String(extra.body)}`)
+          }
+        }
+        if (extra.stack) parts.push(`stack:\n${extra.stack}`)
+      } else {
+        parts.push(`raw: ${String(err)}`)
+      }
+      setErrorDetails(parts.join("\n"))
     }
   }
 
@@ -230,16 +282,33 @@ export function LkOrgCategoryCreate() {
           )}
 
           {error && (
-            <div className="flex items-center gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 mb-6">
-              <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
-              <p className="text-sm text-destructive font-medium">{error}</p>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                className="ml-auto p-1 rounded hover:bg-destructive/10 transition-colors"
-              >
-                <X className="w-4 h-4 text-destructive" />
-              </button>
+            <div className="flex flex-col gap-3 rounded-lg bg-destructive/10 border border-destructive/20 p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive shrink-0" />
+                <p className="text-sm text-destructive font-medium">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null)
+                    setErrorDetails(null)
+                  }}
+                  className="ml-auto p-1 rounded hover:bg-destructive/10 transition-colors"
+                  aria-label="Закрыть сообщение об ошибке"
+                >
+                  <X className="w-4 h-4 text-destructive" />
+                </button>
+              </div>
+
+              {errorDetails && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-destructive/80 hover:text-destructive font-medium">
+                    Показать техничеcкие детали
+                  </summary>
+                  <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-md bg-destructive/5 p-3 font-mono text-[11px] leading-relaxed text-destructive/90">
+                    {errorDetails}
+                  </pre>
+                </details>
+              )}
             </div>
           )}
 

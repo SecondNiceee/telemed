@@ -19,7 +19,14 @@ export async function fetchCategoriesAction(): Promise<ApiCategory[]> {
  * Useful after creating/updating a category from a client component.
  */
 export async function revalidateCategoriesAction(): Promise<void> {
-  revalidateTag(CATEGORIES_CACHE_TAG)
+  try {
+    console.log('[v0][action] revalidateCategoriesAction ->', CATEGORIES_CACHE_TAG)
+    revalidateTag(CATEGORIES_CACHE_TAG)
+    console.log('[v0][action] revalidateCategoriesAction OK')
+  } catch (err) {
+    // Never let cache revalidation bubble up as a request failure.
+    console.error('[v0][action] revalidateCategoriesAction FAILED', err)
+  }
 }
 
 /**

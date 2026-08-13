@@ -54,21 +54,71 @@ export class CategoriesApi {
     formData.append('alt', file.name)
 
     const baseUrl = typeof window !== 'undefined' ? '' : (process.env.SERVER_URL || 'http://localhost:3000')
-    const response = await fetch(`${baseUrl}/api/media`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData,
+    const url = `${baseUrl}/api/media`
+
+    console.log('[v0] uploadMedia ->', url, {
+      name: file.name,
+      type: file.type,
+      size: file.size,
     })
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}))
-      console.error('[v0] uploadMedia failed', { status: response.status, body })
+
+    let response: Response
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+    } catch (err) {
+      // The request never completed: nginx cut it, the body was too large,
+      // or the dev server restarted mid-upload.
+      console.error('[v0] uploadMedia network error', { url, err })
       throw new Error(
-        body?.errors?.[0]?.message || body?.message || `Upload failed: ${response.status}`,
+        `Сетевая ошибка при загрузке файла (${file.name}, ${(file.size / 1024).toFixed(0)} КБ): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       )
     }
-    const data = await response.json()
-    console.log('[v0] uploadMedia success', { id: data?.doc?.id, filename: data?.doc?.filename })
-    return data.doc as ApiMedia
+
+    // The error body is not always JSON — nginx returns HTML for 413/502.
+    const rawText = await response.text()
+    let body: Record<string, unknown> = {}
+    try {
+      body = rawText ? JSON.parse(rawText) : {}
+    } catch {
+      body = {}
+    }
+
+    if (!response.ok) {
+      console.error('[v0] uploadMedia failed', {
+        url,
+        status: response.status,
+        contentType: response.headers.get('content-type'),
+        body: body && Object.keys(body).length ? body : rawText.slice(0, 500),
+      })
+
+      const nested = body as {
+        errors?: { message?: string }[]
+        message?: string
+        error?: string
+      }
+      const message =
+        nested.errors?.[0]?.message ||
+        nested.message ||
+        nested.error ||
+        (rawText ? rawText.slice(0, 300) : `Upload failed: ${response.status}`)
+
+      throw new Error(`Загрузка файла не удалась (${response.status}): ${message}`)
+    }
+
+    const doc = (body as { doc?: ApiMedia }).doc
+    if (!doc?.id) {
+      console.error('[v0] uploadMedia returned no doc', { body })
+      throw new Error('Сервер не вернул загруженный файл (нет doc.id)')
+    }
+
+    console.log('[v0] uploadMedia success', { id: doc.id, filename: doc.filename })
+    return doc
   }
 
   /**
