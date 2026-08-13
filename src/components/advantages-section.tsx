@@ -1,117 +1,116 @@
-"use client";
-
 import Image from "next/image";
-import { Check } from "lucide-react";
+import { Activity, FileSearch, HeartPulse, Stethoscope } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { SectionBadge } from "@/components/section-badge";
 
-const ADVANTAGES = [
+const ADVANTAGES: {
+  title: string;
+  description: string;
+  image: string;
+  icon: LucideIcon;
+}[] = [
   {
     title: "Жалобы и изменения самочувствия",
-    description: "Если появились симптомы, изменения состояния или вопросы, которые можно обсудить с врачом дистанционно.",
+    description:
+      "Если появились симптомы, изменения состояния или вопросы, которые можно обсудить с врачом дистанционно.",
     image: "/images/telemedicine/complaints-headache.png",
+    icon: Stethoscope,
   },
   {
     title: "Разбор обследований",
-    description: "Интерпретация анализов, инструментальных, генетических исследований.",
+    description:
+      "Интерпретация анализов, инструментальных, генетических исследований.",
     image: "/images/telemedicine/elderly-woman-ecg.png",
+    icon: FileSearch,
   },
   {
     title: "Второе медицинское мнение",
-    description: "Если возникают сомнения в диагнозе, понимании результатов обследований или назначенном лечении.",
+    description:
+      "Если возникают сомнения в диагнозе, понимании результатов обследований или назначенном лечении.",
     image: "/images/telemedicine/doctor-video-call.png",
+    icon: Activity,
   },
   {
     title: "Наличие хронических заболеваний",
-    description: "Динамическое наблюдение у профильного специалиста, оценка состояния и коррекция терапии без необходимости посещения клиники.",
+    description:
+      "Динамическое наблюдение у профильного специалиста, оценка состояния и коррекция терапии без необходимости посещения клиники.",
     image: "/images/telemedicine/elderly-man-tablet.png",
+    icon: HeartPulse,
   },
 ];
 
 export function AdvantagesSection() {
   return (
-    <section className="py-8 sm:py-10 bg-background relative overflow-hidden">
-      {/* Animated background */}
-      <div 
-        className="absolute inset-0 animate-gradient opacity-40"
+    <section className="relative overflow-hidden bg-surface-dark py-14 sm:py-20">
+      {/* Тонкий точечный узор — единственный декор, как на референсе */}
+      <div
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: "linear-gradient(135deg, oklch(0.435 0.132 300 / 0.05) 0%, transparent 25%, oklch(0.605 0.104 187 / 0.05) 50%, transparent 75%, oklch(0.435 0.132 300 / 0.05) 100%)",
-          backgroundSize: "400% 400%",
+          backgroundImage:
+            "radial-gradient(oklch(1 0 0 / 0.07) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          maskImage:
+            "radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 80%)",
         }}
         aria-hidden="true"
       />
 
-      {/* Floating blobs */}
-      <div 
-        className="absolute top-20 right-0 w-[500px] h-[500px] opacity-30 pointer-events-none animate-blob"
-        style={{
-          background: "radial-gradient(circle, oklch(0.605 0.104 187 / 0.20) 0%, transparent 70%)",
-          filter: "blur(80px)",
-        }}
-        aria-hidden="true"
-      />
-      <div 
-        className="absolute bottom-20 left-0 w-[400px] h-[400px] opacity-25 pointer-events-none animate-blob"
-        style={{
-          background: "radial-gradient(circle, oklch(0.435 0.132 300 / 0.14) 0%, transparent 70%)",
-          filter: "blur(60px)",
-          animationDelay: "-5s",
-        }}
-        aria-hidden="true"
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 backdrop-blur-sm mb-6 shadow-sm shadow-teal/10">
-            <span className="w-1.5 h-1.5 bg-teal rounded-full animate-pulse" />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 text-center">
+          <SectionBadge tone="onDark" className="mb-6">
             Видеоконсультация с врачом
-          </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-5">
+          </SectionBadge>
+          <h2 className="mb-5 text-balance text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
             Кому подходит видеоконсультация с врачом?
           </h2>
-          <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto">
+          <p className="mx-auto max-w-2xl text-pretty text-lg text-white/65 sm:text-xl">
             Дистанционные консультации для различных ситуаций
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {ADVANTAGES.map((advantage, index) => {
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {ADVANTAGES.map((advantage) => {
+            const Icon = advantage.icon;
+
             return (
-              <div
-                key={index}
-                className="group relative rounded-3xl border transition-all duration-500 hover:-translate-y-2 bg-card/50 backdrop-blur-sm border-border/60 hover:border-teal/40 hover:shadow-xl hover:shadow-teal/10 overflow-hidden"
-                style={{ animationDelay: `${index * 0.1}s` }}
+              <article
+                key={advantage.title}
+                className="group overflow-hidden rounded-xl border border-white/10 bg-surface-dark-elevated transition-colors duration-300 hover:border-teal-on-dark/40"
               >
-                {/* Image */}
-                <div className="relative w-full aspect-[4/3] overflow-hidden">
+                <div className="relative aspect-[4/3] w-full overflow-hidden">
                   <Image
                     src={advantage.image || "/placeholder.svg"}
                     alt={advantage.title}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-surface-dark-elevated via-surface-dark-elevated/20 to-transparent"
+                    aria-hidden="true"
+                  />
                 </div>
 
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-start gap-3 mb-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-soft ring-1 ring-teal/25 group-hover:bg-teal transition-colors duration-300">
-                      <Check className="h-3.5 w-3.5 text-teal group-hover:text-teal-foreground transition-colors duration-300" strokeWidth={3} />
-                    </span>
-                    <h3 className="relative text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {advantage.title}
-                    </h3>
-                  </div>
+                <div className="flex flex-col gap-3 p-6">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-on-dark/15 transition-colors duration-300 group-hover:bg-teal-on-dark">
+                    <Icon
+                      className="h-5 w-5 text-teal-on-dark transition-colors duration-300 group-hover:text-surface-dark"
+                      aria-hidden="true"
+                    />
+                  </span>
 
-                  <p className="relative text-sm text-muted-foreground leading-relaxed">
+                  <h3 className="text-pretty text-lg font-semibold text-white">
+                    {advantage.title}
+                  </h3>
+
+                  <p className="text-sm leading-relaxed text-white/60">
                     {advantage.description}
                   </p>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
-
       </div>
     </section>
   );

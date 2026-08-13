@@ -4,45 +4,51 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Палитра smartcardio.ru: глубокий фиолетовый + бирюзовый акцент */
-  --background: oklch(0.985 0.002 300);
-  --foreground: oklch(0.16 0.015 290);
+  /* Токены сняты напрямую с smartcardio.ru:
+     primary #704CA6, бирюзовый #009BA3, фон #FFF, текст #0A0A0A, radius 0.625rem */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.1448 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.015 290);
+  --card-foreground: oklch(0.1448 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.015 290);
-  /* #5B3A8E — фиолетовый как на референсе */
-  --primary: oklch(0.435 0.132 300);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.97 0.008 300);
-  --secondary-foreground: oklch(0.16 0.015 290);
-  --muted: oklch(0.96 0.006 300);
-  --muted-foreground: oklch(0.52 0.018 290);
-  --accent: oklch(0.95 0.02 300);
-  --accent-foreground: oklch(0.16 0.015 290);
-  /* #009E93 — бирюзовый акцент (иконки, чек-марки, шаги) */
-  --teal: oklch(0.605 0.104 187);
-  --teal-foreground: oklch(0.99 0 0);
-  --teal-soft: oklch(0.95 0.03 187);
+  --popover-foreground: oklch(0.1448 0 0);
+  /* #704CA6 — фиолетовый бренда */
+  --primary: oklch(0.4989 0.1406 299.8);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.9729 0.0029 264.5);
+  --secondary-foreground: oklch(0.1448 0 0);
+  --muted: oklch(0.9729 0.0029 264.5);
+  --muted-foreground: oklch(0.5218 0.0278 270);
+  --accent: oklch(0.9729 0.0029 264.5);
+  --accent-foreground: oklch(0.1448 0 0);
+  /* #009BA3 — бирюзовый акцент (иконки, чек-марки, шаги) */
+  --teal: oklch(0.6273 0.1067 201.3);
+  --teal-foreground: oklch(1 0 0);
+  --teal-soft: oklch(0.958 0.024 201.3);
+  /* Осветлённый бирюзовый для читаемости на тёмной секции */
+  --teal-on-dark: oklch(0.82 0.105 201.3);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.92 0.01 300);
-  --input: oklch(0.92 0.01 300);
-  --ring: oklch(0.605 0.104 187);
-  --chart-1: oklch(0.435 0.132 300);
-  --chart-2: oklch(0.605 0.104 187);
-  --chart-3: oklch(0.55 0.12 305);
-  --chart-4: oklch(0.70 0.09 190);
+  --border: oklch(0.9219 0 0);
+  --input: oklch(0.9219 0 0);
+  --ring: oklch(0.6273 0.1067 201.3);
+  --chart-1: oklch(0.4989 0.1406 299.8);
+  --chart-2: oklch(0.6273 0.1067 201.3);
+  --chart-3: oklch(0.58 0.13 305);
+  --chart-4: oklch(0.6827 0.1165 194.8);
   --chart-5: oklch(0.68 0.10 295);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.99 0 0);
-  --sidebar-foreground: oklch(0.18 0.015 290);
-  --sidebar-primary: oklch(0.435 0.132 300);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.96 0.015 300);
-  --sidebar-accent-foreground: oklch(0.18 0.015 290);
-  --sidebar-border: oklch(0.92 0.01 300);
-  --sidebar-ring: oklch(0.605 0.104 187);
+  --radius: 0.625rem;
+  /* Тёмная секция (как блок «Наши преимущества» на референсе) */
+  --surface-dark: oklch(0.2052 0.0276 290.3);
+  --surface-dark-elevated: oklch(0.2525 0.0375 290.3);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.1448 0 0);
+  --sidebar-primary: oklch(0.4989 0.1406 299.8);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9729 0.0029 264.5);
+  --sidebar-accent-foreground: oklch(0.1448 0 0);
+  --sidebar-border: oklch(0.9219 0 0);
+  --sidebar-ring: oklch(0.6273 0.1067 201.3);
 }
 
 .dark {
@@ -60,9 +66,12 @@
   --muted-foreground: oklch(0.70 0.018 295);
   --accent: oklch(0.24 0.03 295);
   --accent-foreground: oklch(0.98 0 0);
-  --teal: oklch(0.70 0.105 187);
+  --teal: oklch(0.72 0.11 201.3);
   --teal-foreground: oklch(0.14 0.02 200);
-  --teal-soft: oklch(0.26 0.045 187);
+  --teal-soft: oklch(0.26 0.045 201.3);
+  --teal-on-dark: oklch(0.82 0.105 201.3);
+  --surface-dark: oklch(0.2052 0.0276 290.3);
+  --surface-dark-elevated: oklch(0.2525 0.0375 290.3);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.26 0.028 295);
@@ -103,6 +112,9 @@
   --color-teal: var(--teal);
   --color-teal-foreground: var(--teal-foreground);
   --color-teal-soft: var(--teal-soft);
+  --color-teal-on-dark: var(--teal-on-dark);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-dark-elevated: var(--surface-dark-elevated);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -216,7 +228,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    oklch(0.605 0.104 187 / 0.14) 50%,
+    oklch(0.6273 0.1067 201.3 / 0.14) 50%,
     transparent 100%
   );
   background-size: 200% 100%;
@@ -298,7 +310,7 @@
 
 /* Gradient text */
 .gradient-text {
-  background: linear-gradient(100deg, oklch(0.435 0.132 300) 0%, oklch(0.52 0.12 250) 45%, oklch(0.605 0.104 187) 100%);
+  background: linear-gradient(100deg, var(--primary) 0%, oklch(0.56 0.12 250) 48%, var(--teal) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

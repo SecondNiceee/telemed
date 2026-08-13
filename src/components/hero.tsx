@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
 import { PhoneMockup } from "@/components/phone-mockup";
+import { SectionBadge } from "@/components/section-badge";
 
 interface HeroProps {
   user?: UserType | null;
@@ -10,54 +11,15 @@ interface HeroProps {
 export function Hero({ user }: HeroProps) {
   return (
     <section className="relative overflow-hidden py-8 sm:py-10 lg:py-14 bg-background">
-      {/* Animated gradient background */}
-      <div 
-        className="absolute inset-0 animate-gradient opacity-60"
-        style={{
-          background: "linear-gradient(135deg, oklch(0.435 0.132 300 / 0.07) 0%, oklch(0.605 0.104 187 / 0.06) 25%, transparent 50%, oklch(0.435 0.132 300 / 0.05) 75%, oklch(0.605 0.104 187 / 0.07) 100%)",
-          backgroundSize: "400% 400%",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Animated blob shapes */}
+      {/* Чистый фон как на референсе: тонкий точечный узор без градиентов и блобов */}
       <div
-        className="pointer-events-none absolute -top-20 -left-20 w-[500px] h-[500px] opacity-40 animate-blob animate-pulse-glow"
+        className="pointer-events-none absolute inset-0"
         style={{
-          background: "radial-gradient(circle, oklch(0.435 0.132 300 / 0.22) 0%, transparent 70%)",
-          filter: "blur(60px)",
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute top-1/3 -right-32 w-[400px] h-[400px] opacity-40 animate-blob animate-float-slow"
-        style={{
-          background: "radial-gradient(circle, oklch(0.605 0.104 187 / 0.32) 0%, transparent 70%)",
-          filter: "blur(50px)",
-          animationDelay: "-5s",
-        }}
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 left-1/3 w-[350px] h-[350px] opacity-30 animate-blob"
-        style={{
-          background: "radial-gradient(circle, oklch(0.605 0.104 187 / 0.24) 0%, transparent 70%)",
-          filter: "blur(50px)",
-          animationDelay: "-3s",
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Grid pattern overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-30"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, oklch(0.605 0.104 187 / 0.07) 1px, transparent 1px),
-            linear-gradient(to bottom, oklch(0.605 0.104 187 / 0.07) 1px, transparent 1px)
-          `,
-          backgroundSize: "60px 60px",
-          maskImage: "radial-gradient(ellipse 70% 70% at 50% 50%, black 30%, transparent 100%)",
+          backgroundImage:
+            "radial-gradient(oklch(0.4989 0.1406 299.8 / 0.10) 1px, transparent 1px)",
+          backgroundSize: "22px 22px",
+          maskImage:
+            "radial-gradient(ellipse 65% 60% at 30% 40%, black 0%, transparent 75%)",
         }}
         aria-hidden="true"
       />
@@ -67,8 +29,9 @@ export function Hero({ user }: HeroProps) {
           
           {/* Left side - Text content */}
           <div className="flex flex-col gap-6">
-            <span 
-              className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 backdrop-blur-sm w-fit animate-fade-up shadow-sm shadow-teal/10" 
+            <SectionBadge
+              tone="teal"
+              className="animate-fade-up"
               style={{ animationDelay: "0.05s" }}
             >
               <span className="relative flex h-2 w-2">
@@ -76,7 +39,7 @@ export function Hero({ user }: HeroProps) {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-teal"></span>
               </span>
               SmartCardio
-            </span>
+            </SectionBadge>
 
             <h1 
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.05] tracking-[-0.03em] animate-fade-up" 
@@ -101,7 +64,7 @@ export function Hero({ user }: HeroProps) {
             >
               <Link
                 href="/appointment"
-                className="group inline-flex items-center justify-center gap-2.5 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-4 rounded-2xl shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                className="group inline-flex items-center justify-center gap-2.5 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-4 rounded-lg shadow-sm shadow-primary/20 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25 active:scale-[0.99] transition-all duration-200"
               >
                 Записаться на приём
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -109,7 +72,7 @@ export function Hero({ user }: HeroProps) {
               {user && (
                 <Link
                   href="/lk"
-                  className="group inline-flex items-center justify-center gap-2.5 text-[15px] font-semibold text-teal bg-teal-soft px-8 py-4 rounded-2xl shadow-lg shadow-teal/10 hover:shadow-xl hover:shadow-teal/20 hover:bg-teal hover:text-teal-foreground hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 border border-teal/25"
+                  className="group inline-flex items-center justify-center gap-2.5 text-[15px] font-semibold text-teal bg-teal/10 px-8 py-4 rounded-lg hover:bg-teal hover:text-teal-foreground active:scale-[0.99] transition-all duration-200"
                 >
                   <User className="w-4 h-4" />
                   Личный кабинет
@@ -126,8 +89,8 @@ export function Hero({ user }: HeroProps) {
               className="pointer-events-none absolute inset-0 -z-10"
               style={{
                 background:
-                  "radial-gradient(ellipse 58% 58% at 50% 45%, oklch(0.605 0.104 187 / 0.30) 0%, oklch(0.435 0.132 300 / 0.22) 45%, transparent 72%)",
-                filter: "blur(50px)",
+                  "radial-gradient(ellipse 55% 55% at 50% 45%, oklch(0.6273 0.1067 201.3 / 0.14) 0%, oklch(0.4989 0.1406 299.8 / 0.10) 45%, transparent 72%)",
+                filter: "blur(60px)",
               }}
               aria-hidden="true"
             />
