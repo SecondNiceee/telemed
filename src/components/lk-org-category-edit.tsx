@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { useCategoriesStore } from "@/stores/categories-store"
@@ -474,11 +473,18 @@ export function LkOrgCategoryEdit({ categoryId }: LkOrgCategoryEditProps) {
                   {imagePreview || existingImageUrl ? (
                     <div className="flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-xl border border-border overflow-hidden shrink-0">
-                        <Image
+                        {/* Обычный <img>, а не next/image: превью бывает
+                            blob:-ссылкой на только что выбранный файл, а
+                            сохранённая иконка приходит из Payload абсолютным
+                            URL — оптимизатор /_next/image не принимает ни то,
+                            ни другое и отвечает 400, из-за чего картинка не
+                            отображалась. Размер фиксированный 64x64, так что
+                            оптимизация тут ничего не даёт. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={imagePreview || existingImageUrl || ""}
                           alt="Предпросмотр иконки"
-                          fill
-                          className="object-cover"
+                          className="absolute inset-0 w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex flex-col gap-2">

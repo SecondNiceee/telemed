@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { useCategoriesStore } from "@/stores/categories-store"
@@ -458,11 +457,14 @@ export function LkOrgCategoryCreate() {
                   {imagePreview ? (
                     <div className="flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-xl border border-border overflow-hidden shrink-0">
-                        <Image
+                        {/* Обычный <img>, а не next/image: imagePreview — это
+                            blob:-ссылка на локальный файл, такой протокол
+                            оптимизатор /_next/image не принимает. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={imagePreview}
                           alt="Предпросмотр иконки"
-                          fill
-                          className="object-cover"
+                          className="absolute inset-0 w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex flex-col gap-2">
