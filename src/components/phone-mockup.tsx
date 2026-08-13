@@ -46,7 +46,7 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
     <div className={className}>
       {/* Внешний корпус (титановая рамка) */}
       <div
-        className="relative mx-auto w-[280px] sm:w-[320px] lg:w-[340px] aspect-[1/2.03] rounded-[3.1rem] p-[3px]"
+        className="relative mx-auto w-[240px] sm:w-[270px] lg:w-[290px] aspect-[1/2.03] rounded-[3.1rem] p-[3px]"
         style={{
           background:
             "linear-gradient(150deg, oklch(0.82 0.01 285) 0%, oklch(0.42 0.01 285) 18%, oklch(0.68 0.01 285) 34%, oklch(0.30 0.01 285) 52%, oklch(0.72 0.01 285) 70%, oklch(0.36 0.01 285) 86%, oklch(0.80 0.01 285) 100%)",

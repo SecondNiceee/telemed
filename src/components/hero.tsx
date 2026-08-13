@@ -120,7 +120,7 @@ export function Hero({ user }: HeroProps) {
           </div>
 
           {/* Right side - Phone mockup with video */}
-          <div className="relative flex justify-center lg:justify-end lg:translate-x-6 xl:translate-x-10 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+          <div className="relative flex justify-center animate-fade-up" style={{ animationDelay: "0.3s" }}>
             {/* Свечение за телефоном */}
             <div
               className="pointer-events-none absolute inset-0 -z-10"
@@ -131,7 +131,7 @@ export function Hero({ user }: HeroProps) {
               }}
               aria-hidden="true"
             />
-            <PhoneMockup src="/video/hero-video.mp4" className="animate-float-slow" />
+            <PhoneMockup src="/video/hero-video.mp4" />
           </div>
 
         </div>
