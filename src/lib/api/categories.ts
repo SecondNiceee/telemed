@@ -45,6 +45,54 @@ export class CategoriesApi {
   }
 
   /**
+   * Fallback upload used only when `fetch` throws. Unlike `fetch`, XHR reports
+   * the HTTP status when the server did answer, which turns an unactionable
+   * "Failed to fetch" into "HTTP 413" / "HTTP 502" / "HTTP 403".
+   */
+  private static uploadViaXhr(
+    url: string,
+    file: File,
+  ): Promise<{ ok: boolean; status: number; message?: string; doc?: ApiMedia }> {
+    return new Promise((resolve) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('alt', file.name)
+
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', url, true)
+      xhr.withCredentials = true
+
+      xhr.onload = () => {
+        let parsed: Record<string, unknown> = {}
+        try {
+          parsed = xhr.responseText ? JSON.parse(xhr.responseText) : {}
+        } catch {
+          parsed = {}
+        }
+
+        const nested = parsed as { doc?: ApiMedia; errors?: { message?: string }[]; message?: string; error?: string }
+
+        resolve({
+          ok: xhr.status >= 200 && xhr.status < 300,
+          status: xhr.status,
+          doc: nested.doc,
+          message:
+            nested.errors?.[0]?.message ||
+            nested.message ||
+            nested.error ||
+            xhr.responseText?.slice(0, 300),
+        })
+      }
+
+      // status 0 means the connection itself failed — nothing more to report.
+      xhr.onerror = () => resolve({ ok: false, status: 0 })
+      xhr.ontimeout = () => resolve({ ok: false, status: 0, message: 'timeout' })
+
+      xhr.send(formData)
+    })
+  }
+
+  /**
    * Upload a media file (for category icon image).
    * Uses multipart/form-data — no Content-Type override.
    */
@@ -70,13 +118,32 @@ export class CategoriesApi {
         body: formData,
       })
     } catch (err) {
-      // The request never completed: nginx cut it, the body was too large,
-      // or the dev server restarted mid-upload.
-      console.error('[v0] uploadMedia network error', { url, err })
+      // `fetch` reports every transport failure as an opaque "Failed to fetch"
+      // with no status. XHR does expose the status when the server answered,
+      // so retry once through XHR purely to get a diagnosable error.
+      console.error('[v0] uploadMedia network error, retrying via XHR', { url, err })
+
+      const xhrResult = await CategoriesApi.uploadViaXhr(url, file)
+
+      if (xhrResult.ok && xhrResult.doc?.id) {
+        console.log('[v0] uploadMedia success (xhr)', { id: xhrResult.doc.id })
+        return xhrResult.doc
+      }
+
+      if (xhrResult.status) {
+        throw new Error(
+          `Загрузка файла не удалась (HTTP ${xhrResult.status}): ${
+            xhrResult.message || 'сервер отклонил запрос'
+          }`,
+        )
+      }
+
       throw new Error(
-        `Сетевая ошибка при загрузке файла (${file.name}, ${(file.size / 1024).toFixed(0)} КБ): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
+        `Сетевая ошибка при загрузке файла (${file.name}, ${(file.size / 1024).toFixed(0)} КБ). ` +
+          `Запрос не дошёл до сервера: proxy/nginx оборвал соединение, размер тела превысил ` +
+          `client_max_body_size, либо адрес ${url} недоступен. Исходная ошибка: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
       )
     }
 
