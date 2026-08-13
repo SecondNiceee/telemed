@@ -118,9 +118,9 @@ export function formatCountdown(parts: ReturnType<typeof getCountdownParts>): st
 export function getStatusColor(status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): string {
   switch (status) {
     case "confirmed":
-      return "bg-green-100 text-green-700 border border-green-200"
+      return "bg-primary/10 text-primary border border-primary/25"
     case "in_progress":
-      return "bg-blue-100 text-blue-700 border border-blue-200"
+      return "bg-teal-soft text-teal border border-teal/25"
     case "completed":
       return "bg-muted text-muted-foreground border border-border"
     case "cancelled":
