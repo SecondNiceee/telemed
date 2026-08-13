@@ -48,7 +48,7 @@ export function FaqSection(_props: FaqSectionProps) {
       <BackgroundDecor id="faq" />
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-3">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 mb-3">
             FAQ
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
@@ -64,9 +64,9 @@ export function FaqSection(_props: FaqSectionProps) {
             <AccordionItem
               key={item.question}
               value={`item-${index}`}
-              className="border border-border/50 rounded-xl mb-3 bg-background px-6 data-[state=open]:shadow-sm"
+              className="border border-border/50 rounded-xl mb-3 bg-background px-6 transition-colors hover:border-teal/40 data-[state=open]:border-teal/50 data-[state=open]:shadow-sm data-[state=open]:shadow-teal/5"
             >
-              <AccordionTrigger className="text-left text-base sm:text-lg font-semibold hover:no-underline py-5">
+              <AccordionTrigger className="text-left text-base sm:text-lg font-semibold hover:no-underline py-5 data-[state=open]:text-primary [&>svg]:text-teal">
                 {item.question}
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground text-base leading-relaxed">

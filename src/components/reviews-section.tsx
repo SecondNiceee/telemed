@@ -8,15 +8,15 @@ export function ReviewsSection() {
         className="absolute inset-0 opacity-40"
         style={{
           background:
-            "radial-gradient(ellipse 60% 40% at 50% 50%, oklch(0.52 0.28 300 / 0.06), transparent)",
+            "radial-gradient(ellipse 60% 40% at 50% 50%, oklch(0.605 0.104 187 / 0.08), transparent)",
         }}
         aria-hidden="true"
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center">
-          <span className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
-            <Star className="w-3.5 h-3.5 fill-primary" />
+          <span className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 backdrop-blur-sm mb-6 shadow-sm shadow-teal/10">
+            <Star className="w-3.5 h-3.5 fill-teal text-teal" />
             Отзывы пациентов
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-5">

@@ -71,7 +71,7 @@ export function Header() {
               <span className="text-[19px] font-bold tracking-[-0.03em] text-foreground">
                 Smartcardio
               </span>
-              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-primary/70">
+              <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-teal">
                 Видеоконсультация с врачом
               </span>
             </div>
@@ -129,7 +129,7 @@ export function Header() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300 rounded-xl"
+                  className="border-teal/50 text-teal hover:bg-teal hover:text-teal-foreground hover:border-teal transition-all duration-300 rounded-xl"
                   onClick={handleAuthClick}
                 >
                   Записаться
@@ -209,7 +209,7 @@ export function Header() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 border-primary text-primary hover:bg-primary/5 transition-all"
+                      className="flex-1 border-teal/50 text-teal hover:bg-teal hover:text-teal-foreground hover:border-teal transition-all"
                       onClick={handleAuthClick}
                     >
                       Записаться

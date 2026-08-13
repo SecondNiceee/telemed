@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Check } from "lucide-react";
 
 const ADVANTAGES = [
   {
@@ -32,7 +33,7 @@ export function AdvantagesSection() {
       <div 
         className="absolute inset-0 animate-gradient opacity-40"
         style={{
-          background: "linear-gradient(135deg, oklch(0.52 0.28 300 / 0.05) 0%, transparent 25%, oklch(0.58 0.25 320 / 0.03) 50%, transparent 75%, oklch(0.52 0.28 300 / 0.05) 100%)",
+          background: "linear-gradient(135deg, oklch(0.435 0.132 300 / 0.05) 0%, transparent 25%, oklch(0.605 0.104 187 / 0.05) 50%, transparent 75%, oklch(0.435 0.132 300 / 0.05) 100%)",
           backgroundSize: "400% 400%",
         }}
         aria-hidden="true"
@@ -42,7 +43,7 @@ export function AdvantagesSection() {
       <div 
         className="absolute top-20 right-0 w-[500px] h-[500px] opacity-30 pointer-events-none animate-blob"
         style={{
-          background: "radial-gradient(circle, oklch(0.52 0.28 300 / 0.15) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.605 0.104 187 / 0.20) 0%, transparent 70%)",
           filter: "blur(80px)",
         }}
         aria-hidden="true"
@@ -50,7 +51,7 @@ export function AdvantagesSection() {
       <div 
         className="absolute bottom-20 left-0 w-[400px] h-[400px] opacity-25 pointer-events-none animate-blob"
         style={{
-          background: "radial-gradient(circle, oklch(0.58 0.25 320 / 0.12) 0%, transparent 70%)",
+          background: "radial-gradient(circle, oklch(0.435 0.132 300 / 0.14) 0%, transparent 70%)",
           filter: "blur(60px)",
           animationDelay: "-5s",
         }}
@@ -59,8 +60,8 @@ export function AdvantagesSection() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-10">
-          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
-            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 backdrop-blur-sm mb-6 shadow-sm shadow-teal/10">
+            <span className="w-1.5 h-1.5 bg-teal rounded-full animate-pulse" />
             Видеоконсультация с врачом
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-5">
@@ -76,7 +77,7 @@ export function AdvantagesSection() {
             return (
               <div
                 key={index}
-                className="group relative rounded-3xl border transition-all duration-500 hover:-translate-y-2 bg-card/50 backdrop-blur-sm border-border/60 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 overflow-hidden"
+                className="group relative rounded-3xl border transition-all duration-500 hover:-translate-y-2 bg-card/50 backdrop-blur-sm border-border/60 hover:border-teal/40 hover:shadow-xl hover:shadow-teal/10 overflow-hidden"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 {/* Image */}
@@ -93,9 +94,14 @@ export function AdvantagesSection() {
 
                 {/* Content */}
                 <div className="p-6">
-                  <h3 className="relative text-lg font-semibold text-foreground mb-3 group-hover:text-primary transition-colors">
-                    {advantage.title}
-                  </h3>
+                  <div className="flex items-start gap-3 mb-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-soft ring-1 ring-teal/25 group-hover:bg-teal transition-colors duration-300">
+                      <Check className="h-3.5 w-3.5 text-teal group-hover:text-teal-foreground transition-colors duration-300" strokeWidth={3} />
+                    </span>
+                    <h3 className="relative text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {advantage.title}
+                    </h3>
+                  </div>
 
                   <p className="relative text-sm text-muted-foreground leading-relaxed">
                     {advantage.description}

@@ -18,7 +18,7 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
       </svg>
 
       <svg
-        className="absolute left-0 top-[14%] h-12 w-full text-primary/[0.09] md:h-16"
+        className="absolute left-0 top-[14%] h-12 w-full text-teal/25 md:h-16"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"
@@ -26,7 +26,7 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
         <path d={ecgPath} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <svg
-        className="absolute left-0 top-1/2 h-10 w-full -translate-y-1/2 text-primary/[0.07] md:h-14"
+        className="absolute left-0 top-1/2 h-10 w-full -translate-y-1/2 text-teal/20 md:h-14"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"
@@ -43,7 +43,7 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
         <path d="M0 40 H180" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
       <svg
-        className="absolute left-0 top-[82%] h-12 w-full text-primary/[0.08] md:h-16"
+        className="absolute left-0 top-[82%] h-12 w-full text-teal/[0.22] md:h-16"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"

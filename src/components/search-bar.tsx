@@ -110,7 +110,7 @@ export function SearchBar() {
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
       <div className="relative">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-teal" />
         <Input
           ref={inputRef}
           type="text"
@@ -121,7 +121,7 @@ export function SearchBar() {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          className="pl-14 pr-12 py-7 text-base rounded-2xl border-border/60 bg-card/80 backdrop-blur-sm shadow-lg shadow-primary/5 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+          className="pl-14 pr-12 py-7 text-base rounded-2xl border-border/60 bg-card/80 backdrop-blur-sm shadow-lg shadow-teal/5 focus:border-teal/60 focus:ring-2 focus:ring-teal/25 transition-all"
         />
         {query && (
           <button
@@ -154,8 +154,8 @@ export function SearchBar() {
                     <div className={cn(
                       "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                       result.type === "symptom" 
-                        ? "bg-primary/10 text-primary" 
-                        : "bg-secondary text-foreground"
+                        ? "bg-teal-soft text-teal" 
+                        : "bg-primary/10 text-primary"
                     )}>
                       {result.type === "symptom" ? (
                         <Activity className="w-5 h-5" />
@@ -174,8 +174,8 @@ export function SearchBar() {
                     <span className={cn(
                       "text-xs px-2 py-1 rounded-full shrink-0",
                       result.type === "symptom" 
-                        ? "bg-primary/10 text-primary" 
-                        : "bg-secondary text-muted-foreground"
+                        ? "bg-teal-soft text-teal" 
+                        : "bg-primary/10 text-primary"
                     )}>
                       {result.type === "symptom" ? "Симптом" : "Специальность"}
                     </span>
