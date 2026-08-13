@@ -68,15 +68,15 @@ export function Footer() {
             <h4 className="font-semibold mb-4">Контакты</h4>
             <ul className="space-y-3 text-background/70 text-sm">
               <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
+                <Phone className="w-4 h-4 text-teal" />
                 <span>8 (800) 123-45-67</span>
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
+                <Mail className="w-4 h-4 text-teal" />
                 <span>info@smartcardio.ru</span>
               </li>
               <li className="flex items-center gap-2">
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-4 h-4 text-teal" />
                 <span>Москва, Россия</span>
               </li>
             </ul>

@@ -51,7 +51,7 @@ export function PhoneMockup({ src, poster, className }: PhoneMockupProps) {
           background:
             "linear-gradient(150deg, oklch(0.82 0.01 285) 0%, oklch(0.42 0.01 285) 18%, oklch(0.68 0.01 285) 34%, oklch(0.30 0.01 285) 52%, oklch(0.72 0.01 285) 70%, oklch(0.36 0.01 285) 86%, oklch(0.80 0.01 285) 100%)",
           boxShadow:
-            "0 2px 4px oklch(0 0 0 / 0.28), 0 12px 24px oklch(0 0 0 / 0.22), 0 40px 70px -10px oklch(0.52 0.28 300 / 0.35), inset 0 0 0 1px oklch(1 0 0 / 0.12)",
+            "0 2px 4px oklch(0 0 0 / 0.28), 0 12px 24px oklch(0 0 0 / 0.22), 0 40px 70px -10px oklch(0.605 0.104 187 / 0.38), inset 0 0 0 1px oklch(1 0 0 / 0.12)",
         }}
       >
         {/* Кнопки: беззвучный режим + громкость */}
