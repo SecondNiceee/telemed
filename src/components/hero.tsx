@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight, User } from "lucide-react";
 import type { User as UserType } from "@/payload-types";
 import { PhoneMockup } from "@/components/phone-mockup";
-import { SectionBadge } from "@/components/section-badge";
 
 interface HeroProps {
   user?: UserType | null;
@@ -29,17 +28,20 @@ export function Hero({ user }: HeroProps) {
           
           {/* Left side - Text content */}
           <div className="flex flex-col gap-6">
-            <SectionBadge
-              tone="teal"
-              className="animate-fade-up"
-              style={{ animationDelay: "0.05s" }}
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal"></span>
+            {/* Вордмарк бренда: без плашки, без анимации — только подчёркивание */}
+            <div className="w-fit">
+              <span className="block text-sm font-semibold uppercase tracking-[0.2em] text-foreground/80">
+                Smartcardio
               </span>
-              SmartCardio
-            </SectionBadge>
+              <span
+                aria-hidden="true"
+                className="mt-2 block h-[2px] w-full rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--teal) 0%, var(--primary) 55%, transparent 100%)",
+                }}
+              />
+            </div>
 
             <h1 
               className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-foreground leading-[1.05] tracking-[-0.03em] animate-fade-up" 
