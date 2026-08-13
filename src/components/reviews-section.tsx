@@ -2,7 +2,7 @@ import { Star } from "lucide-react";
 
 export function ReviewsSection() {
   return (
-    <section className="py-12 sm:py-16 bg-gradient-to-b from-background via-secondary/20 to-background relative overflow-hidden">
+    <section className="py-8 sm:py-10 bg-gradient-to-b from-background via-secondary/20 to-background relative overflow-hidden">
       {/* Background decoration */}
       <div
         className="absolute inset-0 opacity-40"

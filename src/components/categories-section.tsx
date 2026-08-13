@@ -18,7 +18,7 @@ export async function CategoriesSection() {
 
   if (error) {
     return (
-      <section id="categories" className="py-12 sm:py-16 bg-background">
+      <section id="categories" className="py-6 sm:py-8 bg-background">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p className="text-destructive">{error}</p>
@@ -29,7 +29,7 @@ export async function CategoriesSection() {
   }
 
   return (
-    <section id="categories" className="py-12 sm:py-16 bg-background relative overflow-hidden">
+    <section id="categories" className="py-6 sm:py-8 bg-background relative overflow-hidden">
       {/* Animated background gradient */}
       <div 
         className="absolute inset-0 opacity-50"
@@ -54,14 +54,14 @@ export async function CategoriesSection() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-12">
-          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
+        <div className="text-center mb-8">
+          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-4 shadow-sm shadow-primary/10">
             Специалисты
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-3">
             Выберите специалиста
           </h2>
-          <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto mb-10">
+          <p className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto mb-6">
             Найдите нужного врача по специальности и запишитесь на удобное время
           </p>
           

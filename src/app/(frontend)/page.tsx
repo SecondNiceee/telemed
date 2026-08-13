@@ -37,7 +37,7 @@ export default async function HomePage() {
         <SectionReveal delay={0}>
           <Suspense
             fallback={
-              <section className="py-8 sm:py-10 bg-background">
+              <section className="py-6 sm:py-8 bg-background">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                   <p className="text-muted-foreground">Загрузка категорий...</p>
                 </div>

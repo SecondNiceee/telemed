@@ -9,7 +9,7 @@ interface HeroProps {
 
 export function Hero({ user }: HeroProps) {
   return (
-    <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20 bg-background">
+    <section className="relative overflow-hidden py-8 sm:py-10 lg:py-14 bg-background">
       {/* Animated gradient background */}
       <div 
         className="absolute inset-0 animate-gradient opacity-60"

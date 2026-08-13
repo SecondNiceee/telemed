@@ -27,7 +27,7 @@ const ADVANTAGES = [
 
 export function AdvantagesSection() {
   return (
-    <section className="py-12 sm:py-16 bg-background relative overflow-hidden">
+    <section className="py-8 sm:py-10 bg-background relative overflow-hidden">
       {/* Animated background */}
       <div 
         className="absolute inset-0 animate-gradient opacity-40"
@@ -58,7 +58,7 @@ export function AdvantagesSection() {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 backdrop-blur-sm mb-6 shadow-sm shadow-primary/10">
             <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
             Видеоконсультация с врачом

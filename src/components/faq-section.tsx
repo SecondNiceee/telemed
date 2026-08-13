@@ -44,11 +44,11 @@ export function FaqSection(_props: FaqSectionProps) {
   const items = FAQ_ITEMS
 
   return (
-    <section className="relative overflow-hidden py-12 sm:py-16 bg-secondary/30" id="faq">
+    <section className="relative overflow-hidden py-8 sm:py-10 bg-secondary/30" id="faq">
       <BackgroundDecor id="faq" />
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-4">
+        <div className="text-center mb-8">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-primary border border-primary/20 bg-primary/5 mb-3">
             FAQ
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
