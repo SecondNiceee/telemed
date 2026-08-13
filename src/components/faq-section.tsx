@@ -5,6 +5,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { BackgroundDecor } from "@/components/background-decor"
+import { SectionBadge } from "@/components/section-badge"
 import type { FaqItem } from "@/lib/api/site-settings"
 
 interface FaqSectionProps {
@@ -48,9 +49,9 @@ export function FaqSection(_props: FaqSectionProps) {
       <BackgroundDecor id="faq" />
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-[0.15em] uppercase text-teal border border-teal/25 bg-teal/8 mb-3">
+          <SectionBadge tone="teal" className="mb-3">
             FAQ
-          </span>
+          </SectionBadge>
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Часто задаваемые вопросы
           </h2>
