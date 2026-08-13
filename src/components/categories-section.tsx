@@ -52,7 +52,7 @@ export async function CategoriesSection() {
             {categories.map((category, index) => (
               <Link key={category.id} href={`/category/${category.slug}`}>
                 <Card 
-                  className="group h-full py-0 border-border bg-card hover:shadow-md transition-all duration-300 hover:border-teal/40 cursor-pointer hover:-translate-y-1"
+                  className="sc-card group h-full py-0 border-0 bg-card cursor-pointer hover:-translate-y-1"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
                   <CardContent className="p-6">

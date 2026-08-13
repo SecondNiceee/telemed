@@ -75,7 +75,7 @@ export function AdvantagesSection() {
             return (
               <article
                 key={advantage.title}
-                className="group overflow-hidden rounded-xl border border-white/10 bg-surface-dark-elevated transition-colors duration-300 hover:border-teal-on-dark/40"
+                className="sc-card-dark group overflow-hidden"
               >
                 <div className="relative aspect-[4/3] w-full overflow-hidden">
                   <Image

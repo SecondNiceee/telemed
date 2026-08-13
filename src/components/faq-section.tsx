@@ -4,7 +4,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { BackgroundDecor } from "@/components/background-decor"
 import { SectionBadge } from "@/components/section-badge"
 import type { FaqItem } from "@/lib/api/site-settings"
 
@@ -46,7 +45,18 @@ export function FaqSection(_props: FaqSectionProps) {
 
   return (
     <section className="relative overflow-hidden py-8 sm:py-10 bg-secondary/30" id="faq">
-      <BackgroundDecor id="faq" />
+      {/* Тонкий точечный узор — как на референсе, без линий ЭКГ и водяных знаков */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(oklch(0.4989 0.1406 299.8 / 0.09) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          maskImage:
+            "radial-gradient(ellipse 75% 70% at 50% 40%, black 0%, transparent 80%)",
+        }}
+        aria-hidden="true"
+      />
       <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <SectionBadge tone="teal" className="mb-3">
@@ -65,7 +75,7 @@ export function FaqSection(_props: FaqSectionProps) {
             <AccordionItem
               key={item.question}
               value={`item-${index}`}
-              className="border border-border/50 rounded-xl mb-3 bg-background px-6 transition-colors hover:border-teal/40 data-[state=open]:border-teal/50 data-[state=open]:shadow-sm data-[state=open]:shadow-teal/5"
+              className="sc-card border-0 mb-3 bg-background px-6"
             >
               <AccordionTrigger className="text-left text-base sm:text-lg font-semibold hover:no-underline py-5 data-[state=open]:text-primary [&>svg]:text-teal">
                 {item.question}

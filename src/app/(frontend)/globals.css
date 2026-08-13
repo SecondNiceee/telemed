@@ -38,9 +38,9 @@
   --chart-4: oklch(0.6827 0.1165 194.8);
   --chart-5: oklch(0.68 0.10 295);
   --radius: 0.625rem;
-  /* Тёмная секция (как блок «Наши преимущества» на референсе) */
-  --surface-dark: oklch(0.2052 0.0276 290.3);
-  --surface-dark-elevated: oklch(0.2525 0.0375 290.3);
+  /* Тёмная секция: снято с референса — bg-slate-900 (синеватый навy, не фиолетовый) */
+  --surface-dark: oklch(0.2079 0.0399 265.8);
+  --surface-dark-elevated: oklch(0.2795 0.0407 260.0);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.1448 0 0);
   --sidebar-primary: oklch(0.4989 0.1406 299.8);
@@ -70,8 +70,8 @@
   --teal-foreground: oklch(0.14 0.02 200);
   --teal-soft: oklch(0.26 0.045 201.3);
   --teal-on-dark: oklch(0.82 0.105 201.3);
-  --surface-dark: oklch(0.2052 0.0276 290.3);
-  --surface-dark-elevated: oklch(0.2525 0.0375 290.3);
+  --surface-dark: oklch(0.2079 0.0399 265.8);
+  --surface-dark-elevated: oklch(0.2795 0.0407 260.0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.26 0.028 295);
@@ -156,6 +156,41 @@
   summary {
     cursor: pointer;
   }
+}
+
+/* Карточка в стилистике smartcardio.ru:
+   rounded-2xl + мягкое кольцо ring-1 black/10 + глубокая тень, без жёсткой рамки */
+.sc-card {
+  border-radius: 1rem;
+  background-color: var(--card);
+  box-shadow:
+    0 0 0 1px oklch(0 0 0 / 0.08),
+    0 18px 40px -12px oklch(0.2079 0.0399 265.8 / 0.16);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.sc-card:hover {
+  box-shadow:
+    0 0 0 1px oklch(0.6273 0.1067 201.3 / 0.35),
+    0 26px 55px -14px oklch(0.2079 0.0399 265.8 / 0.24);
+}
+
+.dark .sc-card {
+  box-shadow:
+    0 0 0 1px oklch(1 0 0 / 0.09),
+    0 18px 40px -12px oklch(0 0 0 / 0.5);
+}
+
+/* Тёмный вариант карточки для секции на surface-dark */
+.sc-card-dark {
+  border-radius: 1rem;
+  background-color: var(--surface-dark-elevated);
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.09);
+  transition: box-shadow 0.3s ease;
+}
+
+.sc-card-dark:hover {
+  box-shadow: 0 0 0 1px oklch(0.82 0.105 201.3 / 0.4);
 }
 
 /* Animated gradient background */
