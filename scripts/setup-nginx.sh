@@ -22,6 +22,22 @@ head_() { echo; echo "== $*"; }
 if [[ "$CHECK_ONLY" != "--check" ]]; then
   head_ "Установка конфига"
   [[ -f "$CONF_SRC" ]] || { bad "нет файла $CONF_SRC"; exit 1; }
+
+  # Частая поломка: конфиг вставили из терминала вместе с шапкой редактора
+  # ("GNU nano 8.7.1  /etc/nginx/..."). nginx падает на unknown directive.
+  if head -3 "$CONF_SRC" | grep -qE 'GNU nano|^\s*File:\s'; then
+    bad "в начале $CONF_SRC остался вывод редактора (GNU nano ...) — уберите эту строку"
+    exit 1
+  fi
+
+  # Бэкап действующего конфига, чтобы откатиться, если новый не проходит nginx -t.
+  BACKUP=""
+  if [[ -f "$CONF_DST" ]]; then
+    BACKUP="${CONF_DST}.bak.$(date +%Y%m%d-%H%M%S)"
+    cp -a "$CONF_DST" "$BACKUP"
+    ok "бэкап прежнего конфига: $BACKUP"
+  fi
+
   install -m 644 "$CONF_SRC" "$CONF_DST"
   ok "скопирован в $CONF_DST"
 
@@ -35,10 +51,23 @@ if [[ "$CHECK_ONLY" != "--check" ]]; then
   ok "включён симлинк $LINK_DST"
 
   mkdir -p /var/www/certbot
-  ok "создан webroot /var/www/certbot (для будущего certbot)"
+  ok "создан webroot /var/www/certbot (для certbot --webroot)"
 
   head_ "Проверка синтаксиса"
-  nginx -t
+  # set -e оборвал бы скрипт с уже установленным битым конфигом,
+  # поэтому проверяем вручную и откатываемся.
+  if ! nginx -t; then
+    bad "конфиг не прошёл nginx -t"
+    if [[ -n "$BACKUP" ]]; then
+      cp -a "$BACKUP" "$CONF_DST"
+      bad "откатились на прежний конфиг ($BACKUP) — nginx не перезагружался"
+    else
+      rm -f "$LINK_DST"
+      bad "сайт отключён (симлинк удалён), чтобы nginx остался работоспособным"
+    fi
+    exit 1
+  fi
+  ok "синтаксис корректен"
 
   head_ "Перезагрузка"
   systemctl reload nginx || systemctl restart nginx
