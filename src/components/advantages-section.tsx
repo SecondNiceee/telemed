@@ -41,7 +41,7 @@ const ADVANTAGES: {
 
 export function AdvantagesSection() {
   return (
-    <section className="relative overflow-hidden bg-surface-dark py-14 sm:py-20">
+    <section id="advantages" className="relative overflow-hidden bg-surface-dark py-14 sm:py-20">
       {/* Тонкий точечный узор — единственный декор, как на референсе */}
       <div
         className="pointer-events-none absolute inset-0"
