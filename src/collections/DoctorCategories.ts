@@ -1,6 +1,12 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
-import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
 import { getCallerFromRequest } from './helpers/auth'
+
+// NOTE: intentionally NOT imported from '@/lib/api/categories'.
+// That module is part of the browser API client (it references File/FormData),
+// and pulling it into the Payload config drags the whole client bundle into the
+// server config graph, which can break at import time.
+// Keep this literal in sync with CATEGORIES_CACHE_TAG in src/lib/api/categories.ts.
+const CATEGORIES_CACHE_TAG = 'categories'
 
 // Safe wrapper for revalidateTag that works in build time.
 // IMPORTANT: must be awaited by callers — an unawaited rejection here
@@ -22,8 +28,14 @@ const revalidateCategories = async () => {
 const accessChecker = ({ req } : {req : PayloadRequest  }) => {
   const organizationCaller = getCallerFromRequest(req, 'organisations');
   const usersCaller = getCallerFromRequest(req, "users");
-  if (organizationCaller.collection === "organisations") return true ;
-  if (usersCaller.role  === "admin") return true;
+  if (organizationCaller?.collection === "organisations") return true ;
+  if (usersCaller?.role  === "admin") return true;
+
+  console.error('[doctor-categories] access DENIED', {
+    organisationCaller: organizationCaller?.collection ?? null,
+    userRole: usersCaller?.role ?? null,
+    hasCookieHeader: Boolean(req?.headers?.get?.('cookie')),
+  })
   return false
 }
 

@@ -10,6 +10,10 @@ const checkAccessCookie = ({req} : {req:PayloadRequest}) => {
   if (organisation?.collection === "organisations") return true;
   const doctor = getCallerFromRequest(req, 'doctors');
   if (doctor?.collection === "doctors") return true;
+
+  console.error('[media] access DENIED — no recognised caller cookie', {
+    hasCookieHeader: Boolean(req?.headers?.get?.('cookie')),
+  })
   return false 
 }
 
@@ -28,6 +32,32 @@ export const Media: CollectionConfig = {
       required: false,
     },
   ],
+  hooks: {
+    beforeOperation: [
+      ({ operation, req }) => {
+        if (operation === 'create') {
+          const file = (req as unknown as { file?: { name?: string; mimetype?: string; size?: number } }).file
+          console.log('[media] create incoming', {
+            filename: file?.name,
+            mimeType: file?.mimetype,
+            size: file?.size,
+          })
+        }
+      },
+    ],
+    afterChange: [
+      ({ doc, operation }) => {
+        const d = doc as unknown as { id?: number | string; filename?: string; mimeType?: string; filesize?: number }
+        console.log('[media] afterChange', {
+          operation,
+          id: d?.id,
+          filename: d?.filename,
+          mimeType: d?.mimeType,
+          filesize: d?.filesize,
+        })
+      },
+    ],
+  },
   upload: {
     staticDir: 'media',
     mimeTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
