@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Menu, X, LogOut, User as UserIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { LoginModal } from "@/components/login-modal";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
@@ -12,9 +12,20 @@ import { AuthApi } from "@/lib/api/auth";
 import { getUpcomingAppointment } from "@/lib/utils/date";
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
 
+/** Секции главной страницы для навигации в хэдере */
+const SECTIONS = [
+  { id: "hero", label: "Главная" },
+  { id: "categories", label: "Специалисты" },
+  { id: "advantages", label: "Преимущества" },
+  { id: "reviews", label: "Отзывы" },
+  { id: "faq", label: "Вопросы" },
+] as const;
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>("hero");
+  const headerRef = useRef<HTMLElement>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -53,8 +64,63 @@ export function Header() {
 
   const authLoading = userLoading || !userFetched;
 
+  const isHome = pathname === "/";
+
+  /** Плавный скролл к секции с учётом высоты залипающего хэдера */
+  const scrollToSection = useCallback(
+    (id: string) => {
+      const target = document.getElementById(id);
+      if (!target) return;
+      const headerHeight = headerRef.current?.offsetHeight ?? 68;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - 12;
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+      setActiveSection(id);
+    },
+    [],
+  );
+
+  /** Клик по ссылке в навигации: на главной — скролл, иначе — переход на /#id */
+  const handleNavClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    id: string,
+  ) => {
+    setMobileMenuOpen(false);
+    if (!isHome) return;
+    event.preventDefault();
+    scrollToSection(id);
+    window.history.replaceState(null, "", id === "hero" ? "/" : `/#${id}`);
+  };
+
+  /** Если на главную пришли по ссылке с хэшем — доскроллим с учётом хэдера */
+  useEffect(() => {
+    if (!isHome) return;
+    const hash = window.location.hash.replace("#", "");
+    if (!hash) return;
+    const timer = window.setTimeout(() => scrollToSection(hash), 250);
+    return () => window.clearTimeout(timer);
+  }, [isHome, scrollToSection]);
+
+  /** Подсветка активной секции при скролле */
+  useEffect(() => {
+    if (!isHome) return;
+    const onScroll = () => {
+      const headerHeight = (headerRef.current?.offsetHeight ?? 68) + 24;
+      let current = SECTIONS[0].id as string;
+      for (const section of SECTIONS) {
+        const el = document.getElementById(section.id);
+        if (el && el.getBoundingClientRect().top <= headerHeight) {
+          current = section.id;
+        }
+      }
+      setActiveSection(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isHome]);
+
   return (
-    <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
+    <header ref={headerRef} className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[68px]">
           <Link href="/" className="flex items-center gap-3 group">
@@ -77,25 +143,31 @@ export function Header() {
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-8">
-            <Link
-              href="/"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Главная
-            </Link>
-            <Link
-              href="/#categories"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Специалисты
-            </Link>
-            <Link
-              href="/#how-it-works"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Как это работает
-            </Link>
+          <nav className="hidden md:flex items-center gap-6 lg:gap-7">
+            {SECTIONS.map((section) => {
+              const isActive = isHome && activeSection === section.id;
+              return (
+                <Link
+                  key={section.id}
+                  href={section.id === "hero" ? "/" : `/#${section.id}`}
+                  onClick={(event) => handleNavClick(event, section.id)}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`relative text-[15px] transition-colors ${
+                    isActive
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {section.label}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -bottom-1.5 left-0 h-[2px] rounded-full bg-primary transition-all duration-300 ${
+                      isActive ? "w-full opacity-100" : "w-0 opacity-0"
+                    }`}
+                  />
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="hidden md:flex items-center gap-4 min-h-[36px]">
@@ -153,27 +225,20 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <nav className="flex flex-col gap-4">
-              <Link
-                href="/"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Главная
-              </Link>
-              <Link
-                href="/#categories"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Специалисты
-              </Link>
-              <Link
-                href="/#how-it-works"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Как это работает
-              </Link>
+              {SECTIONS.map((section) => (
+                <Link
+                  key={section.id}
+                  href={section.id === "hero" ? "/" : `/#${section.id}`}
+                  onClick={(event) => handleNavClick(event, section.id)}
+                  className={`transition-colors ${
+                    isHome && activeSection === section.id
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {section.label}
+                </Link>
+              ))}
               <div className="flex flex-col gap-2 pt-4 border-t border-border min-h-[52px]">
                 {authLoading ? (
                   <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
