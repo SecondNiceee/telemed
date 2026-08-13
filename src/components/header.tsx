@@ -127,9 +127,8 @@ export function Header() {
                   </Button>
                 </LoginModal>
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="border-teal/50 text-teal hover:bg-teal hover:text-teal-foreground hover:border-teal transition-all duration-300 rounded-xl"
+                  className="rounded-full bg-primary px-5 text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90 transition-all duration-200"
                   onClick={handleAuthClick}
                 >
                   Записаться
@@ -207,9 +206,8 @@ export function Header() {
                       </Button>
                     </LoginModal>
                     <Button
-                      variant="outline"
                       size="sm"
-                      className="flex-1 border-teal/50 text-teal hover:bg-teal hover:text-teal-foreground hover:border-teal transition-all"
+                      className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
                       onClick={handleAuthClick}
                     >
                       Записаться
