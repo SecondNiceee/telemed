@@ -61,9 +61,13 @@ export class CategoriesApi {
     })
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
-      throw new Error(body?.message || `Upload failed: ${response.status}`)
+      console.error('[v0] uploadMedia failed', { status: response.status, body })
+      throw new Error(
+        body?.errors?.[0]?.message || body?.message || `Upload failed: ${response.status}`,
+      )
     }
     const data = await response.json()
+    console.log('[v0] uploadMedia success', { id: data?.doc?.id, filename: data?.doc?.filename })
     return data.doc as ApiMedia
   }
 

@@ -54,13 +54,30 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
   createCategory: async (data) => {
     set({ loading: true })
     try {
-      const newCategory = await CategoriesApi.create(data)
+      console.log('[v0] createCategory request', data)
+
+      let newCategory: ApiCategory
+      try {
+        newCategory = await CategoriesApi.create(data)
+      } catch (err) {
+        console.error('[v0] createCategory failed', err)
+        throw err
+      }
+
+      console.log('[v0] createCategory success', { id: newCategory?.id })
+
       const categories = get().categories
       set({ categories: [...categories, newCategory], fetched: false })
-      // Revalidate cache on server
-      await revalidateCategoriesAction()
-      // Refetch to ensure cache is updated
-      await get().refetchCategories()
+
+      // Cache revalidation / refetch must never turn a successful create
+      // into a user-facing error.
+      try {
+        await revalidateCategoriesAction()
+        await get().refetchCategories()
+      } catch (err) {
+        console.error('[v0] createCategory post-create revalidation failed', err)
+      }
+
       return newCategory
     } finally {
       set({ loading: false })
