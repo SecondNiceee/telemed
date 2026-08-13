@@ -9,7 +9,7 @@ interface HeroProps {
 
 export function Hero({ user }: HeroProps) {
   return (
-    <section className="relative overflow-hidden py-12 sm:py-16 lg:py-20 bg-background">
+    <section className="relative overflow-hidden py-8 sm:py-10 lg:py-14 bg-background">
       {/* Animated gradient background */}
       <div 
         className="absolute inset-0 animate-gradient opacity-60"
@@ -120,7 +120,7 @@ export function Hero({ user }: HeroProps) {
           </div>
 
           {/* Right side - Phone mockup with video */}
-          <div className="relative flex justify-center lg:justify-end lg:translate-x-6 xl:translate-x-10 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+          <div className="relative flex justify-center animate-fade-up" style={{ animationDelay: "0.3s" }}>
             {/* Свечение за телефоном */}
             <div
               className="pointer-events-none absolute inset-0 -z-10"
@@ -131,7 +131,7 @@ export function Hero({ user }: HeroProps) {
               }}
               aria-hidden="true"
             />
-            <PhoneMockup src="/video/hero-video.mp4" className="animate-float-slow" />
+            <PhoneMockup src="/video/hero-video.mp4" />
           </div>
 
         </div>
