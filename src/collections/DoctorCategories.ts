@@ -2,13 +2,20 @@ import type { CollectionConfig, PayloadRequest } from 'payload'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
 import { getCallerFromRequest } from './helpers/auth'
 
-// Safe wrapper for revalidateTag that works in build time
+// Safe wrapper for revalidateTag that works in build time.
+// IMPORTANT: must be awaited by callers — an unawaited rejection here
+// becomes an unhandled promise rejection and can abort the whole request
+// (the client then sees a bare "Failed to fetch" with no server log).
 const revalidateCategories = async () => {
   try {
     const { revalidateTag } = await import('next/cache')
     revalidateTag(CATEGORIES_CACHE_TAG)
-  } catch {
-    // revalidateTag is only available in Server Component context
+  } catch (err) {
+    // revalidateTag is only available in Server Component / request context
+    console.warn(
+      '[doctor-categories] revalidateTag skipped:',
+      err instanceof Error ? err.message : err,
+    )
   }
 }
 
@@ -41,13 +48,18 @@ export const DoctorCategories: CollectionConfig = {
   },
   hooks: {
     afterChange: [
-      () => {
-        revalidateCategories()
+      async ({ doc, operation }) => {
+        console.log('[doctor-categories] afterChange', {
+          operation,
+          id: (doc as { id?: number | string })?.id,
+        })
+        await revalidateCategories()
       },
     ],
     afterDelete: [
-      () => {
-        revalidateCategories()
+      async ({ id }) => {
+        console.log('[doctor-categories] afterDelete', { id })
+        await revalidateCategories()
       },
     ],
   },

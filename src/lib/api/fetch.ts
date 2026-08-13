@@ -29,9 +29,20 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
       },
     })
   } catch (err) {
+    // Network-level failure: the request never reached (or never returned from)
+    // the server. Log it with the full context so it isn't just "Failed to fetch".
+    console.error('[v0] apiFetch network error', {
+      url,
+      method: init?.method ?? 'GET',
+      error: err instanceof Error ? { name: err.name, message: err.message } : err,
+    })
+
+    const raw = err instanceof Error ? err.message : ''
     throw new ApiError(
       0,
-      err instanceof Error ? err.message : 'Ошибка сети. Проверьте подключение к интернету.',
+      raw
+        ? `Сетевая ошибка при запросе ${init?.method ?? 'GET'} ${path}: ${raw}`
+        : 'Ошибка сети. Проверьте подключение к интернету.',
       'NETWORK_ERROR',
     )
   }
@@ -47,7 +58,17 @@ export async function apiFetch<T>(path: string, init?: ApiFetchOptions): Promise
         errorMessage = body.errors[0].message
       } else if (body?.message) {
         errorMessage = body.message
+      } else if (typeof body?.error === 'string') {
+        // Custom route handlers in this app return { error: "..." }
+        errorMessage = body.error
       }
+
+      console.error('[v0] apiFetch error response', {
+        url,
+        method: init?.method ?? 'GET',
+        status: response.status,
+        body,
+      })
       errorName = body?.errors?.[0]?.name ?? body?.name
     } catch {
       // ignore JSON parse errors, use default message
