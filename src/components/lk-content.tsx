@@ -122,7 +122,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Предстоящие
               {upcomingAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-blue-100 text-blue-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-primary/10 text-primary">
                   {upcomingAppointments.length}
                 </span>
               )}
@@ -138,7 +138,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             >
               Активные
               {activeAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-green-100 text-green-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-teal-soft text-teal">
                   {activeAppointments.length}
                 </span>
               )}

@@ -41,10 +41,10 @@ function CountdownDigits({ parts }: { parts: NonNullable<ReturnType<typeof getCo
     <div className="flex items-end gap-2">
       {blocks.map((b, i) => (
         <div key={i} className="flex items-end gap-0.5">
-          <span className="text-3xl font-bold tabular-nums leading-none text-green-900 font-mono">
+          <span className="text-3xl font-bold tabular-nums leading-none text-foreground font-mono">
             {b.value}
           </span>
-          <span className="text-xs font-semibold text-green-600 mb-0.5">{b.label}</span>
+          <span className="text-xs font-semibold text-teal mb-0.5">{b.label}</span>
         </div>
       ))}
     </div>
@@ -81,21 +81,21 @@ export function AppointmentCountdownBanner({
       <div
         className={cn(
           "flex items-center gap-3 px-4 py-2.5 rounded-xl",
-          "border border-green-200 bg-green-50",
+          "border border-teal/25 bg-teal-soft",
           className
         )}
       >
         {/* Pulsing dot */}
         <span className="relative flex h-2.5 w-2.5 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal" />
         </span>
 
         <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-semibold text-green-800 whitespace-nowrap">
+          <span className="text-sm font-semibold text-foreground whitespace-nowrap">
             Консультация через
           </span>
-          <span className="text-sm font-bold text-green-900 font-mono tabular-nums whitespace-nowrap">
+          <span className="text-sm font-bold text-teal font-mono tabular-nums whitespace-nowrap">
             {countdown}
           </span>
         </div>
@@ -103,7 +103,7 @@ export function AppointmentCountdownBanner({
         <Button
           asChild
           size="sm"
-          className="shrink-0 h-8 bg-green-600 hover:bg-green-700 text-white gap-1.5 text-xs"
+          className="shrink-0 h-8 bg-teal hover:bg-teal/90 text-teal-foreground gap-1.5 text-xs"
         >
           <Link href="/lk">
             Перейти
@@ -124,34 +124,34 @@ export function AppointmentCountdownBanner({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-green-200 bg-green-50",
+        "relative overflow-hidden rounded-2xl border border-teal/25 bg-teal-soft",
         className
       )}
     >
       {/* Top accent bar */}
-      <div className="h-1 w-full bg-gradient-to-r from-green-400 to-green-500" />
+      <div className="h-1 w-full bg-gradient-to-r from-primary to-teal" />
 
       <div className="px-5 py-5 flex flex-col sm:flex-row sm:items-center gap-5">
         {/* Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-white border border-green-200 shadow-sm flex items-center justify-center shrink-0">
-          <Video className="w-7 h-7 text-green-600" />
+        <div className="w-14 h-14 rounded-2xl bg-card border border-teal/25 shadow-sm flex items-center justify-center shrink-0">
+          <Video className="w-7 h-7 text-teal" />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal" />
             </span>
-            <p className="text-xs font-semibold uppercase tracking-widest text-green-600">
+            <p className="text-xs font-semibold uppercase tracking-widest text-teal">
               Предстоящая консультация
             </p>
           </div>
 
           <CountdownDigits parts={parts} />
 
-          <div className="flex items-center gap-1.5 mt-2 text-sm text-green-700">
+          <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground">
             <Clock className="w-3.5 h-3.5 shrink-0" />
             <span>
               {dateFormatted} в {appointment.time}
@@ -166,7 +166,7 @@ export function AppointmentCountdownBanner({
         {/* CTA */}
         <Button
           asChild
-          className="shrink-0 gap-2 bg-green-600 hover:bg-green-700 text-white sm:self-center"
+          className="shrink-0 gap-2 bg-teal hover:bg-teal/90 text-teal-foreground sm:self-center"
         >
           <Link href={resolvedChatHref}>
             <Video className="w-4 h-4" />

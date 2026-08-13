@@ -257,7 +257,7 @@ function getStatusLabel(status: ApiAppointment["status"]) {
 function getStatusColor(status: ApiAppointment["status"]) {
   switch (status) {
     case "confirmed":
-      return "bg-green-100 text-green-700"
+      return "bg-teal-soft text-teal"
     case "completed":
       return "bg-muted text-muted-foreground"
     case "cancelled":
@@ -353,13 +353,13 @@ export function DoctorDashboardContent({
                   <span
                     className={cn(
                       "absolute inline-flex h-full w-full rounded-full opacity-75",
-                      tab === "active" && "animate-ping bg-green-500"
+                      tab === "active" && "animate-ping bg-teal"
                     )}
                   />
                   <span
                     className={cn(
                       "relative inline-flex rounded-full h-2 w-2",
-                      tab === "active" ? "bg-green-500" : "bg-muted-foreground/40"
+                      tab === "active" ? "bg-teal" : "bg-muted-foreground/40"
                     )}
                   />
                 </span>

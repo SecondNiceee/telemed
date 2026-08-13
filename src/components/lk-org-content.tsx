@@ -114,11 +114,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
           </Link>
           <Link
             href="/lk-org/consultations?sort=now"
-            className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4 shadow-sm hover:shadow-md hover:border-orange-500/60 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            className="rounded-xl border border-teal/40 bg-teal-soft p-4 shadow-sm hover:shadow-md hover:border-teal hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-orange-500/10 flex items-center justify-center">
-                <Video className="w-5 h-5 text-orange-500" />
+              <div className="w-10 h-10 rounded-full bg-teal/15 flex items-center justify-center">
+                <Video className="w-5 h-5 text-teal" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.active}</p>
@@ -128,11 +128,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
           </Link>
           <Link
             href="/lk-org/consultations?sort=future"
-            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-blue-500/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-500" />
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.upcoming}</p>
@@ -142,11 +142,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
           </Link>
           <Link
             href="/lk-org/consultations?sort=past"
-            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-green-500/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-teal/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-500" />
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-muted-foreground" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.past}</p>

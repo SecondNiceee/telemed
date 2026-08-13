@@ -47,18 +47,18 @@ export function ChatHeader({
     <div className="flex flex-col border-b border-border bg-card">
       {/* Countdown banner - prominent (only show before consultation starts) */}
       {countdownParts && !isCompleted && localStatus !== 'in_progress' && (
-        <div className="px-5 py-4 bg-green-50 border-b border-green-200">
+        <div className="px-5 py-4 bg-teal-soft border-b border-teal/25">
           <div className="flex items-center gap-2 mb-1">
             {appointment.specialty && (
-              <span className="text-sm font-medium text-green-800">{appointment.specialty}</span>
+              <span className="text-sm font-medium text-foreground/70">{appointment.specialty}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal" />
             </span>
-            <span className="text-base font-semibold text-green-800">
+            <span className="text-base font-semibold text-foreground">
               Консультация начнется через{' '}
               <span className="font-bold font-mono tabular-nums">{formatCountdown(countdownParts)}</span>
             </span>
@@ -68,16 +68,16 @@ export function ChatHeader({
       
       {/* In progress banner */}
       {localStatus === 'in_progress' && !isCompleted && (
-        <div className="px-5 py-4 bg-blue-50 border-b border-blue-200">
+        <div className="px-5 py-4 bg-primary/10 border-b border-primary/20">
           {appointment.specialty && (
-            <span className="text-sm font-medium text-blue-800 block mb-1">{appointment.specialty}</span>
+            <span className="text-sm font-medium text-primary/80 block mb-1">{appointment.specialty}</span>
           )}
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
             </span>
-            <span className="text-base font-semibold text-blue-800">
+            <span className="text-base font-semibold text-primary">
               Консультация в процессе
               {consultationType === 'chat' && ' (чат)'}
               {consultationType === 'video' && ' (видео)'}
@@ -102,7 +102,7 @@ export function ChatHeader({
               <Button
                 variant="outline"
                 size="sm"
-                className="shrink-0 text-xs gap-1.5 border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700"
+                className="shrink-0 text-xs gap-1.5 border-teal text-teal hover:bg-teal-soft hover:text-teal"
                 onClick={onLeaveFeedback}
               >
                 <Star className="w-3.5 h-3.5" />
@@ -229,7 +229,7 @@ export function ChatHeader({
             className={cn(
               "shrink-0 text-xs gap-1.5",
               isChatBlocked 
-                ? "text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+                ? "text-teal border-teal hover:bg-teal hover:text-teal-foreground"
                 : "text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
             )}
             onClick={onToggleChatBlock}
@@ -251,7 +251,7 @@ export function ChatHeader({
         )}
         <div className={cn(
           'w-2 h-2 rounded-full shrink-0',
-          isConnected ? 'bg-green-500' : 'bg-muted-foreground'
+          isConnected ? 'bg-teal' : 'bg-muted-foreground'
         )} />
       </div>
     </div>

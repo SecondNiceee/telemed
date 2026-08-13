@@ -216,15 +216,15 @@ export function LkOrgCategoryCreate() {
           </div>
 
           {success && (
-            <div className="flex items-center gap-3 rounded-lg bg-green-500/10 border border-green-500/20 p-4 mb-6">
-              <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-              <p className="text-sm text-green-500 font-medium">{success}</p>
+            <div className="flex items-center gap-3 rounded-lg bg-teal/10 border border-teal/25 p-4 mb-6">
+              <CheckCircle className="w-5 h-5 text-teal shrink-0" />
+              <p className="text-sm text-teal font-medium">{success}</p>
               <button
                 type="button"
                 onClick={() => setSuccess(null)}
-                className="ml-auto p-1 rounded hover:bg-green-500/10 transition-colors"
+                className="ml-auto p-1 rounded hover:bg-teal/10 transition-colors"
               >
-                <X className="w-4 h-4 text-green-500" />
+                <X className="w-4 h-4 text-teal" />
               </button>
             </div>
           )}

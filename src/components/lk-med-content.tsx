@@ -190,7 +190,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             >
               Предстоящие
               {upcomingAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-blue-100 text-blue-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-primary/10 text-primary">
                   {upcomingAppointments.length}
                 </span>
               )}
@@ -206,7 +206,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             >
               Активные
               {activeAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-green-100 text-green-700">
+                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-teal-soft text-teal">
                   {activeAppointments.length}
                 </span>
               )}
@@ -282,9 +282,9 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                     {appt.connectionType && (
                       <span className={cn(
                         "flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                        appt.connectionType === 'video' && "bg-blue-100 text-blue-700",
-                        appt.connectionType === 'audio' && "bg-purple-100 text-purple-700",
-                        appt.connectionType === 'chat' && "bg-green-100 text-green-700"
+                        appt.connectionType === 'video' && "bg-primary/10 text-primary",
+                        appt.connectionType === 'audio' && "bg-accent text-accent-foreground",
+                        appt.connectionType === 'chat' && "bg-teal-soft text-teal"
                       )}>
                         {appt.connectionType === 'video' && <Video className="w-3 h-3" />}
                         {appt.connectionType === 'audio' && <Mic className="w-3 h-3" />}

@@ -157,21 +157,21 @@ export function OrgConsultationsContent({
     switch (appointment.status) {
       case 'in_progress':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 border border-orange-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-teal/10 text-teal border border-teal/25">
             <Video className="w-3 h-3" />
             В процессе
           </span>
         )
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
             <CheckCircle className="w-3 h-3" />
             Завершена
           </span>
         )
       case 'confirmed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/25">
             <Clock className="w-3 h-3" />
             Запланирована
           </span>
