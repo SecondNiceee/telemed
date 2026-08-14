@@ -8,6 +8,52 @@
  * иначе на фронте отрисуется дефолтный стетоскоп.
  */
 
+/** Сколько дней вперёд открываем приём у демо-врачей. */
+const MOCK_SCHEDULE_DAYS = 21
+/** Рабочий день демо-врача. */
+const MOCK_DAY_START_HOUR = 9
+const MOCK_DAY_END_HOUR = 17
+/** Совпадает со slotDuration, который ставим демо-врачам. */
+const MOCK_SLOT_MINUTES = 30
+
+/**
+ * Расписание для демо-врача.
+ *
+ * Без него врач не появляется там, где список фильтруется по дате: с /appointment
+ * ссылка на категорию уходит как /category/{slug}?date=YYYY-MM-DD, и врачи без
+ * слотов на этот день отбрасываются. Плюс к такому врачу нельзя записаться —
+ * то есть демо-данные не позволяли пройти основной сценарий сайта.
+ *
+ * Формат совпадает с тем, что пишет кабинет организации: дата YYYY-MM-DD в
+ * локальном времени сервера, время HH:MM.
+ */
+export function buildMockSchedule(): { date: string; slots: { time: string }[] }[] {
+  const slots: { time: string }[] = []
+  for (let minutes = MOCK_DAY_START_HOUR * 60; minutes < MOCK_DAY_END_HOUR * 60; minutes += MOCK_SLOT_MINUTES) {
+    const h = String(Math.floor(minutes / 60)).padStart(2, '0')
+    const m = String(minutes % 60).padStart(2, '0')
+    slots.push({ time: `${h}:${m}` })
+  }
+
+  const schedule: { date: string; slots: { time: string }[] }[] = []
+  const cursor = new Date()
+  cursor.setHours(0, 0, 0, 0)
+
+  for (let day = 0; day < MOCK_SCHEDULE_DAYS; day += 1) {
+    const date = new Date(cursor)
+    date.setDate(cursor.getDate() + day)
+    // Воскресенье оставляем выходным — так демо-данные выглядят правдоподобнее.
+    if (date.getDay() === 0) continue
+
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    schedule.push({ date: `${y}-${m}-${d}`, slots: slots.map((slot) => ({ ...slot })) })
+  }
+
+  return schedule
+}
+
 export interface MockCategory {
   name: string
   slug: string

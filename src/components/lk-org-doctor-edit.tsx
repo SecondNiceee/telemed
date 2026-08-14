@@ -342,7 +342,12 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       // Всегда пишем все три поля: null здесь — это сигнал хуку удалить файлы.
       payload.photo = photoId ?? null
       payload.photoOriginal = originalId ?? null
-      payload.photoCrop = photoId && cropRect ? cropRect : null
+      // photoCrop — это group. Payload обходит его подполя и берёт их из
+      // объекта группы, а null объектом не считается только по typeof — он его
+      // пропускает и падает на siblingData.x («Cannot read properties of null
+      // (reading 'x')»). Поэтому «нет области» — это объект с пустыми полями.
+      payload.photoCrop =
+        photoId && cropRect ? cropRect : { x: null, y: null, side: null }
 
       const educationFiltered = data.education
         .map((e) => e.value.trim())
