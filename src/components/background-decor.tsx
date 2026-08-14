@@ -6,13 +6,17 @@
  * position="fixed"    — сквозной декор на всю страницу (как на smartcardio.ru):
  *                       слой лежит под контентом и не скроллится, поэтому секции
  *                       поверх него должны быть прозрачными.
+ * ecg=false           — только сетка и логотипы, без линий ЭКГ (страницы со
+ *                       плотными списками, где линии мешают читать контент).
  */
 export function BackgroundDecor({
   id = "decor",
   position = "absolute",
+  ecg = true,
 }: {
   id?: string
   position?: "absolute" | "fixed"
+  ecg?: boolean
 }) {
   const patternId = `dot-grid-${id}`
   const ecgPath = "M0 40 H120 l10 0 6 -22 8 44 7 -52 6 60 7 -30 H210 l8 0 5 -12 5 12 H600"
@@ -31,6 +35,8 @@ export function BackgroundDecor({
         <rect width="100%" height="100%" fill={`url(#${patternId})`} />
       </svg>
 
+      {ecg && (
+        <>
       <svg
         className="absolute left-0 top-[14%] h-12 w-full text-primary/[0.07] md:h-16"
         viewBox="0 0 600 80"
@@ -73,6 +79,8 @@ export function BackgroundDecor({
         />
         <path d="M0 40 H360" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
+        </>
+      )}
 
       {/* Водяные знаки логотипа. В тёмной теме инвертируем jpg и подмешиваем
           через lighten, чтобы белая подложка картинки не давала светлый квадрат. */}
