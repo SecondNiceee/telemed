@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { ImageCropperDialog } from "@/components/image-cropper-dialog"
+import type { CropRect, CropSource } from "@/components/image-cropper-dialog"
 import type { ApiCategory } from "@/lib/api/types"
 import {
   Plus,
@@ -56,10 +57,15 @@ interface LkOrgDoctorCreateProps {
 
 export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
   const router = useRouter()
+  /** Обрезанный квадрат — он показывается везде после сохранения. */
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  /** Файл до кропа — пока он не null, открыт редактор области. */
-  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
+  /** Исходник — сохраняем рядом, чтобы область можно было менять и потом. */
+  const [originalFile, setOriginalFile] = useState<File | null>(null)
+  /** Что кропаем — пока не null, открыт редактор области. */
+  const [cropSource, setCropSource] = useState<CropSource | null>(null)
+  /** Выбранная область в пикселях исходника. */
+  const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -120,19 +126,32 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
     }
 
     setError(null)
-    // Сначала кроп — в базу должен попасть уже квадрат.
-    setPendingPhoto(file)
+    // Область от прежнего фото к новому не относится — рамка откроется по центру.
+    setCropRect(null)
+    // Сначала кроп — в photo должен попасть уже квадрат.
+    setCropSource({ kind: "file", file })
   }
 
-  function handleCropApply(cropped: File) {
+  /** Повторный выбор области: кропаем исходник, а не уже обрезанный квадрат. */
+  function editCropArea() {
+    if (originalFile) setCropSource({ kind: "file", file: originalFile })
+  }
+
+  function handleCropApply({ file, crop }: { file: File; crop: CropRect }) {
     if (photoPreview) URL.revokeObjectURL(photoPreview)
-    setPhoto(cropped)
-    setPhotoPreview(URL.createObjectURL(cropped))
-    setPendingPhoto(null)
+    setPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setCropRect(crop)
+    // Исходник запоминаем до сохранения — из него же кропаем повторно.
+    if (cropSource?.kind === "file") setOriginalFile(cropSource.file)
+    setCropSource(null)
   }
 
   function removePhoto() {
+    // Снимаем обе версии сразу, чтобы в media не уехал осиротевший исходник.
     setPhoto(null)
+    setOriginalFile(null)
+    setCropRect(null)
     if (photoPreview) {
       URL.revokeObjectURL(photoPreview)
       setPhotoPreview(null)
@@ -144,13 +163,12 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
     setSuccess(null)
 
     try {
-      // 1. Upload photo if selected
-      let photoId: number | null = null
-      if (photo) {
+      // 1. Загружаем обрезанный квадрат и исходник — обе версии сразу.
+      const uploadMedia = async (file: File, alt: string) => {
         const formData = new FormData()
-        formData.append("file", photo)
-        formData.append("alt", data.name || "Doctor photo")
-        formData.append("_payload", JSON.stringify({ alt: data.name || "Doctor photo" }))
+        formData.append("file", file)
+        formData.append("alt", alt)
+        formData.append("_payload", JSON.stringify({ alt }))
 
         const uploadRes = await fetch('/api/media', {
           method: "POST",
@@ -169,8 +187,15 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
         }
 
         const uploadData = await uploadRes.json()
-        photoId = uploadData.doc?.id ?? null
+        return (uploadData.doc?.id ?? null) as number | null
       }
+
+      const altBase = data.name || "Doctor photo"
+      let photoId: number | null = null
+      let originalId: number | null = null
+
+      if (photo) photoId = await uploadMedia(photo, altBase)
+      if (originalFile) originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
 
       // 2. Create the doctor in the doctors collection
       const payload: Record<string, unknown> = {
@@ -185,7 +210,11 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
       if (data.degree) payload.degree = data.degree
       if (data.price) payload.price = Number(data.price)
       if (data.bio) payload.bio = data.bio
-      if (photoId) payload.photo = photoId
+      if (photoId) {
+        payload.photo = photoId
+        if (originalId) payload.photoOriginal = originalId
+        if (cropRect) payload.photoCrop = cropRect
+      }
 
       const educationFiltered = data.education
         .map((e) => e.value.trim())
@@ -510,8 +539,9 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => photo && setPendingPhoto(photo)}
-                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                        onClick={editCropArea}
+                        disabled={!originalFile}
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
                       >
                         <Crop className="w-3.5 h-3.5" />
                         Изменить область
@@ -661,8 +691,9 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
       </div>
 
       <ImageCropperDialog
-        file={pendingPhoto}
-        onCancel={() => setPendingPhoto(null)}
+        source={cropSource}
+        initialCrop={cropRect}
+        onCancel={() => setCropSource(null)}
         onApply={handleCropApply}
       />
     </div>

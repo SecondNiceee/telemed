@@ -13,6 +13,60 @@ const revalidateDoctorsCache = async () => {
 }
 
 
+/** Поле upload приходит либо id, либо уже подтянутым документом. */
+function toMediaId(value: unknown): number | string | null {
+  if (typeof value === 'number' || typeof value === 'string') return value
+  if (value && typeof value === 'object' && 'id' in value) {
+    const id = (value as { id?: number | string }).id
+    return id ?? null
+  }
+  return null
+}
+
+/**
+ * Удаляет media-документы, на которые больше не ссылается ни один врач.
+ *
+ * Так пара «обрезанное + исходное» уходит целиком, когда фото заменили или
+ * удалили, и в media не остаётся мусорных дублей. Проверка ссылок обязательна:
+ * коллекция media общая (там же вложения чатов), а один и тот же файл мог
+ * оказаться у двух врачей.
+ */
+async function deleteOrphanedMedia({
+  req,
+  ids,
+}: {
+  req: PayloadRequest
+  ids: (number | string)[]
+}) {
+  const unique = [...new Set(ids.filter((id) => id != null))]
+  if (unique.length === 0) return
+
+  for (const id of unique) {
+    try {
+      // Без user и с overrideAccess по умолчанию: это внутренняя уборка,
+      // она не должна зависеть от прав того, кто правил врача.
+      const stillUsed = await req.payload.find({
+        collection: 'doctors',
+        where: {
+          or: [{ photo: { equals: id } }, { photoOriginal: { equals: id } }],
+        },
+        limit: 1,
+        depth: 0,
+        req,
+      })
+      if (stillUsed.totalDocs > 0) continue
+
+      await req.payload.delete({ collection: 'media', id, req })
+    } catch (error) {
+      // Осиротевший файл — не причина ронять уже успешное сохранение врача.
+      console.error('[doctors] failed to delete orphaned media', {
+        id,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      })
+    }
+  }
+}
+
 /**
  * Populate req.user from the doctors cookie (doctors-token) without a DB query.
  * JWT already contains id, email, collection -- enough for all access checks.
@@ -53,10 +107,34 @@ export const Doctors: CollectionConfig = {
       () => {
         revalidateDoctorsCache()
       },
+      // Фото заменили или сняли — старые файлы больше никому не нужны.
+      // Именно afterChange, чтобы удалять только после успешного сохранения.
+      async ({ doc, previousDoc, operation, req }) => {
+        if (operation !== 'update' || !previousDoc) return
+
+        const orphaned: (number | string)[] = []
+        for (const field of ['photo', 'photoOriginal'] as const) {
+          const before = toMediaId((previousDoc as Record<string, unknown>)[field])
+          const after = toMediaId((doc as Record<string, unknown>)[field])
+          if (before != null && String(before) !== String(after)) orphaned.push(before)
+        }
+
+        await deleteOrphanedMedia({ req, ids: orphaned })
+      },
     ],
     afterDelete: [
       () => {
         revalidateDoctorsCache()
+      },
+      // Врача удалили — его фото тоже.
+      async ({ doc, req }) => {
+        const record = doc as Record<string, unknown>
+        await deleteOrphanedMedia({
+          req,
+          ids: [toMediaId(record.photo), toMediaId(record.photoOriginal)].filter(
+            (id): id is number | string => id != null,
+          ),
+        })
       },
     ],
     beforeChange: [],
@@ -138,6 +216,34 @@ export const Doctors: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       label: 'Фото',
+      admin: {
+        description:
+          'Обрезанный квадрат — именно он показывается во всём приложении. Не меняйте вручную: загружайте фото через кабинет организации.',
+      },
+    },
+    {
+      name: 'photoOriginal',
+      type: 'upload',
+      relationTo: 'media',
+      label: 'Исходное фото',
+      admin: {
+        description:
+          'Необрезанный оригинал. Нигде не показывается, нужен только чтобы позже заново выбрать область.',
+      },
+    },
+    {
+      name: 'photoCrop',
+      type: 'group',
+      label: 'Выбранная область',
+      admin: {
+        description:
+          'Координаты в пикселях исходного фото. Заполняется автоматически, чтобы редактор открывал рамку там, где её оставили.',
+      },
+      fields: [
+        { name: 'x', type: 'number', label: 'X' },
+        { name: 'y', type: 'number', label: 'Y' },
+        { name: 'side', type: 'number', label: 'Сторона' },
+      ],
     },
     {
       name: 'bio',

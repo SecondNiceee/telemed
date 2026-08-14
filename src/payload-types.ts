@@ -218,7 +218,22 @@ export interface Doctor {
    */
   degree?: string | null;
   price?: number | null;
+  /**
+   * Обрезанный квадрат — именно он показывается во всём приложении. Не меняйте вручную: загружайте фото через кабинет организации.
+   */
   photo?: (number | null) | Media;
+  /**
+   * Необрезанный оригинал. Нигде не показывается, нужен только чтобы позже заново выбрать область.
+   */
+  photoOriginal?: (number | null) | Media;
+  /**
+   * Координаты в пикселях исходного фото. Заполняется автоматически, чтобы редактор открывал рамку там, где её оставили.
+   */
+  photoCrop?: {
+    x?: number | null;
+    y?: number | null;
+    side?: number | null;
+  };
   bio?: string | null;
   education?:
     | {
@@ -629,6 +644,14 @@ export interface DoctorsSelect<T extends boolean = true> {
   degree?: T;
   price?: T;
   photo?: T;
+  photoOriginal?: T;
+  photoCrop?:
+    | T
+    | {
+        x?: T;
+        y?: T;
+        side?: T;
+      };
   bio?: T;
   education?:
     | T
