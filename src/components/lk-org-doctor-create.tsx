@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
+import { ImageCropperDialog } from "@/components/image-cropper-dialog"
 import type { ApiCategory } from "@/lib/api/types"
 import {
   Plus,
@@ -56,6 +57,8 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
   const router = useRouter()
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  /** Файл до кропа — пока он не null, открыт редактор области. */
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -432,7 +435,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
             {categories.length > 0 && (
               <fieldset className="flex flex-col gap-3">
                 <legend className="text-sm font-semibold text-foreground mb-2">
-                  Специальности *
+                  Специально��ти *
                 </legend>
                 <input
                   type="hidden"
