@@ -17,6 +17,13 @@ const JPEG_QUALITY = 0.9
 const MAX_ZOOM_OVER_COVER = 4
 const ZOOM_STEP = 1.2
 
+/** Сдвиг фото внутри рамки: не даём уехать за края, меньшее фото центрируем. */
+function clampOffset(value: number, displaySize: number, viewport: number) {
+  const min = viewport - displaySize
+  if (min >= 0) return min / 2
+  return Math.min(0, Math.max(min, value))
+}
+
 interface ImageCropperDialogProps {
   /** Файл, выбранный пользователем. `null` — диалог закрыт. */
   file: File | null
@@ -68,15 +75,12 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
       }
       setImage(img)
     }
-    img.onerror = (ev) => {
-      console.log("[v0] cropper img error", url, ev)
+    img.onerror = () => {
       setError("Не удалось загрузить изображение. Попробуйте другой файл.")
     }
     img.src = url
-    console.log("[v0] cropper effect setup", url, file.name, file.type, file.size)
 
     return () => {
-      console.log("[v0] cropper effect cleanup", url)
       img.onload = null
       img.onerror = null
       URL.revokeObjectURL(url)
@@ -107,19 +111,9 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   /** Во сколько раз нужно увеличить fit, чтобы фото закрыло квадрат целиком. */
   const coverZoom = isReady ? Math.max(naturalW, naturalH) / Math.min(naturalW, naturalH) : 1
   const maxZoom = coverZoom * MAX_ZOOM_OVER_COVER
-  const scale = fitScale * zoom
+  const scale = fitScale * view.zoom
   const displayW = naturalW * scale
   const displayH = naturalH * scale
-
-  const clamp = useCallback(
-    (value: number, displaySize: number) => {
-      const min = viewport - displaySize
-      // Если фото меньше рамки — центрируем, двигать нечего.
-      if (min >= 0) return min / 2
-      return Math.min(0, Math.max(min, value))
-    },
-    [viewport],
-  )
 
   // Стартовый кадр: заполненный квадрат по центру — самый предсказуемый результат.
   useEffect(() => {
@@ -127,8 +121,8 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
     if (initializedForRef.current === image) return
     initializedForRef.current = image
     const startScale = Math.max(viewport / image.naturalWidth, viewport / image.naturalHeight)
-    setZoom(coverZoom)
-    setOffset({
+    setView({
+      zoom: coverZoom,
       x: (viewport - image.naturalWidth * startScale) / 2,
       y: (viewport - image.naturalHeight * startScale) / 2,
     })
@@ -137,23 +131,31 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   // При изменении рамки фото не должно «отлипать» от краёв.
   useEffect(() => {
     if (!isReady) return
-    setOffset((prev) => ({ x: clamp(prev.x, displayW), y: clamp(prev.y, displayH) }))
-  }, [isReady, displayW, displayH, clamp])
+    setView((prev) => ({
+      ...prev,
+      x: clampOffset(prev.x, displayW, viewport),
+      y: clampOffset(prev.y, displayH, viewport),
+    }))
+  }, [isReady, displayW, displayH, viewport])
 
   const applyZoom = useCallback(
     (next: number) => {
       if (!isReady) return
-      const target = Math.min(maxZoom, Math.max(1, next))
       const center = viewport / 2
-      const nextScale = fitScale * target
-      // Держим центр рамки на той же точке фото, иначе зум «уезжает» в угол.
-      setOffset((prev) => ({
-        x: clamp(center - ((center - prev.x) * nextScale) / scale, naturalW * nextScale),
-        y: clamp(center - ((center - prev.y) * nextScale) / scale, naturalH * nextScale),
-      }))
-      setZoom(target)
+      setView((prev) => {
+        const target = Math.min(maxZoom, Math.max(1, next))
+        const prevScale = fitScale * prev.zoom
+        const nextScale = fitScale * target
+        if (!prevScale) return prev
+        // Держим центр рамки на той же точке фото, иначе зум «уезжает» в угол.
+        return {
+          zoom: target,
+          x: clampOffset(center - ((center - prev.x) * nextScale) / prevScale, naturalW * nextScale, viewport),
+          y: clampOffset(center - ((center - prev.y) * nextScale) / prevScale, naturalH * nextScale, viewport),
+        }
+      })
     },
-    [isReady, maxZoom, viewport, fitScale, scale, clamp, naturalW, naturalH],
+    [isReady, maxZoom, viewport, fitScale, naturalW, naturalH],
   )
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -163,18 +165,19 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startOffX: offset.x,
-      startOffY: offset.y,
+      startOffX: view.x,
+      startOffY: view.y,
     }
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current
     if (!drag || drag.pointerId !== e.pointerId) return
-    setOffset({
-      x: clamp(drag.startOffX + (e.clientX - drag.startX), displayW),
-      y: clamp(drag.startOffY + (e.clientY - drag.startY), displayH),
-    })
+    setView((prev) => ({
+      ...prev,
+      x: clampOffset(drag.startOffX + (e.clientX - drag.startX), displayW, viewport),
+      y: clampOffset(drag.startOffY + (e.clientY - drag.startY), displayH, viewport),
+    }))
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
@@ -184,7 +187,7 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     if (!isReady) return
     e.preventDefault()
-    applyZoom(zoom * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))
+    applyZoom(view.zoom * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))
   }
 
   async function handleApply() {
@@ -195,8 +198,8 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
     try {
       // Переводим рамку в координаты исходного файла.
       const sourceSide = viewport / scale
-      const sourceX = -offset.x / scale
-      const sourceY = -offset.y / scale
+      const sourceX = -view.x / scale
+      const sourceY = -view.y / scale
 
       const canvas = document.createElement("canvas")
       canvas.width = OUTPUT_SIZE
@@ -277,7 +280,7 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
                   top: 0,
                   width: displayW ? `${displayW}px` : "auto",
                   height: displayH ? `${displayH}px` : "auto",
-                  transform: `translate(${offset.x}px, ${offset.y}px)`,
+                  transform: `translate(${view.x}px, ${view.y}px)`,
                   visibility: isReady ? "visible" : "hidden",
                 }}
               />
@@ -300,14 +303,14 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
               variant="outline"
               size="icon"
               className="size-8 shrink-0"
-              onClick={() => applyZoom(zoom / ZOOM_STEP)}
-              disabled={!isReady || zoom <= 1}
+              onClick={() => applyZoom(view.zoom / ZOOM_STEP)}
+              disabled={!isReady || view.zoom <= 1}
               aria-label="Уменьшить"
             >
               <ZoomOut className="w-4 h-4" />
             </Button>
             <Slider
-              value={[zoom]}
+              value={[Math.min(maxZoom, Math.max(1, view.zoom))]}
               min={1}
               max={maxZoom}
               step={0.01}
@@ -320,8 +323,8 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
               variant="outline"
               size="icon"
               className="size-8 shrink-0"
-              onClick={() => applyZoom(zoom * ZOOM_STEP)}
-              disabled={!isReady || zoom >= maxZoom}
+              onClick={() => applyZoom(view.zoom * ZOOM_STEP)}
+              disabled={!isReady || view.zoom >= maxZoom}
               aria-label="Увеличить"
             >
               <ZoomIn className="w-4 h-4" />
