@@ -30,6 +30,12 @@ export default buildConfig({
     },
   },
 
+  // /admin — наша собственная панель (src/app/(frontend)/admin).
+  // Полная админка Payload остаётся на /cms как резервный инструмент.
+  routes: {
+    admin: '/cms',
+  },
+
   collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments, Messages, CallRecordings, Feedbacks],
   globals: [SiteSettings],
   editor: lexicalEditor(),
