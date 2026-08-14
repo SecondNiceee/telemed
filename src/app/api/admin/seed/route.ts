@@ -123,15 +123,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.type === 'doctors') {
-    const organisationId = body.organisationId
-    if (!organisationId) {
+    // id организации в postgres — number. Клиент присылает его строкой (JSON),
+    // а relationship при создании врача строку не принимает и падает с
+    // «The following field is invalid: Организация». Приводим тип здесь, один
+    // раз, до всех обращений к payload.
+    const organisationId = Number(body.organisationId)
+    if (!body.organisationId || !Number.isInteger(organisationId)) {
       return NextResponse.json({ message: 'Выберите организацию' }, { status: 400 })
     }
 
     try {
       await payload.findByID({
         collection: 'organisations',
-        id: organisationId as number,
+        id: organisationId,
         depth: 0,
         overrideAccess: true,
       })
@@ -144,6 +148,9 @@ export async function POST(req: NextRequest) {
     const failed: string[] = []
 
     for (const doctor of MOCK_DOCTORS) {
+      // Фото грузятся до создания врача (нужны их id). Если create упадёт,
+      // media останутся висеть сиротами — поэтому запоминаем их и убираем в catch.
+      const uploadedMedia: (number | string)[] = []
       try {
         const existing = await payload.find({
           collection: 'doctors',
@@ -172,6 +179,7 @@ export async function POST(req: NextRequest) {
           doctor.photoFile,
           doctor.name,
         )
+        uploadedMedia.push(photoId, photoOriginalId)
 
         await payload.create({
           collection: 'doctors',
@@ -179,7 +187,7 @@ export async function POST(req: NextRequest) {
             name: doctor.name,
             email: doctor.email,
             password: doctor.password,
-            organisation: organisationId as number,
+            organisation: organisationId,
             categories: categoryIds as number[],
             experience: doctor.experience,
             price: doctor.price,
@@ -198,6 +206,14 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error('[admin:seed] doctor failed', { email: doctor.email, error: describe(err) })
         failed.push(doctor.name)
+
+        for (const id of uploadedMedia) {
+          try {
+            await payload.delete({ collection: 'media', id, overrideAccess: true })
+          } catch (cleanupErr) {
+            console.error('[admin:seed] failed to clean up media', { id, error: describe(cleanupErr) })
+          }
+        }
       }
     }
 
