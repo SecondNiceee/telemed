@@ -1,40 +1,57 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, Stethoscope, Activity } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import type { ApiCategory } from "@/lib/api/types";
 
 interface SearchResult {
   id: string;
-  type: "doctor" | "symptom" | "category";
+  type: "symptom" | "category";
   name: string;
   description?: string;
-  slug?: string;
+  slug: string;
 }
 
-// Симптомы с маппингом на категории
+// Симптомы с маппингом на слаг категории, которую стоит порекомендовать
 const SYMPTOMS_DATA = [
-  { symptom: "Боль в сердце", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Аритмия", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Высокое давление", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Одышка", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Учащенное сердцебиение", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Боль в груди", category: "cardiologist", categoryName: "Кардиолог" },
-  { symptom: "Головная боль", category: "therapist", categoryName: "Терапевт" },
-  { symptom: "Температура", category: "therapist", categoryName: "Терапевт" },
-  { symptom: "Слабость", category: "therapist", categoryName: "Терапевт" },
-  { symptom: "Простуда", category: "therapist", categoryName: "Терапевт" },
-  { symptom: "Кашель", category: "therapist", categoryName: "Терапевт" },
-  { symptom: "Усталость", category: "therapist", categoryName: "Терапевт" },
+  { symptom: "Боль в сердце", category: "cardiologist" },
+  { symptom: "Аритмия", category: "cardiologist" },
+  { symptom: "Высокое давление", category: "cardiologist" },
+  { symptom: "Одышка", category: "cardiologist" },
+  { symptom: "Учащенное сердцебиение", category: "cardiologist" },
+  { symptom: "Боль в груди", category: "cardiologist" },
+  { symptom: "Головная боль", category: "therapist" },
+  { symptom: "Температура", category: "therapist" },
+  { symptom: "Слабость", category: "therapist" },
+  { symptom: "Простуда", category: "therapist" },
+  { symptom: "Кашель", category: "therapist" },
+  { symptom: "Усталость", category: "therapist" },
 ];
 
-export function SearchBar() {
+const MAX_RESULTS = 8;
+
+/**
+ * Приводим строку к виду, удобному для сравнения:
+ * нижний регистр, «ё» → «е», схлопнутые пробелы.
+ */
+function normalize(value: string): string {
+  return value.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+}
+
+/** Совпадение в начале строки или в начале любого слова — самое релевантное */
+function matchRank(haystack: string, needle: string): number {
+  if (haystack.startsWith(needle)) return 0;
+  if (haystack.split(" ").some((word) => word.startsWith(needle))) return 1;
+  if (haystack.includes(needle)) return 2;
+  return -1;
+}
+
+export function SearchBar({ categories = [] }: { categories?: ApiCategory[] }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -50,60 +67,60 @@ export function SearchBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search logic
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults([]);
-      return;
-    }
+  const results = useMemo<SearchResult[]>(() => {
+    const search = normalize(query);
+    if (search.length < 2) return [];
 
-    setLoading(true);
-    const searchLower = query.toLowerCase();
+    // Ищем по реальным категориям из Payload — по названию и описанию
+    const categoryResults = categories
+      .map((category) => {
+        const byName = matchRank(normalize(category.name), search);
+        const byDescription = category.description
+          ? matchRank(normalize(category.description), search)
+          : -1;
+        // Совпадение в названии всегда важнее совпадения в описании
+        const rank =
+          byName !== -1 ? byName : byDescription !== -1 ? byDescription + 3 : -1;
 
-    // Search in symptoms
-    const symptomResults: SearchResult[] = SYMPTOMS_DATA
-      .filter(s => s.symptom.toLowerCase().includes(searchLower))
-      .map(s => ({
-        id: `symptom-${s.symptom}`,
-        type: "symptom" as const,
-        name: s.symptom,
-        description: `Рекомендуем: ${s.categoryName}`,
-        slug: s.category,
+        return { category, rank };
+      })
+      .filter(({ rank }) => rank !== -1)
+      .sort((a, b) => a.rank - b.rank || a.category.name.localeCompare(b.category.name))
+      .map<SearchResult>(({ category }) => ({
+        id: `cat-${category.slug}`,
+        type: "category",
+        name: category.name,
+        description: category.description ?? undefined,
+        slug: category.slug,
       }));
 
-    // Mock category results based on common specialties
-    const categories = [
-      { name: "Кардиолог", slug: "cardiologist", desc: "Болезни сердца и сосудов" },
-      { name: "Терапевт", slug: "therapist", desc: "Общая медицина" },
-      { name: "Невролог", slug: "neurologist", desc: "Нервная система" },
-      { name: "Эндокринолог", slug: "endocrinologist", desc: "Гормоны и обмен веществ" },
-    ];
-
-    const categoryResults: SearchResult[] = categories
-      .filter(c => c.name.toLowerCase().includes(searchLower) || c.desc.toLowerCase().includes(searchLower))
-      .map(c => ({
-        id: `cat-${c.slug}`,
-        type: "category" as const,
-        name: c.name,
-        description: c.desc,
-        slug: c.slug,
+    // Симптом показываем только если рекомендуемая категория реально существует
+    const symptomResults = SYMPTOMS_DATA.map((item) => ({
+      item,
+      target: categories.find((category) => category.slug === item.category),
+      rank: matchRank(normalize(item.symptom), search),
+    }))
+      .filter(({ rank, target }) => rank !== -1 && Boolean(target))
+      .sort((a, b) => a.rank - b.rank)
+      .map<SearchResult>(({ item, target }) => ({
+        id: `symptom-${item.symptom}`,
+        type: "symptom",
+        name: item.symptom,
+        description: `Рекомендуем: ${target!.name}`,
+        slug: target!.slug,
       }));
 
-    setResults([...categoryResults, ...symptomResults].slice(0, 6));
-    setLoading(false);
-  }, [query]);
+    return [...categoryResults, ...symptomResults].slice(0, MAX_RESULTS);
+  }, [query, categories]);
 
   const handleSelect = (result: SearchResult) => {
-    if (result.slug) {
-      router.push(`/category/${result.slug}`);
-    }
+    router.push(`/category/${result.slug}`);
     setQuery("");
     setIsOpen(false);
   };
 
   const clearSearch = () => {
     setQuery("");
-    setResults([]);
     inputRef.current?.focus();
   };
 
@@ -135,13 +152,9 @@ export function SearchBar() {
       </div>
 
       {/* Dropdown results */}
-      {isOpen && query.length >= 2 && (
+      {isOpen && normalize(query).length >= 2 && (
         <div className="absolute top-full left-0 right-0 mt-3 bg-card/95 backdrop-blur-lg border border-border/60 rounded-2xl shadow-2xl shadow-primary/10 overflow-hidden z-50">
-          {loading ? (
-            <div className="p-4 text-center text-muted-foreground">
-              Поиск...
-            </div>
-          ) : results.length > 0 ? (
+          {results.length > 0 ? (
             <ul className="py-2">
               {results.map((result) => (
                 <li key={result.id}>

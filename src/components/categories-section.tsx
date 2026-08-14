@@ -42,7 +42,7 @@ export async function CategoriesSection() {
           </p>
           
           {/* Search Bar */}
-          <SearchBar />
+          <SearchBar categories={categories} />
         </div>
 
         {categories.length > 0 ? (
