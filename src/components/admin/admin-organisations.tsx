@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import { Building2, KeyRound, LogOut, Plus, Trash2 } from "lucide-react"
+import { Building2, ExternalLink, KeyRound, LogOut, Plus, Search, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,13 @@ import { AdminCreateOrgDialog } from "./admin-create-org-dialog"
 import { AdminCredentialsDialog } from "./admin-credentials-dialog"
 import type { AdminOrganisation, AdminUser, IssuedCredentials } from "./types"
 
+/** Дата создания организации в коротком русском формате. */
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+}
+
 interface AdminOrganisationsProps {
   admin: AdminUser
   initialOrganisations: AdminOrganisation[]
@@ -30,11 +38,26 @@ export function AdminOrganisations({
   onSignedOut,
 }: AdminOrganisationsProps) {
   const [organisations, setOrganisations] = useState(initialOrganisations)
+  const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
   const [credentials, setCredentials] = useState<IssuedCredentials | null>(null)
   const [resetTarget, setResetTarget] = useState<AdminOrganisation | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminOrganisation | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Список приходит из RSC: после router.refresh() подтягиваем свежие данные,
+  // иначе локальный state навсегда останется со снимком первого рендера.
+  useEffect(() => {
+    setOrganisations(initialOrganisations)
+  }, [initialOrganisations])
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return organisations
+    return organisations.filter(
+      (org) => org.name.toLowerCase().includes(q) || org.email.toLowerCase().includes(q),
+    )
+  }, [organisations, query])
 
   const handleCreated = (org: AdminOrganisation, issued: IssuedCredentials) => {
     setOrganisations((prev) => [org, ...prev])
@@ -103,6 +126,17 @@ export function AdminOrganisations({
               <p className="text-xs text-primary-foreground/60">{admin.email}</p>
             </div>
             <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/10"
+            >
+              <a href="/cms" target="_blank" rel="noreferrer">
+                <ExternalLink className="size-4" />
+                <span className="hidden sm:inline">Полная CMS</span>
+              </a>
+            </Button>
+            <Button
               variant="ghost"
               size="sm"
               onClick={signOut}
@@ -131,6 +165,22 @@ export function AdminOrganisations({
           </Button>
         </div>
 
+        {organisations.length > 1 && (
+          <div className="mt-6 relative max-w-sm">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск по названию или email"
+              aria-label="Поиск организаций"
+              className="pl-9"
+            />
+          </div>
+        )}
+
         <div className="mt-8">
           {organisations.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border px-6 py-16 flex flex-col items-center text-center gap-3">
@@ -139,9 +189,11 @@ export function AdminOrganisations({
                 Создайте организацию, чтобы выдать ей доступ в кабинет и добавить врачей.
               </p>
             </div>
+          ) : visible.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Ничего не найдено по запросу «{query}»</p>
           ) : (
             <ul className="flex flex-col gap-3">
-              {organisations.map((org) => (
+              {visible.map((org) => (
                 <li
                   key={org.id}
                   className="rounded-xl border border-border bg-card px-5 py-4 flex flex-wrap items-center justify-between gap-4"
@@ -149,6 +201,11 @@ export function AdminOrganisations({
                   <div className="min-w-0">
                     <p className="font-medium text-card-foreground truncate">{org.name}</p>
                     <p className="text-sm text-muted-foreground font-mono truncate">{org.email}</p>
+                    {org.createdAt && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Создана {formatDate(org.createdAt)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -190,7 +247,7 @@ export function AdminOrganisations({
           <AlertDialogHeader>
             <AlertDialogTitle>Сбросить пароль организации?</AlertDialogTitle>
             <AlertDialogDescription>
-              Для «{resetTarget?.name}» будет сгенерирован новый пароль. Старый перестанет работать
+              Для {resetTarget?.name} будет сгенерирован новый пароль. Старый перестанет работать
               сразу — сообщите организации новый.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -208,7 +265,7 @@ export function AdminOrganisations({
           <AlertDialogHeader>
             <AlertDialogTitle>Удалить организацию?</AlertDialogTitle>
             <AlertDialogDescription>
-              «{deleteTarget?.name}» потеряет доступ к кабинету. Действие необратимо.
+              {deleteTarget?.name} потеряет доступ к кабинету. Действие необратимо.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

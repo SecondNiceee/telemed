@@ -31,9 +31,13 @@ export default function HelperPage() {
             Администратор
           </h2>
           <p className="text-sm text-muted-foreground mb-3">
-            Доступ в админ-панель Payload CMS:{" "}
+            Панель управления:{" "}
             <Link href="/admin" className="text-primary underline-offset-2 hover:underline">
               /admin
+            </Link>
+            , полная админка Payload CMS:{" "}
+            <Link href="/cms" className="text-primary underline-offset-2 hover:underline">
+              /cms
             </Link>
             . Вход выполняется по email.
           </p>

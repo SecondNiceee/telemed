@@ -40,7 +40,7 @@ export function AdminCredentialsDialog({
     <Dialog open={Boolean(credentials)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Доступ для «{credentials?.organisationName}»</DialogTitle>
+          <DialogTitle>Доступ для {credentials?.organisationName}</DialogTitle>
           <DialogDescription>
             Сохраните пароль сейчас — после закрытия окна его нельзя будет посмотреть, только
             сгенерировать новый.
