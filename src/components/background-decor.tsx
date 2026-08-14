@@ -1,13 +1,27 @@
 /**
- * Фоновые декорации секции: точечная сетка, линии ЭКГ и водяной знак логотипа.
+ * Фоновые декорации: точечная сетка, линии ЭКГ и водяной знак логотипа.
  * Не влияет на интерактивность (pointer-events-none) и скрыто от скринридеров.
+ *
+ * position="absolute" — декор внутри одной секции (секция должна быть relative).
+ * position="fixed"    — сквозной декор на всю страницу (как на smartcardio.ru):
+ *                       слой лежит под контентом и не скроллится, поэтому секции
+ *                       поверх него должны быть прозрачными.
  */
-export function BackgroundDecor({ id = "decor" }: { id?: string }) {
+export function BackgroundDecor({
+  id = "decor",
+  position = "absolute",
+}: {
+  id?: string
+  position?: "absolute" | "fixed"
+}) {
   const patternId = `dot-grid-${id}`
   const ecgPath = "M0 40 H120 l10 0 6 -22 8 44 7 -52 6 60 7 -30 H210 l8 0 5 -12 5 12 H600"
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+    <div
+      className={`pointer-events-none ${position} inset-0 z-0 overflow-hidden`}
+      aria-hidden="true"
+    >
       <svg className="absolute inset-0 h-full w-full text-primary/[0.06]">
         <defs>
           <pattern id={patternId} x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
@@ -60,17 +74,23 @@ export function BackgroundDecor({ id = "decor" }: { id?: string }) {
         <path d="M0 40 H360" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
 
+      {/* Водяные знаки логотипа. В тёмной теме инвертируем jpg и подмешиваем
+          через lighten, чтобы белая подложка картинки не давала светлый квадрат. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/logo.jpg"
         alt=""
-        className="absolute -right-6 bottom-[6%] h-24 w-auto opacity-[0.07] mix-blend-multiply md:h-32"
+        loading="lazy"
+        decoding="async"
+        className="absolute -right-6 bottom-[6%] h-24 w-auto opacity-[0.07] mix-blend-multiply md:h-32 dark:opacity-[0.09] dark:mix-blend-lighten dark:invert"
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/images/logo.jpg"
         alt=""
-        className="absolute -left-4 top-[8%] h-16 w-auto opacity-[0.06] mix-blend-multiply md:h-20"
+        loading="lazy"
+        decoding="async"
+        className="absolute -left-4 top-[8%] h-16 w-auto opacity-[0.06] mix-blend-multiply md:h-20 dark:opacity-[0.08] dark:mix-blend-lighten dark:invert"
       />
     </div>
   )
