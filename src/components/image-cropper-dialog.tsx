@@ -119,7 +119,7 @@ export function ImageCropperDialog({ source, initialCrop, onCancel, onApply }: I
     }
   }, [source])
 
-  // Область просмотра резиновая, поэтому её сторону надо измерять — от неё
+  // Область просмотра резиновая, поэтому её ширину надо измерять — от неё
   // зависит масштаб превью. Callback-ref, т.к. Dialog монтирует контент только открытым.
   const attachStage = useCallback((node: HTMLDivElement | null) => {
     observerRef.current?.disconnect()
@@ -138,13 +138,14 @@ export function ImageCropperDialog({ source, initialCrop, onCancel, onApply }: I
   const naturalH = image?.naturalHeight ?? 0
   const isReady = Boolean(image) && stage > 0
 
-  /** Фото всегда показываем целиком: масштаб «влезть в область просмотра». */
+  /**
+   * Фото всегда показываем целиком, но область просмотра повторяет его пропорции —
+   * иначе вокруг вертикальных/горизонтальных фото оставалась бы пустая плашка.
+   * По высоте ограничиваем квадратом, чтобы портретные фото не растягивали диалог.
+   */
   const fitScale = isReady ? Math.min(stage / naturalW, stage / naturalH) : 0
-  const displayW = naturalW * fitScale
-  const displayH = naturalH * fitScale
-  /** Отступы фото внутри квадратной области просмотра (по центру). */
-  const photoLeft = (stage - displayW) / 2
-  const photoTop = (stage - displayH) / 2
+  const displayW = Math.round(naturalW * fitScale)
+  const displayH = Math.round(naturalH * fitScale)
 
   /** Максимальная рамка — квадрат по короткой стороне фото. */
   const maxCropSide = Math.min(naturalW, naturalH)
@@ -210,10 +211,10 @@ export function ImageCropperDialog({ source, initialCrop, onCancel, onApply }: I
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     const drag = dragRef.current
-    if (!drag || drag.pointerId !== e.pointerId || !fitScale) return
+    if (!drag || drag.pointerId !== e.pointerId || !displayW || !displayH) return
     // Курсор двигается в пикселях превью, рамка живёт в пикселях файла.
-    const dx = (e.clientX - drag.startX) / fitScale
-    const dy = (e.clientY - drag.startY) / fitScale
+    const dx = ((e.clientX - drag.startX) * naturalW) / displayW
+    const dy = ((e.clientY - drag.startY) * naturalH) / displayH
     setCrop((prev) => {
       const side = maxCropSide / prev.zoom
       return {
@@ -289,48 +290,52 @@ export function ImageCropperDialog({ source, initialCrop, onCancel, onApply }: I
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
+          {/* Внешний слой только измеряет доступную ширину и центрирует фото. */}
           <div
             ref={attachStage}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            onWheel={handleWheel}
-            className="relative w-full aspect-square overflow-hidden rounded-xl bg-muted touch-none select-none cursor-grab active:cursor-grabbing"
+            className="w-full flex items-center justify-center"
+            style={{ height: displayH || stage || undefined }}
           >
-            {previewSrc && (
-              <img
-                src={previewSrc}
-                alt=""
-                draggable={false}
-                style={{
-                  position: "absolute",
-                  left: photoLeft ? `${photoLeft}px` : 0,
-                  top: photoTop ? `${photoTop}px` : 0,
-                  width: displayW ? `${displayW}px` : "auto",
-                  height: displayH ? `${displayH}px` : "auto",
-                  visibility: isReady ? "visible" : "hidden",
-                }}
-              />
-            )}
-            {/* Рамка выбора: затемняем всё вокруг гигантской тенью, внутри — сетка третей */}
-            {isReady && (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute rounded-md ring-2 ring-inset ring-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
-                style={{
-                  left: `${photoLeft + crop.x * fitScale}px`,
-                  top: `${photoTop + crop.y * fitScale}px`,
-                  width: `${cropSide * fitScale}px`,
-                  height: `${cropSide * fitScale}px`,
-                }}
-              >
-                <div className="absolute left-1/3 top-0 h-full w-px bg-primary-foreground/40" />
-                <div className="absolute left-2/3 top-0 h-full w-px bg-primary-foreground/40" />
-                <div className="absolute top-1/3 left-0 w-full h-px bg-primary-foreground/40" />
-                <div className="absolute top-2/3 left-0 w-full h-px bg-primary-foreground/40" />
-              </div>
-            )}
+            <div
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              onWheel={handleWheel}
+              className="relative overflow-hidden rounded-xl touch-none select-none cursor-grab active:cursor-grabbing"
+              style={{
+                width: displayW || "100%",
+                height: displayH || "100%",
+                visibility: isReady ? "visible" : "hidden",
+              }}
+            >
+              {previewSrc && (
+                <img
+                  src={previewSrc}
+                  alt=""
+                  draggable={false}
+                  className="absolute inset-0 w-full h-full"
+                />
+              )}
+              {/* Рамка выбора: затемняем всё вокруг гигантской тенью, внутри — сетка третей */}
+              {isReady && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute rounded-md ring-2 ring-inset ring-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+                  style={{
+                    left: `${(crop.x / naturalW) * displayW}px`,
+                    top: `${(crop.y / naturalH) * displayH}px`,
+                    width: `${(cropSide / naturalW) * displayW}px`,
+                    height: `${(cropSide / naturalH) * displayH}px`,
+                  }}
+                >
+                  <div className="absolute left-1/3 top-0 h-full w-px bg-primary-foreground/40" />
+                  <div className="absolute left-2/3 top-0 h-full w-px bg-primary-foreground/40" />
+                  <div className="absolute top-1/3 left-0 w-full h-px bg-primary-foreground/40" />
+                  <div className="absolute top-2/3 left-0 w-full h-px bg-primary-foreground/40" />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
