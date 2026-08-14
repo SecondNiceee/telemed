@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Stethoscope, UserPlus, LogOut, Building2 } from "lucide-react"
+import { Stethoscope, UserPlus, LogOut, Building2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { memo } from "react"
 import { useOrgStore } from "@/stores/org-store"
@@ -57,6 +57,12 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
           <Link href="/lk-org/doctor-create">
             <UserPlus className="w-4 h-4" />
             Добавить врача
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="gap-2">
+          <Link href="/">
+            <Home className="w-4 h-4" />
+            Вернуться на сайт
           </Link>
         </Button>
       </div>

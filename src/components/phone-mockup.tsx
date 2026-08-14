@@ -7,8 +7,6 @@ import {
   PhoneOff,
   Video,
   VideoOff,
-  Volume2,
-  VolumeX,
   Phone,
 } from "lucide-react";
 
@@ -43,7 +41,6 @@ export function PhoneMockup({
   doctorSpeciality = "Кардиолог",
 }: PhoneMockupProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [muted, setMuted] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [callEnded, setCallEnded] = useState(false);
@@ -71,17 +68,6 @@ export function PhoneMockup({
     return () => window.clearInterval(interval);
   }, [callEnded]);
 
-  const toggleSound = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    const next = !muted;
-    video.muted = next;
-    if (!next) {
-      void video.play().catch(() => undefined);
-    }
-    setMuted(next);
-  };
-
   const endCall = useCallback(() => {
     const video = videoRef.current;
     video?.pause();
@@ -96,6 +82,8 @@ export function PhoneMockup({
     setCameraOn(true);
     if (video) {
       video.currentTime = 0;
+      // Видео в мокапе всегда без звука
+      video.muted = true;
       void video.play().catch(() => undefined);
     }
   }, []);
@@ -207,7 +195,7 @@ export function PhoneMockup({
 
           {/* Шапка звонка: врач + таймер */}
           {!callEnded && (
-            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-[46px]">
+            <div className="absolute inset-x-0 top-0 z-20 flex items-start gap-2 bg-gradient-to-b from-black/60 to-transparent px-3 pb-8 pt-[46px]">
               <div className="flex flex-col gap-1">
                 <span className="text-[12px] font-semibold leading-none text-white">
                   {doctorName}
@@ -222,15 +210,6 @@ export function PhoneMockup({
                   </span>
                 </span>
               </div>
-
-              <button
-                type="button"
-                onClick={toggleSound}
-                aria-label={muted ? "Включить звук видео" : "Выключить звук видео"}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors hover:bg-black/65 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              </button>
             </div>
           )}
 

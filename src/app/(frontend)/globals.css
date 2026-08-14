@@ -166,13 +166,31 @@
   box-shadow:
     0 0 0 1px oklch(0 0 0 / 0.08),
     0 18px 40px -12px oklch(0.2079 0.0399 265.8 / 0.16);
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  /* Плавный «подъём» карточки: мягкое ускорение на входе,
+     лёгкий пружинистый доводчик на hover */
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  transition:
+    box-shadow 0.45s cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .sc-card:hover {
+  transform: translate3d(0, -8px, 0);
   box-shadow:
     0 0 0 1px oklch(0.6273 0.1067 201.3 / 0.35),
     0 26px 55px -14px oklch(0.2079 0.0399 265.8 / 0.24);
+  transition:
+    box-shadow 0.4s cubic-bezier(0.34, 1.4, 0.64, 1),
+    transform 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-card,
+  .sc-card:hover {
+    transform: none;
+    transition: box-shadow 0.2s ease;
+  }
 }
 
 .dark .sc-card {

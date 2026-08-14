@@ -11,15 +11,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth";
 import { getUpcomingAppointment } from "@/lib/utils/date";
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner";
-
-/** Секции главной страницы для навигации в хэдере */
-const SECTIONS = [
-  { id: "hero", label: "Главная" },
-  { id: "categories", label: "Специалисты" },
-  { id: "advantages", label: "Преимущества" },
-  { id: "reviews", label: "Отзывы" },
-  { id: "faq", label: "Вопросы" },
-] as const;
+import { SECTIONS, sectionHref } from "@/lib/constants/nav-sections";
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -149,7 +141,7 @@ export function Header() {
               return (
                 <Link
                   key={section.id}
-                  href={section.id === "hero" ? "/" : `/#${section.id}`}
+                  href={sectionHref(section.id)}
                   onClick={(event) => handleNavClick(event, section.id)}
                   aria-current={isActive ? "true" : undefined}
                   className={`relative text-[15px] transition-colors ${
@@ -228,7 +220,7 @@ export function Header() {
               {SECTIONS.map((section) => (
                 <Link
                   key={section.id}
-                  href={section.id === "hero" ? "/" : `/#${section.id}`}
+                  href={sectionHref(section.id)}
                   onClick={(event) => handleNavClick(event, section.id)}
                   className={`transition-colors ${
                     isHome && activeSection === section.id
