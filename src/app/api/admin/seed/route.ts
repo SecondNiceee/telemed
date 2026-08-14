@@ -11,6 +11,7 @@ import {
   buildMockSchedule,
   type MockCategory,
 } from '@/lib/seed/mock-data'
+import { MOCK_BULK_DOCTORS } from '@/lib/seed/mock-bulk-doctors'
 import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
@@ -158,7 +159,7 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin(req)
   if (guard.error) return guard.error
 
-  let body: { type?: string; organisationId?: string | number }
+  let body: { type?: string; organisationId?: string | number; categoryId?: string | number }
   try {
     body = await req.json()
   } catch {
@@ -201,7 +202,7 @@ export async function POST(req: NextRequest) {
     // раз, до всех обращений к payload.
     const organisationId = Number(body.organisationId)
     if (!body.organisationId || !Number.isInteger(organisationId)) {
-      return NextResponse.json({ message: 'Выберите организацию' }, { status: 400 })
+      return NextResponse.json({ message: 'Выберите орга��изацию' }, { status: 400 })
     }
 
     try {
@@ -303,6 +304,125 @@ export async function POST(req: NextRequest) {
       skipped,
       failed,
       total: MOCK_DOCTORS.length,
+    })
+  }
+
+  if (body.type === 'doctors-bulk') {
+    // Тот же приём, что и в ветке doctors: id из JSON приходит строкой, а
+    // relationship требует number, иначе payload ругается на невалидное поле.
+    const organisationId = Number(body.organisationId)
+    if (!body.organisationId || !Number.isInteger(organisationId)) {
+      return NextResponse.json({ message: 'Выберите организацию' }, { status: 400 })
+    }
+
+    const categoryId = Number(body.categoryId)
+    if (!body.categoryId || !Number.isInteger(categoryId)) {
+      return NextResponse.json({ message: 'Выберите категорию' }, { status: 400 })
+    }
+
+    try {
+      await payload.findByID({
+        collection: 'organisations',
+        id: organisationId,
+        depth: 0,
+        overrideAccess: true,
+      })
+    } catch {
+      return NextResponse.json({ message: 'Организация не найдена' }, { status: 404 })
+    }
+
+    try {
+      await payload.findByID({
+        collection: 'doctor-categories',
+        id: categoryId,
+        depth: 0,
+        overrideAccess: true,
+      })
+    } catch {
+      return NextResponse.json({ message: 'Категория не найдена' }, { status: 404 })
+    }
+
+    let created = 0
+    let skipped = 0
+    const failed: string[] = []
+
+    for (const doctor of MOCK_BULK_DOCTORS) {
+      // Медиа создаются раньше врача (нужны id). Если create упадёт — подчищаем,
+      // иначе в коллекции media остаются сироты.
+      const uploadedMedia: (number | string)[] = []
+      try {
+        const existing = await payload.find({
+          collection: 'doctors',
+          where: { email: { equals: doctor.email } },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        })
+        if (existing.totalDocs > 0) {
+          skipped += 1
+          continue
+        }
+
+        const { photoId, photoOriginalId } = await uploadDoctorPhoto(
+          payload,
+          doctor.photoFile,
+          doctor.name,
+        )
+        uploadedMedia.push(photoId, photoOriginalId)
+
+        await payload.create({
+          collection: 'doctors',
+          data: {
+            name: doctor.name,
+            email: doctor.email,
+            password: doctor.password,
+            organisation: organisationId,
+            // Ровно одна категория — вся суть этой опции: наполнить страницу
+            // /category/{slug} длинным списком врачей.
+            categories: [categoryId],
+            experience: doctor.experience,
+            price: doctor.price,
+            degree: doctor.degree,
+            bio: doctor.bio,
+            education: doctor.education.map((value) => ({ value })),
+            services: doctor.services.map((value) => ({ value })),
+            photo: photoId as number,
+            photoOriginal: photoOriginalId as number,
+            slotDuration: '30',
+            schedule: buildMockSchedule(),
+          },
+          overrideAccess: true,
+        })
+
+        created += 1
+      } catch (err) {
+        console.error('[admin:seed] bulk doctor failed', {
+          email: doctor.email,
+          error: describe(err),
+        })
+        failed.push(doctor.name)
+
+        for (const id of uploadedMedia) {
+          try {
+            await payload.delete({ collection: 'media', id, overrideAccess: true })
+          } catch (cleanupErr) {
+            console.error('[admin:seed] failed to clean up media', {
+              id,
+              error: describe(cleanupErr),
+            })
+          }
+        }
+      }
+    }
+
+    if (created > 0) revalidateCatalog()
+
+    return NextResponse.json({
+      type: 'doctors-bulk',
+      created,
+      skipped,
+      failed,
+      total: MOCK_BULK_DOCTORS.length,
     })
   }
 

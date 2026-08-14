@@ -13,6 +13,8 @@ import {
 } from "@/lib/api/index";
 import { ArrowLeft } from "lucide-react";
 import { CategoryPageClient } from "./category-client";
+import { BackgroundDecor } from "@/components/background-decor";
+import { SectionBadge } from "@/components/section-badge";
 
 interface CategoryPageProps {
   params: Promise<{ id: string }>;
@@ -61,11 +63,12 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
+        <BackgroundDecor id="category-error" position="fixed" />
         <Header />
-        <main className="flex-1 flex items-center justify-center bg-background">
+        <main className="relative z-10 flex-1 flex items-center justify-center">
           <div className="text-center px-4">
             <p className="text-destructive text-lg mb-4">{error}</p>
-            <Button variant="outline" asChild className="border-primary text-primary hover:bg-primary/5 transition-all">
+            <Button variant="outline" asChild className="rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal transition-all">
               <Link href="/#categories">Назад к категориям</Link>
             </Button>
           </div>
@@ -77,22 +80,37 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className="min-h-screen flex flex-col">
+      <BackgroundDecor id="category" position="fixed" />
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-primary/5 via-background to-background">
+      <main className="relative z-10 flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <Button variant="ghost" size="sm" asChild className="mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="mb-4 rounded-full text-teal hover:bg-teal/10 hover:text-teal"
+            >
               <Link href="/appointment">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Назад к категориям
               </Link>
             </Button>
-            
-            <div className="space-y-2">
-              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
+
+            <div className="space-y-3">
+              <SectionBadge tone="teal">Специалисты</SectionBadge>
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground text-balance">
                 {category!.name}
               </h1>
-              <p className="text-muted-foreground text-lg">
+              <span
+                aria-hidden="true"
+                className="block h-[2px] w-28 rounded-full"
+                style={{
+                  background:
+                    "linear-gradient(to right, var(--teal) 0%, var(--primary) 70%, transparent 100%)",
+                }}
+              />
+              <p className="text-muted-foreground text-lg text-pretty">
                 {category!.description}
               </p>
             </div>

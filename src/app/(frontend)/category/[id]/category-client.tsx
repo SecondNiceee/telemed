@@ -64,18 +64,18 @@ export function CategoryPageClient({
       <div className="mb-6 space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-teal" />
           <Input
             type="text"
             placeholder="Поиск по врачам..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-12"
+            className="pl-12 h-12 rounded-full border-teal/30 bg-card/80 focus-visible:border-teal focus-visible:ring-teal/20"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-teal hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>
@@ -84,8 +84,8 @@ export function CategoryPageClient({
 
         {/* Date filter indicator */}
         {initialSelectedDate && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
-            <Calendar className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-teal/10 border border-teal/25">
+            <Calendar className="w-4 h-4 text-teal" />
             <span className="text-sm text-foreground">
               Показаны врачи, доступные на{" "}
               <span className="font-medium">
@@ -99,7 +99,7 @@ export function CategoryPageClient({
               variant="ghost"
               size="sm"
               asChild
-              className="ml-auto text-muted-foreground hover:text-foreground"
+              className="ml-auto rounded-full text-teal hover:bg-teal/15 hover:text-teal"
             >
               <Link href={`/category/${categorySlug}`}>
                 <X className="w-4 h-4 mr-1" />
@@ -111,7 +111,10 @@ export function CategoryPageClient({
 
         {/* Count */}
         <p className="text-sm text-muted-foreground">
-          Найдено врачей: <span className="font-medium text-foreground">{filteredDoctors.length}</span>
+          Найдено врачей:{" "}
+          <span className="inline-flex items-center rounded-full bg-teal/10 px-2.5 py-0.5 font-semibold text-teal">
+            {filteredDoctors.length}
+          </span>
           {searchQuery && ` по запросу "${searchQuery}"`}
         </p>
       </div>
@@ -124,7 +127,10 @@ export function CategoryPageClient({
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
+        <div className="text-center py-12 rounded-2xl border border-teal/20 bg-teal/[0.04]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal/10">
+            <Search className="h-7 w-7 text-teal" aria-hidden="true" />
+          </div>
           <p className="text-muted-foreground text-lg">
             {searchQuery
               ? "Врачи не найдены по вашему запросу"
@@ -135,7 +141,7 @@ export function CategoryPageClient({
           {(searchQuery || initialSelectedDate) && (
             <Button 
               variant="outline" 
-              className="mt-4 border-primary text-primary hover:bg-primary/5 transition-all"
+              className="mt-4 rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal transition-all"
               onClick={() => {
                 setSearchQuery("");
               }}
