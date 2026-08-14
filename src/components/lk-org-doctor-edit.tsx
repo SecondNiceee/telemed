@@ -481,7 +481,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
             {/* Professional info */}
             <fieldset className="flex flex-col gap-4">
               <legend className="text-sm font-semibold text-foreground mb-2">
-                Профессиональная и��формация
+                Профессиональная информация
               </legend>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

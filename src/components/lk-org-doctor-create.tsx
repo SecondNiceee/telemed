@@ -452,7 +452,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
             {categories.length > 0 && (
               <fieldset className="flex flex-col gap-3">
                 <legend className="text-sm font-semibold text-foreground mb-2">
-                  Специально��ти *
+                  Специальности *
                 </legend>
                 <input
                   type="hidden"
