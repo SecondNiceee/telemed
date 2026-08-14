@@ -9,7 +9,7 @@ interface HeroProps {
 
 export function Hero({ user }: HeroProps) {
   return (
-    <section id="hero" className="relative overflow-hidden py-8 sm:py-10 lg:py-14 bg-background">
+    <section id="hero" className="relative overflow-hidden py-8 sm:py-10 lg:py-14">
       {/* Чистый фон как на референсе: тонкий точечный узор без градиентов и блобов */}
       <div
         className="pointer-events-none absolute inset-0"

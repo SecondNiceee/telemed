@@ -84,10 +84,8 @@ export function AdminSeedDialog({
       toast.error("Сначала создайте организацию — врача не к кому привязать")
       return
     }
-    if (organisations.length === 1) {
-      void run("doctors", String(organisations[0].id))
-      return
-    }
+    // Организацию выбираем всегда — даже когда она одна. Иначе непонятно, к
+    // какой поликлинике привязались врачи.
     setStep("org")
   }
 
