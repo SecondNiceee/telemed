@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionBeforeOperationHook, CollectionConfig, PayloadRequest } from 'payload'
 import { after } from 'next/server'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
@@ -138,6 +138,22 @@ function ensureReqUser({
   } as unknown as PayloadRequest['user']
 }
 
+/**
+ * `photoCrop` — это group, и Payload обходит её подполя, беря их из объекта
+ * группы. Проверка «это объект» сделана через typeof, а typeof null === 'object',
+ * поэтому пришедший с клиента `photoCrop: null` не заменяется на {} — обход
+ * падает на первом подполе с «Cannot read properties of null (reading 'x')»
+ * и запрос отдаёт 500. Нормализуем до любых хуков и валидации: «области нет» —
+ * это объект с пустыми полями, а не null.
+ */
+const normalisePhotoCrop: CollectionBeforeOperationHook = ({ args }) => {
+  const data = (args as { data?: Record<string, unknown> })?.data
+  if (data && data.photoCrop === null) {
+    data.photoCrop = { x: null, y: null, side: null }
+  }
+  return args
+}
+
 export const Doctors: CollectionConfig = {
   slug: 'doctors',
   admin: {
@@ -150,7 +166,7 @@ export const Doctors: CollectionConfig = {
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
   hooks: {
-    beforeOperation: [ensureReqUser],
+    beforeOperation: [normalisePhotoCrop, ensureReqUser],
     afterChange: [
       () => {
         revalidateDoctorsCache()

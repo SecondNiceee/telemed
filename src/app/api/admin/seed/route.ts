@@ -4,7 +4,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import configPromise from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 import { getAdminFromCookieHeader } from '@/lib/auth/adminSession'
-import { MOCK_CATEGORIES, MOCK_DOCTORS, type MockCategory } from '@/lib/seed/mock-data'
+import { revalidatePath, revalidateTag } from 'next/cache'
+import {
+  MOCK_CATEGORIES,
+  MOCK_DOCTORS,
+  buildMockSchedule,
+  type MockCategory,
+} from '@/lib/seed/mock-data'
+import { CATEGORIES_CACHE_TAG } from '@/lib/api/categories'
+import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 
 /** Демо-данные создаются только из панели администратора. */
 async function requireAdmin(req: NextRequest) {
@@ -19,6 +27,28 @@ async function requireAdmin(req: NextRequest) {
 
 function describe(err: unknown) {
   return err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+}
+
+/**
+ * Сбрасывает кэш каталога после сидирования.
+ *
+ * Хуки коллекций дёргают только теги, а главная и /appointment — это ISR-страницы
+ * (revalidate = 60) с unstable_cache внутри, страницы категорий и врачей тоже
+ * кэшируются на уровне маршрута. Поэтому свежие демо-данные могли не появиться
+ * сразу. Сбрасываем и теги, и сами маршруты — сид редкая операция, экономить не на чем.
+ */
+function revalidateCatalog() {
+  try {
+    revalidateTag(CATEGORIES_CACHE_TAG)
+    revalidateTag(DOCTORS_CACHE_TAG)
+    revalidatePath('/')
+    revalidatePath('/appointment')
+    revalidatePath('/category/[id]', 'page')
+    revalidatePath('/doctor/[id]', 'page')
+  } catch (err) {
+    // Кэш — не причина считать сидирование неуспешным.
+    console.error('[admin:seed] revalidation failed', describe(err))
+  }
 }
 
 /**
@@ -113,6 +143,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (created > 0) revalidateCatalog()
+
     return NextResponse.json({
       type: 'categories',
       created,
@@ -198,6 +230,9 @@ export async function POST(req: NextRequest) {
             photo: photoId as number,
             photoOriginal: photoOriginalId as number,
             slotDuration: '30',
+            // Без расписания врач невидим на /category/{slug}?date=... и к нему
+            // нельзя записаться — демо-данные были бы бесполезны.
+            schedule: buildMockSchedule(),
           },
           overrideAccess: true,
         })
@@ -216,6 +251,8 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+
+    if (created > 0) revalidateCatalog()
 
     return NextResponse.json({
       type: 'doctors',
