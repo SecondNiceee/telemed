@@ -85,6 +85,46 @@ async function ensureCategory(
   return { id: doc.id, created: true }
 }
 
+/** Сколько специальностей вешаем на одного демо-врача. */
+const CATEGORIES_PER_DOCTOR = 2
+/** Диапазон id категорий, к которым подключаем демо-врачей. */
+const CATEGORY_ID_RANGE = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+/**
+ * Существующие категории с id 1..10.
+ *
+ * Демо-врачи именно подключаются к тому, что уже есть в базе, и ничего не
+ * создают: раньше сид врачей досоздавал категории по слагу из моков, и рядом с
+ * настоящими десятью категориями появлялись дубликаты-подделки. Если ни одной
+ * категории из диапазона нет — это ошибка, а не повод что-то создавать.
+ */
+async function findSeedCategoryIds(payload: Payload): Promise<number[]> {
+  const result = await payload.find({
+    collection: 'doctor-categories',
+    where: { id: { in: CATEGORY_ID_RANGE } },
+    limit: CATEGORY_ID_RANGE.length,
+    sort: 'id',
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  return result.docs.map((doc) => Number(doc.id)).filter((id) => Number.isInteger(id))
+}
+
+/**
+ * Раскладывает категории по врачам по кругу: врач 0 получает первые две,
+ * врач 1 — следующие две и так далее. При пяти демо-врачах и десяти категориях
+ * покрывается весь диапазон, а при меньшем числе категорий начинается заново.
+ */
+function pickCategoriesForDoctor(categoryIds: number[], doctorIndex: number): number[] {
+  const picked = new Set<number>()
+  for (let offset = 0; offset < CATEGORIES_PER_DOCTOR; offset += 1) {
+    const index = (doctorIndex * CATEGORIES_PER_DOCTOR + offset) % categoryIds.length
+    picked.add(categoryIds[index])
+  }
+  return [...picked]
+}
+
 /**
  * Загружает фото врача из public/mock-data в коллекцию media.
  * Возвращает два документа: обрезанный (показывается везде) и оригинал —
@@ -175,11 +215,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Организация не найдена' }, { status: 404 })
     }
 
+    const categoryIds = await findSeedCategoryIds(payload)
+    if (categoryIds.length === 0) {
+      return NextResponse.json(
+        {
+          message:
+            'Не найдено ни одной категории с id от 1 до 10. Сначала создайте категории, затем повторите.',
+        },
+        { status: 400 },
+      )
+    }
+
     let created = 0
     let skipped = 0
     const failed: string[] = []
 
-    for (const doctor of MOCK_DOCTORS) {
+    for (const [doctorIndex, doctor] of MOCK_DOCTORS.entries()) {
       // Фото грузятся до создания врача (нужны их id). Если create упадёт,
       // media останутся висеть сиротами — поэтому запоминаем их и убираем в catch.
       const uploadedMedia: (number | string)[] = []
@@ -196,15 +247,7 @@ export async function POST(req: NextRequest) {
           continue
         }
 
-        // Специальности врача: если категорий ещё нет — создаём их по пути,
-        // чтобы «Врачи» работали и без предварительного нажатия «Категории».
-        const categoryIds: (number | string)[] = []
-        for (const slug of doctor.categorySlugs) {
-          const definition = MOCK_CATEGORIES.find((item) => item.slug === slug)
-          if (!definition) continue
-          const { id } = await ensureCategory(payload, definition)
-          categoryIds.push(id)
-        }
+        const doctorCategoryIds = pickCategoriesForDoctor(categoryIds, doctorIndex)
 
         const { photoId, photoOriginalId } = await uploadDoctorPhoto(
           payload,
@@ -220,7 +263,7 @@ export async function POST(req: NextRequest) {
             email: doctor.email,
             password: doctor.password,
             organisation: organisationId,
-            categories: categoryIds as number[],
+            categories: doctorCategoryIds,
             experience: doctor.experience,
             price: doctor.price,
             degree: doctor.degree,
