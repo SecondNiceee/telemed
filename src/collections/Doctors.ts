@@ -1,4 +1,5 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
+import { after } from 'next/server'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
 
@@ -24,12 +25,37 @@ function toMediaId(value: unknown): number | string | null {
 }
 
 /**
+ * Ждёт, пока транзакция врача закроется: и commit, и rollback удаляют
+ * req.transactionID, так что его исчезновение — надёжный признак, что запись
+ * уже зафиксирована (или откатилась) и с media можно работать снаружи.
+ */
+async function waitForTransactionToSettle(req: PayloadRequest) {
+  const DEADLINE_MS = 15_000
+  const STEP_MS = 25
+  const startedAt = Date.now()
+
+  while (req.transactionID != null && Date.now() - startedAt < DEADLINE_MS) {
+    await new Promise((resolve) => setTimeout(resolve, STEP_MS))
+  }
+}
+
+/**
  * Удаляет media-документы, на которые больше не ссылается ни один врач.
  *
  * Так пара «обрезанное + исходное» уходит целиком, когда фото заменили или
  * удалили, и в media не остаётся мусорных дублей. Проверка ссылок обязательна:
  * коллекция media общая (там же вложения чатов), а один и тот же файл мог
  * оказаться у двух врачей.
+ *
+ * Работает строго ПОСЛЕ транзакции врача и без req, потому что:
+ *  1. payload.delete у media сносит и файл с диска — внутри транзакции откат
+ *     вернул бы строку в БД, но файл уже не восстановить, и фото стало бы
+ *     битой ссылкой;
+ *  2. в postgres ссылки doctors.photo/photoOriginal — это FK с ON DELETE SET
+ *     NULL, поэтому удаление media из другой транзакции ждало бы блокировку на
+ *     строке врача и повисло бы до таймаута.
+ * Плюс проверка ссылок читает уже зафиксированные данные: если транзакция
+ * откатилась, врач по-прежнему ссылается на файл и тот останется жив.
  */
 async function deleteOrphanedMedia({
   req,
@@ -41,9 +67,11 @@ async function deleteOrphanedMedia({
   const unique = [...new Set(ids.filter((id) => id != null))]
   if (unique.length === 0) return
 
+  await waitForTransactionToSettle(req)
+
   for (const id of unique) {
     try {
-      // Без user и с overrideAccess по умолчанию: это внутренняя уборка,
+      // Без user, req и с overrideAccess по умолчанию: это внутренняя уборка,
       // она не должна зависеть от прав того, кто правил врача.
       const stillUsed = await req.payload.find({
         collection: 'doctors',
@@ -52,11 +80,10 @@ async function deleteOrphanedMedia({
         },
         limit: 1,
         depth: 0,
-        req,
       })
       if (stillUsed.totalDocs > 0) continue
 
-      await req.payload.delete({ collection: 'media', id, req })
+      await req.payload.delete({ collection: 'media', id })
     } catch (error) {
       // Осиротевший файл — не причина ронять уже успешное сохранение врача.
       console.error('[doctors] failed to delete orphaned media', {
@@ -64,6 +91,27 @@ async function deleteOrphanedMedia({
         error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
       })
     }
+  }
+}
+
+/**
+ * Ставит уборку в очередь, не блокируя текущую операцию: ждать её внутри хука
+ * нельзя — транзакция закрывается только после того, как хук вернёт управление.
+ * after() держит serverless-функцию живой до конца уборки, а если контекста
+ * запроса нет (локальный API, сиды, админка вне запроса) — просто отпускаем
+ * промис.
+ */
+function scheduleOrphanedMediaCleanup(args: { req: PayloadRequest; ids: (number | string)[] }) {
+  if (args.ids.length === 0) return
+
+  const run = () => {
+    void deleteOrphanedMedia(args)
+  }
+
+  try {
+    after(run)
+  } catch {
+    run()
   }
 }
 
@@ -107,19 +155,20 @@ export const Doctors: CollectionConfig = {
       () => {
         revalidateDoctorsCache()
       },
-      // Фото заменили или сняли — старые файлы больше никому не нужны.
-      // Именно afterChange, чтобы удалять только после успешного сохранения.
-      async ({ doc, previousDoc, operation, req }) => {
+      // Фото заменили, переобрезали или сняли — старые файлы больше никому не
+      // нужны. Именно afterChange: здесь уже виден итоговый doc, а сама уборка
+      // ждёт закрытия транзакции, поэтому await тут не нужен и невозможен.
+      ({ doc, previousDoc, operation, req }) => {
         if (operation !== 'update' || !previousDoc) return
 
         const orphaned: (number | string)[] = []
         for (const field of ['photo', 'photoOriginal'] as const) {
           const before = toMediaId((previousDoc as Record<string, unknown>)[field])
-          const after = toMediaId((doc as Record<string, unknown>)[field])
-          if (before != null && String(before) !== String(after)) orphaned.push(before)
+          const next = toMediaId((doc as Record<string, unknown>)[field])
+          if (before != null && String(before) !== String(next)) orphaned.push(before)
         }
 
-        await deleteOrphanedMedia({ req, ids: orphaned })
+        scheduleOrphanedMediaCleanup({ req, ids: orphaned })
       },
     ],
     afterDelete: [
@@ -127,9 +176,9 @@ export const Doctors: CollectionConfig = {
         revalidateDoctorsCache()
       },
       // Врача удалили — его фото тоже.
-      async ({ doc, req }) => {
+      ({ doc, req }) => {
         const record = doc as Record<string, unknown>
-        await deleteOrphanedMedia({
+        scheduleOrphanedMediaCleanup({
           req,
           ids: [toMediaId(record.photo), toMediaId(record.photoOriginal)].filter(
             (id): id is number | string => id != null,

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { DoctorsApi } from "@/lib/api/doctors"
+import { deleteOrphanedUploads } from "@/lib/api/media-uploads"
 import { ImageCropperDialog } from "@/components/image-cropper-dialog"
 import type { CropRect, CropSource } from "@/components/image-cropper-dialog"
 import type { ApiCategory, ApiDoctor } from "@/lib/api/types"
@@ -221,7 +222,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     setCropSource({ kind: "file", file })
   }
 
-  /** Повторный выбор области: кропаем оригинал, а не уже обрезанный квадрат. */
+  /** Повторный выбор области: к��опаем оригинал, а не уже обрезанный квадрат. */
   function editCropArea() {
     if (originalFile) {
       setCropSource({ kind: "file", file: originalFile })
@@ -271,6 +272,11 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     setError(null)
     setSuccess(null)
 
+    // Файлы уходят в media раньше врача, поэтому упавший PATCH оставил бы их
+    // висеть навсегда: хук коллекции чистит только то, на что врач ссылался.
+    const uploadedMediaIds: number[] = []
+    let doctorSaved = false
+
     try {
       // 1. Загружаем новые файлы. Старые удалит хук коллекции doctors,
       // когда увидит, что ссылка на них сменилась.
@@ -302,8 +308,14 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       let photoId: number | null = existingPhotoId
       let originalId: number | null = existingOriginalId
 
-      if (photo) photoId = await uploadMedia(photo, altBase)
-      if (originalFile) originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
+      if (photo) {
+        photoId = await uploadMedia(photo, altBase)
+        if (photoId) uploadedMediaIds.push(photoId)
+      }
+      if (originalFile) {
+        originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
+        if (originalId) uploadedMediaIds.push(originalId)
+      }
 
       // 2. Update doctor via JSON PATCH (same approach as create uses POST with JSON)
       const payload: Record<string, unknown> = {
@@ -370,6 +382,8 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
         )
       }
 
+      doctorSaved = true
+
       // Revalidate doctors cache
       await revalidateDoctorsAction()
 
@@ -382,6 +396,10 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       }, 1500)
     } catch (err) {
       console.error("[lk-org] onSubmit error:", err)
+      // Врач не сохранился — свежезагруженные файлы никому не принадлежат.
+      // Если сохранение прошло, а упало что-то после (например ревалидация),
+      // файлы уже привязаны к врачу и удалять их нельзя.
+      if (!doctorSaved) await deleteOrphanedUploads(uploadedMediaIds)
       setError(err instanceof Error ? err.message : "Произошла ошибка")
     }
   }
@@ -439,7 +457,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                 Редактирование врача
               </h1>
               <p className="text-sm text-muted-foreground">
-                Обновите данные врача
+                Обновите данные врач��
               </p>
             </div>
           </div>
