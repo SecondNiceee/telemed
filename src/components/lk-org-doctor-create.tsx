@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
+import { deleteOrphanedUploads } from "@/lib/api/media-uploads"
 import { ImageCropperDialog } from "@/components/image-cropper-dialog"
 import type { CropRect, CropSource } from "@/components/image-cropper-dialog"
 import type { ApiCategory } from "@/lib/api/types"
@@ -162,6 +163,11 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
     setError(null)
     setSuccess(null)
 
+    // Файлы уходят в media раньше врача, поэтому упавший POST оставил бы их
+    // висеть навсегда: ссылки на них так и не появились.
+    const uploadedMediaIds: number[] = []
+    let doctorSaved = false
+
     try {
       // 1. Загружаем обрезанный квадрат и исходник — обе версии сразу.
       const uploadMedia = async (file: File, alt: string) => {
@@ -194,8 +200,16 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
       let photoId: number | null = null
       let originalId: number | null = null
 
-      if (photo) photoId = await uploadMedia(photo, altBase)
-      if (originalFile) originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
+      if (photo) {
+        photoId = await uploadMedia(photo, altBase)
+        if (photoId) uploadedMediaIds.push(photoId)
+      }
+      // Исходник имеет смысл только вместе с обрезанным квадратом: без photo
+      // ссылка photoOriginal не пишется и файл сразу стал бы мусором.
+      if (photoId && originalFile) {
+        originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
+        if (originalId) uploadedMediaIds.push(originalId)
+      }
 
       // 2. Create the doctor in the doctors collection
       const payload: Record<string, unknown> = {
@@ -254,6 +268,8 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
         )
       }
 
+      doctorSaved = true
+
       // Revalidate doctors cache so lists reflect the new doctor
       await revalidateDoctorsAction()
 
@@ -268,6 +284,10 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
       }, 1500)
     } catch (err) {
       console.error("[lk-org] onSubmit error:", err)
+      // Врач не создался — свежезагруженные файлы никому не принадлежат.
+      // Если создание прошло, а упало что-то после (например ревалидация),
+      // файлы уже привязаны к врачу и удалять их нельзя.
+      if (!doctorSaved) await deleteOrphanedUploads(uploadedMediaIds)
       setError(err instanceof Error ? err.message : "Произошла ошибка")
     }
   }
