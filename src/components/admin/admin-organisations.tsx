@@ -1,8 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, ExternalLink, KeyRound, LogOut, Plus, Search, Trash2 } from "lucide-react"
+import {
+  Building2,
+  Database,
+  ExternalLink,
+  KeyRound,
+  LogOut,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -17,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { AdminCreateOrgDialog } from "./admin-create-org-dialog"
 import { AdminCredentialsDialog } from "./admin-credentials-dialog"
+import { AdminSeedDialog } from "./admin-seed-dialog"
 import type { AdminOrganisation, AdminUser, IssuedCredentials } from "./types"
 
 /** Дата создания организации в коротком русском формате. */
@@ -37,9 +48,11 @@ export function AdminOrganisations({
   initialOrganisations,
   onSignedOut,
 }: AdminOrganisationsProps) {
+  const router = useRouter()
   const [organisations, setOrganisations] = useState(initialOrganisations)
   const [query, setQuery] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  const [seedOpen, setSeedOpen] = useState(false)
   const [credentials, setCredentials] = useState<IssuedCredentials | null>(null)
   const [resetTarget, setResetTarget] = useState<AdminOrganisation | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AdminOrganisation | null>(null)
@@ -58,6 +71,12 @@ export function AdminOrganisations({
       (org) => org.name.toLowerCase().includes(q) || org.email.toLowerCase().includes(q),
     )
   }, [organisations, query])
+
+  // Категории и врачи приходят в другие экраны из RSC — после сидирования
+  // просим Next перезапросить серверные данные.
+  const onDataSeeded = () => {
+    router.refresh()
+  }
 
   const handleCreated = (org: AdminOrganisation, issued: IssuedCredentials) => {
     setOrganisations((prev) => [org, ...prev])
@@ -159,10 +178,16 @@ export function AdminOrganisations({
                 : `Всего: ${organisations.length}`}
             </p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            Создать организацию
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setSeedOpen(true)}>
+              <Database className="size-4" />
+              Создать тестовые данные
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              Создать организацию
+            </Button>
+          </div>
         </div>
 
         {organisations.length > 1 && (
@@ -236,6 +261,13 @@ export function AdminOrganisations({
       </div>
 
       <AdminCreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleCreated} />
+
+      <AdminSeedDialog
+        open={seedOpen}
+        onOpenChange={setSeedOpen}
+        organisations={organisations}
+        onSeeded={onDataSeeded}
+      />
 
       <AdminCredentialsDialog
         credentials={credentials}
