@@ -22,7 +22,7 @@ export function BackgroundDecor({
       className={`pointer-events-none ${position} inset-0 z-0 overflow-hidden`}
       aria-hidden="true"
     >
-      <svg className="absolute inset-0 h-full w-full text-primary/[0.06]">
+      <svg className="absolute inset-0 h-full w-full text-primary/[0.04]">
         <defs>
           <pattern id={patternId} x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
             <circle cx="2" cy="2" r="1.5" fill="currentColor" />
@@ -32,7 +32,7 @@ export function BackgroundDecor({
       </svg>
 
       <svg
-        className="absolute left-0 top-[14%] h-12 w-full text-teal/25 md:h-16"
+        className="absolute left-0 top-[14%] h-12 w-full text-primary/[0.07] md:h-16"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"
@@ -40,7 +40,7 @@ export function BackgroundDecor({
         <path d={ecgPath} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <svg
-        className="absolute left-0 top-1/2 h-10 w-full -translate-y-1/2 text-teal/20 md:h-14"
+        className="absolute left-0 top-1/2 h-10 w-full -translate-y-1/2 text-teal/[0.09] md:h-14"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"
@@ -57,7 +57,7 @@ export function BackgroundDecor({
         <path d="M0 40 H180" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
       <svg
-        className="absolute left-0 top-[82%] h-12 w-full text-teal/[0.22] md:h-16"
+        className="absolute left-0 top-[82%] h-12 w-full text-primary/[0.06] md:h-16"
         viewBox="0 0 600 80"
         fill="none"
         preserveAspectRatio="none"
@@ -82,7 +82,7 @@ export function BackgroundDecor({
         alt=""
         loading="lazy"
         decoding="async"
-        className="absolute -right-6 bottom-[6%] h-24 w-auto opacity-[0.07] mix-blend-multiply md:h-32 dark:opacity-[0.09] dark:mix-blend-lighten dark:invert"
+        className="absolute -right-6 bottom-[6%] h-24 w-auto opacity-[0.06] mix-blend-multiply md:h-32 dark:opacity-[0.035] dark:mix-blend-lighten dark:invert"
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -90,7 +90,7 @@ export function BackgroundDecor({
         alt=""
         loading="lazy"
         decoding="async"
-        className="absolute -left-4 top-[8%] h-16 w-auto opacity-[0.06] mix-blend-multiply md:h-20 dark:opacity-[0.08] dark:mix-blend-lighten dark:invert"
+        className="absolute -left-4 top-[8%] h-16 w-auto opacity-[0.05] mix-blend-multiply md:h-20 dark:opacity-[0.03] dark:mix-blend-lighten dark:invert"
       />
     </div>
   )

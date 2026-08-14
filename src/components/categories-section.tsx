@@ -17,7 +17,7 @@ export async function CategoriesSection() {
 
   if (error) {
     return (
-      <section id="categories" className="py-6 sm:py-8 bg-background">
+      <section id="categories" className="py-6 sm:py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p className="text-destructive">{error}</p>
@@ -28,7 +28,7 @@ export async function CategoriesSection() {
   }
 
   return (
-    <section id="categories" className="py-6 sm:py-8 bg-background relative overflow-hidden">
+    <section id="categories" className="py-6 sm:py-8 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-8">
           <SectionBadge tone="teal" className="mb-4">

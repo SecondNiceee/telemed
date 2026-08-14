@@ -7,6 +7,7 @@ import { Footer } from "@/components/footer";
 import { SectionReveal } from "@/components/section-reveal";
 import { ReviewsSection } from "@/components/reviews-section";
 import { AdvantagesSection } from "@/components/advantages-section";
+import { BackgroundDecor } from "@/components/background-decor";
 // Временно скрытые секции (см. ниже в разметке)
 // import { EcgDeviceSection } from "@/components/ecg-device-section";
 // import { AutoEcgTransferSection } from "@/components/auto-ecg-transfer-section";
@@ -30,14 +31,17 @@ export default async function HomePage() {
   const user = await AuthApi.meServer({ cookie });
 
   return (
-    <div className="min-h-screen flex flex-col">  
+    <div className="min-h-screen flex flex-col">
+      {/* Сквозной фиксированный декор (ЭКГ + логотип) как на smartcardio.ru.
+          Секции ниже прозрачные, поэтому он просвечивает сквозь них. */}
+      <BackgroundDecor id="home" position="fixed" />
       <Header />
       <main className="flex-1">
         <Hero user={user} />
         <SectionReveal delay={0}>
           <Suspense
             fallback={
-              <section className="py-6 sm:py-8 bg-background">
+              <section className="py-6 sm:py-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                   <p className="text-muted-foreground">Загрузка категорий...</p>
                 </div>
