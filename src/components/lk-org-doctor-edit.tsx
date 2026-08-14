@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { DoctorsApi } from "@/lib/api/doctors"
 import { ImageCropperDialog } from "@/components/image-cropper-dialog"
+import type { CropRect, CropSource } from "@/components/image-cropper-dialog"
 import type { ApiCategory, ApiDoctor } from "@/lib/api/types"
 import {
   Plus,
@@ -46,11 +47,20 @@ interface LkOrgDoctorEditProps {
 export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   const router = useRouter()
   const [doctor, setDoctor] = useState<ApiDoctor | null>(null)
+  /** Новый обрезанный квадрат, ещё не загруженный на сервер. */
   const [photo, setPhoto] = useState<File | null>(null)
+  /** Что видно в форме: всегда обрезанный вариант. */
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-  /** Файл до кропа — пока он не null, открыт редактор области. */
-  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
+  /** Новый оригинал, ещё не загруженный на сервер. */
+  const [originalFile, setOriginalFile] = useState<File | null>(null)
+  /** Оригинал, уже лежащий на сервере — источник для повторного кропа. */
+  const [originalUrl, setOriginalUrl] = useState<string | null>(null)
+  /** Что кропаем — пока не null, открыт редактор области. */
+  const [cropSource, setCropSource] = useState<CropSource | null>(null)
+  /** Ранее выбранная область, чтобы рамка открывалась там же. */
+  const [cropRect, setCropRect] = useState<CropRect | null>(null)
   const [existingPhotoId, setExistingPhotoId] = useState<number | null>(null)
+  const [existingOriginalId, setExistingOriginalId] = useState<number | null>(null)
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -92,6 +102,12 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   } = useFieldArray({ control, name: "services" })
 
   const selectedCategories = watch("categories")
+  /**
+   * Менять область можно только когда есть оригинал. У врачей, заведённых до
+   * появления photoOriginal, его нет — кропать уже обрезанное фото значит
+   * терять качество без возможности расширить кадр назад.
+   */
+  const canEditCropArea = Boolean(originalFile || originalUrl)
 
   // Load doctor and categories data
   useEffect(() => {
@@ -132,7 +148,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
               : [{ value: "" }],
         })
 
-        // Set photo preview
+        // Показываем обрезанный вариант
         if (
           doctorData.photo &&
           typeof doctorData.photo === "object" &&
@@ -140,6 +156,25 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
         ) {
           setPhotoPreview(doctorData.photo.url as string)
           setExistingPhotoId(doctorData.photo.id)
+        }
+
+        // Оригинал не показываем, он нужен только для повторного кропа
+        if (
+          doctorData.photoOriginal &&
+          typeof doctorData.photoOriginal === "object" &&
+          "url" in doctorData.photoOriginal
+        ) {
+          setOriginalUrl(doctorData.photoOriginal.url as string)
+          setExistingOriginalId(doctorData.photoOriginal.id)
+        }
+
+        const savedCrop = doctorData.photoCrop
+        if (savedCrop?.side != null && savedCrop.side > 0) {
+          setCropRect({
+            x: savedCrop.x ?? 0,
+            y: savedCrop.y ?? 0,
+            side: savedCrop.side,
+          })
         }
       } catch (err) {
         console.error("[lk-org] Failed to load doctor:", err)
@@ -180,23 +215,54 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     }
 
     setError(null)
-    // Сначала кроп — в базу должен попасть уже квадрат.
-    setPendingPhoto(file)
+    // Область от прежнего фото к новому не относится — рамка откроется по центру.
+    setCropRect(null)
+    // Сначала кроп — в photo должен попасть уже квадрат.
+    setCropSource({ kind: "file", file })
   }
 
-  function handleCropApply(cropped: File) {
+  /** Повторный выбор области: кропаем оригинал, а не уже обрезанный квадрат. */
+  function editCropArea() {
+    if (originalFile) {
+      setCropSource({ kind: "file", file: originalFile })
+      return
+    }
+    if (originalUrl) {
+      setCropSource({
+        kind: "url",
+        url: originalUrl,
+        name: originalUrl.split("/").pop() || "photo",
+      })
+    }
+  }
+
+  function handleCropApply({ file, crop }: { file: File; crop: CropRect }) {
     // Старый preview мог быть blob-URL от предыдущего кропа.
     if (photoPreview?.startsWith("blob:")) URL.revokeObjectURL(photoPreview)
-    setPhoto(cropped)
-    setPhotoPreview(URL.createObjectURL(cropped))
-    setPendingPhoto(null)
+    setPhoto(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setCropRect(crop)
+
+    // Кропали только что выбранный файл — он становится новым оригиналом
+    // и вытесняет прежний. При кропе по URL оригинал остаётся тем же.
+    if (cropSource?.kind === "file") {
+      setOriginalFile(cropSource.file)
+      setOriginalUrl(null)
+    }
+
+    setCropSource(null)
   }
 
   function removePhoto() {
+    // Снимаем обе версии сразу: на сервере их удалит хук коллекции doctors.
     setPhoto(null)
+    setOriginalFile(null)
+    setOriginalUrl(null)
     setExistingPhotoId(null)
+    setExistingOriginalId(null)
+    setCropRect(null)
     if (photoPreview) {
-      URL.revokeObjectURL(photoPreview)
+      if (photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview)
       setPhotoPreview(null)
     }
   }
@@ -206,16 +272,13 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     setSuccess(null)
 
     try {
-      // 1. Upload new photo if selected
-      let photoId: number | null = existingPhotoId
-      if (photo) {
+      // 1. Загружаем новые файлы. Старые удалит хук коллекции doctors,
+      // когда увидит, что ссылка на них сменилась.
+      const uploadMedia = async (file: File, alt: string) => {
         const formData = new FormData()
-        formData.append("file", photo)
-        formData.append("alt", data.name || "Doctor photo")
-        formData.append(
-          "_payload",
-          JSON.stringify({ alt: data.name || "Doctor photo" }),
-        )
+        formData.append("file", file)
+        formData.append("alt", alt)
+        formData.append("_payload", JSON.stringify({ alt }))
 
         const uploadRes = await fetch('/api/media', {
           method: "POST",
@@ -232,8 +295,15 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
         }
 
         const uploadData = await uploadRes.json()
-        photoId = uploadData.doc?.id ?? null
+        return (uploadData.doc?.id ?? null) as number | null
       }
+
+      const altBase = data.name || "Doctor photo"
+      let photoId: number | null = existingPhotoId
+      let originalId: number | null = existingOriginalId
+
+      if (photo) photoId = await uploadMedia(photo, altBase)
+      if (originalFile) originalId = await uploadMedia(originalFile, `${altBase} (оригинал)`)
 
       // 2. Update doctor via JSON PATCH (same approach as create uses POST with JSON)
       const payload: Record<string, unknown> = {
@@ -257,11 +327,10 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       if (data.price) payload.price = Number(data.price)
       if (data.bio) payload.bio = data.bio
 
-      if (photoId) {
-        payload.photo = photoId
-      } else {
-        payload.photo = null
-      }
+      // Всегда пишем все три поля: null здесь — это сигнал хуку удалить файлы.
+      payload.photo = photoId ?? null
+      payload.photoOriginal = originalId ?? null
+      payload.photoCrop = photoId && cropRect ? cropRect : null
 
       const educationFiltered = data.education
         .map((e) => e.value.trim())
@@ -633,16 +702,15 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                       {photo?.name || "Текущее фото"}
                     </p>
                     <div className="flex items-center gap-3">
-                      {photo && (
-                        <button
-                          type="button"
-                          onClick={() => setPendingPhoto(photo)}
-                          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
-                        >
-                          <Crop className="w-3.5 h-3.5" />
-                          Изменить область
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={editCropArea}
+                        disabled={!canEditCropArea}
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors disabled:text-muted-foreground disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        Изменить область
+                      </button>
                       <button
                         type="button"
                         onClick={removePhoto}
@@ -652,6 +720,11 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                         Удалить
                       </button>
                     </div>
+                    {!canEditCropArea && (
+                      <p className="text-xs text-muted-foreground">
+                        Исходник этого фото не сохранён — загрузите фото заново, чтобы менять область.
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -787,8 +860,9 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       </div>
 
       <ImageCropperDialog
-        file={pendingPhoto}
-        onCancel={() => setPendingPhoto(null)}
+        source={cropSource}
+        initialCrop={cropRect}
+        onCancel={() => setCropSource(null)}
         onApply={handleCropApply}
       />
     </div>

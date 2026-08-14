@@ -58,7 +58,12 @@ export interface ApiDoctor {
   experience?: number | null
   degree?: string | null
   price?: number | null
+  /** Обрезанный квадрат — показывается везде. */
   photo?: ApiMedia | number | null
+  /** Необрезанный оригинал, нужен только редактору области. */
+  photoOriginal?: ApiMedia | number | null
+  /** Выбранная область в пикселях оригинала. */
+  photoCrop?: { x?: number | null; y?: number | null; side?: number | null } | null
   bio?: string | null
   education?: ApiEducationItem[] | null
   services?: ApiServiceItem[] | null

@@ -25,20 +25,40 @@ function clampCrop(value: number, cropSide: number, imageSide: number) {
   return Math.min(Math.max(0, value), Math.max(0, imageSide - cropSide))
 }
 
-interface ImageCropperDialogProps {
-  /** Файл, выбранный пользователем. `null` — диалог закрыт. */
-  file: File | null
-  onCancel: () => void
-  /** Отдаёт готовый квадратный JPEG. */
-  onApply: (cropped: File) => void
+/**
+ * Выбранная область В ПИКСЕЛЯХ ИСХОДНОГО ФАЙЛА.
+ * Именно так она хранится в БД: числа самодостаточны и не поедут,
+ * если однажды поменять MAX_ZOOM или размер превью.
+ */
+export interface CropRect {
+  x: number
+  y: number
+  side: number
 }
 
-export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDialogProps) {
+/**
+ * Что кропаем: только что выбранный файл или уже сохранённый на сервере исходник.
+ */
+export type CropSource =
+  | { kind: "file"; file: File }
+  | { kind: "url"; url: string; name?: string }
+
+interface ImageCropperDialogProps {
+  /** `null` — диалог закрыт. Объект должен быть стабильным между рендерами. */
+  source: CropSource | null
+  /** Ранее сохранённая область — рамка откроется там же, где её оставили. */
+  initialCrop?: CropRect | null
+  onCancel: () => void
+  /** Отдаёт готовый квадратный JPEG и выбранную область. */
+  onApply: (result: { file: File; crop: CropRect }) => void
+}
+
+export function ImageCropperDialog({ source, initialCrop, onCancel, onApply }: ImageCropperDialogProps) {
   const observerRef = useRef<ResizeObserver | null>(null)
   const initializedForRef = useRef<HTMLImageElement | null>(null)
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; startCropX: number; startCropY: number } | null>(null)
 
-  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
   /** Декодированное изображение: держим сам элемент, чтобы рисовать им на canvas. */
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [stage, setStage] = useState(0)
@@ -58,20 +78,24 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Декодируем файл сами, а не полагаемся на onLoad отрисованного <img>:
+  // Декодируем источник сами, а не полагаемся на onLoad отрисованного <img>:
   // так размеры точно известны до первого расчёта кропа.
   useEffect(() => {
-    if (!file) {
-      setObjectUrl(null)
+    if (!source) {
+      setPreviewSrc(null)
       setImage(null)
       return
     }
-    const url = URL.createObjectURL(file)
-    setObjectUrl(url)
+
+    const isFile = source.kind === "file"
+    const url = isFile ? URL.createObjectURL(source.file) : source.url
+    setPreviewSrc(url)
     setImage(null)
     setError(null)
 
     const img = new Image()
+    // Исходник с сервера попадёт на canvas, а tainted canvas ломает toBlob().
+    if (!isFile) img.crossOrigin = "anonymous"
     img.onload = () => {
       if (!img.naturalWidth || !img.naturalHeight) {
         setError("Не удалось прочитать изображение. Попробуйте другой файл.")
@@ -80,16 +104,20 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
       setImage(img)
     }
     img.onerror = () => {
-      setError("Не удалось загрузить изображение. Попробуйте другой файл.")
+      setError(
+        isFile
+          ? "Не удалось загрузить изображение. Попробуйте другой файл."
+          : "Не удалось загрузить исходное фото. Загрузите фото заново.",
+      )
     }
     img.src = url
 
     return () => {
       img.onload = null
       img.onerror = null
-      URL.revokeObjectURL(url)
+      if (isFile) URL.revokeObjectURL(url)
     }
-  }, [file])
+  }, [source])
 
   // Область просмотра резиновая, поэтому её сторону надо измерять — от неё
   // зависит масштаб превью. Callback-ref, т.к. Dialog монтирует контент только открытым.
@@ -122,18 +150,31 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   const maxCropSide = Math.min(naturalW, naturalH)
   const cropSide = maxCropSide / crop.zoom
 
-  // Стартовый кадр: максимальная рамка по центру фото.
+  // Стартовый кадр: сохранённая область, иначе максимальная рамка по центру фото.
   useEffect(() => {
     if (!image) return
     if (initializedForRef.current === image) return
     initializedForRef.current = image
-    const side = Math.min(image.naturalWidth, image.naturalHeight)
+
+    const maxSide = Math.min(image.naturalWidth, image.naturalHeight)
+
+    if (initialCrop && initialCrop.side > 0) {
+      // Сохранённая область могла быть посчитана для другого MAX_ZOOM — зажимаем.
+      const side = Math.min(Math.max(initialCrop.side, maxSide / MAX_ZOOM), maxSide)
+      setCrop({
+        zoom: maxSide / side,
+        x: clampCrop(initialCrop.x, side, image.naturalWidth),
+        y: clampCrop(initialCrop.y, side, image.naturalHeight),
+      })
+      return
+    }
+
     setCrop({
       zoom: 1,
-      x: (image.naturalWidth - side) / 2,
-      y: (image.naturalHeight - side) / 2,
+      x: (image.naturalWidth - maxSide) / 2,
+      y: (image.naturalHeight - maxSide) / 2,
     })
-  }, [image])
+  }, [image, initialCrop])
 
   const applyZoom = useCallback(
     (next: number) => {
@@ -195,7 +236,7 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   }
 
   async function handleApply() {
-    if (!image || !isReady || !file) return
+    if (!image || !isReady || !source) return
 
     setIsProcessing(true)
     setError(null)
@@ -219,8 +260,16 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
       )
       if (!blob) throw new Error("Не удалось обработать изображение")
 
-      const baseName = file.name.replace(/\.[^.]+$/, "") || "photo"
-      onApply(new File([blob], `${baseName}-square.jpg`, { type: "image/jpeg" }))
+      const sourceName = source.kind === "file" ? source.file.name : (source.name ?? "photo")
+      const baseName = sourceName.replace(/\.[^.]+$/, "") || "photo"
+      onApply({
+        file: new File([blob], `${baseName}-square.jpg`, { type: "image/jpeg" }),
+        crop: {
+          x: Math.round(crop.x),
+          y: Math.round(crop.y),
+          side: Math.round(cropSide),
+        },
+      })
     } catch (err) {
       console.error("[cropper] apply failed:", err)
       setError(err instanceof Error ? err.message : "Не удалось обработать изображение")
@@ -230,7 +279,7 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
   }
 
   return (
-    <Dialog open={Boolean(file)} onOpenChange={(open) => !open && onCancel()}>
+    <Dialog open={Boolean(source)} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Выберите область фото</DialogTitle>
@@ -249,9 +298,9 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
             onWheel={handleWheel}
             className="relative w-full aspect-square overflow-hidden rounded-xl bg-muted touch-none select-none cursor-grab active:cursor-grabbing"
           >
-            {objectUrl && (
+            {previewSrc && (
               <img
-                src={objectUrl}
+                src={previewSrc}
                 alt=""
                 draggable={false}
                 style={{
