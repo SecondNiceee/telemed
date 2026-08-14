@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import type { ApiCategory } from "@/lib/api/types";
 import { CategoryIcon } from "@/lib/utils/categoryIcon";
 
 /** Сколько карточек категорий показываем на одной странице */
-const CATEGORIES_PER_PAGE = 9;
+const CATEGORIES_PER_PAGE = 6;
 
 /**
  * Формирует список страниц с многоточиями:
@@ -51,6 +51,11 @@ export function CategoriesGrid({ categories }: { categories: ApiCategory[] }) {
 
   const totalPages = Math.max(1, Math.ceil(categories.length / CATEGORIES_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
+
+  // Если список категорий изменился и страниц стало меньше — не оставляем «мёртвую» страницу в state
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
 
   const visibleCategories = useMemo(() => {
     const start = (currentPage - 1) * CATEGORIES_PER_PAGE;
@@ -122,7 +127,7 @@ export function CategoriesGrid({ categories }: { categories: ApiCategory[] }) {
           aria-label="Пагинация по категориям"
           className="mt-10 flex flex-col items-center gap-4"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <Button
               variant="outline"
               size="icon"
