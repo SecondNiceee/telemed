@@ -23,6 +23,47 @@ const checkAccessCookie = ({req} : {req:PayloadRequest}) => {
   return false 
 }
 
+/**
+ * Делает имя файла глобально уникальным ещё до записи на диск.
+ *
+ * Payload сам умеет разруливать дубли (kate.jpg -> kate-1.jpg), но делает это
+ * проверкой «есть ли уже такой файл/документ» прямо перед записью. Между
+ * проверкой и записью есть окно: два параллельных запроса с одинаковым именем
+ * (у нас формы врача грузят сразу пару файлов, плюс вложения чатов) могут
+ * получить одно и то же имя и указать на ОДИН файл на диске. Тогда удаление
+ * одного media-документа физически сносит фото и у второго врача.
+ *
+ * Поэтому имя формируем сами: читаемая основа + время + случайный суффикс.
+ * Коллизия становится невозможной, и проверка Payload просто не срабатывает.
+ */
+function makeFilenameUnique({
+  operation,
+  req,
+}: {
+  operation: string
+  req: PayloadRequest
+}) {
+  if (operation !== 'create' && operation !== 'update') return
+
+  const file = (req as unknown as { file?: { name?: string } }).file
+  if (!file?.name) return
+
+  const dot = file.name.lastIndexOf('.')
+  const rawBase = dot > 0 ? file.name.slice(0, dot) : file.name
+  const ext = dot > 0 ? file.name.slice(dot + 1).toLowerCase() : ''
+
+  // Транслитерация не нужна — важно лишь получить безопасную читаемую основу.
+  const base =
+    rawBase
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яё]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'file'
+
+  const unique = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  file.name = ext ? `${base}-${unique}.${ext}` : `${base}-${unique}`
+}
+
 export const Media: CollectionConfig = {
   slug: 'media',
   access: {
@@ -40,6 +81,8 @@ export const Media: CollectionConfig = {
   ],
   hooks: {
     beforeOperation: [
+      // Первым: дальше в логах и на диске должно быть уже уникальное имя.
+      makeFilenameUnique,
       ({ operation, req }) => {
         if (operation === 'create') {
           const file = (req as unknown as { file?: { name?: string; mimetype?: string; size?: number } }).file
