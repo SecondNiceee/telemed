@@ -25,7 +25,9 @@ export function AdminPanel({ needsSetup, initialAdmin, initialOrganisations }: A
     router.refresh()
   }
 
-  if (needsSetup) {
+  // Пока router.refresh() не принёс новые props, needsSetup ещё true —
+  // но админ уже создан, поэтому форму настройки больше не показываем.
+  if (needsSetup && !admin) {
     return (
       <AdminAuthShell
         badge="Первый запуск"
