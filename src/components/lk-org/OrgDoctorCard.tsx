@@ -30,12 +30,12 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
           href={`/lk-org/doctor/${doctor.id}`}
           className="flex-1 h-full flex items-center gap-4 min-w-0"
         >
-          <div className="h-[-webkit-fill-available] w-24 rounded-l-xl overflow-hidden bg-muted shrink-0">
+          <div className="w-20 aspect-square ml-4 my-4 rounded-xl overflow-hidden bg-muted shrink-0">
             {doctor.photo ? (
               <img
                 src={(doctor.photo as Media).url ?? "/placeholder.svg"}
                 alt={doctor.name || "Врач"}
-                className="w-full  object-cover h-[-webkit-fill-available]"
+                className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

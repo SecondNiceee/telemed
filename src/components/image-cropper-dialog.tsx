@@ -215,11 +215,16 @@ export function ImageCropperDialog({ file, onCancel, onApply }: ImageCropperDial
                 }}
               />
             )}
-            {/* Подсказка круглого кадра: половина мест вывода — круглые аватарки */}
+            {/* Сетка третей: кадр квадратный, помогает выровнять лицо по центру */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-full border-2 border-primary/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]"
-            />
+              className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-inset ring-primary/60"
+            >
+              <div className="absolute left-1/3 top-0 h-full w-px bg-primary-foreground/25" />
+              <div className="absolute left-2/3 top-0 h-full w-px bg-primary-foreground/25" />
+              <div className="absolute top-1/3 left-0 w-full h-px bg-primary-foreground/25" />
+              <div className="absolute top-2/3 left-0 w-full h-px bg-primary-foreground/25" />
+            </div>
           </div>
 
           <div className="flex items-center gap-3">

@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  Crop,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -108,10 +109,26 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      setPhoto(file)
-      setPhotoPreview(URL.createObjectURL(file))
+    // Сбрасываем input, иначе повторный выбор того же файла не вызовет change.
+    e.target.value = ""
+    if (!file) return
+
+    const MAX_SIZE_BYTES = 10 * 1024 * 1024
+    if (file.size > MAX_SIZE_BYTES) {
+      setError("Максимальный размер фото 10 МБ, сожмите его или используйте другое")
+      return
     }
+
+    setError(null)
+    // Сначала кроп — в базу должен попасть уже квадрат.
+    setPendingPhoto(file)
+  }
+
+  function handleCropApply(cropped: File) {
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhoto(cropped)
+    setPhotoPreview(URL.createObjectURL(cropped))
+    setPendingPhoto(null)
   }
 
   function removePhoto() {
@@ -435,7 +452,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
             {categories.length > 0 && (
               <fieldset className="flex flex-col gap-3">
                 <legend className="text-sm font-semibold text-foreground mb-2">
-                  Специально��ти *
+                  Специальности *
                 </legend>
                 <input
                   type="hidden"
@@ -479,7 +496,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
               </legend>
               {photoPreview ? (
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden border border-border bg-muted">
+                  <div className="w-20 aspect-square rounded-xl overflow-hidden border border-border bg-muted shrink-0">
                     <img
                       src={photoPreview}
                       alt="Preview"
@@ -490,14 +507,24 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
                     <p className="text-sm text-foreground font-medium">
                       {photo?.name}
                     </p>
-                    <button
-                      type="button"
-                      onClick={removePhoto}
-                      className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Удалить
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => photo && setPendingPhoto(photo)}
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                      >
+                        <Crop className="w-3.5 h-3.5" />
+                        Изменить область
+                      </button>
+                      <button
+                        type="button"
+                        onClick={removePhoto}
+                        className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Удалить
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -513,7 +540,7 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
                     Нажмите для загрузки фото
                   </span>
                   <span className="text-xs text-muted-foreground/60">
-                    JPG, PNG до 5 МБ
+                    JPG, PNG до 10 МБ — дальше выберете квадратную область
                   </span>
                   <input
                     id="doctor-photo"
@@ -632,6 +659,12 @@ export function LkOrgDoctorCreate({ orgId }: LkOrgDoctorCreateProps) {
           </form>
         </div>
       </div>
+
+      <ImageCropperDialog
+        file={pendingPhoto}
+        onCancel={() => setPendingPhoto(null)}
+        onApply={handleCropApply}
+      />
     </div>
   )
 }

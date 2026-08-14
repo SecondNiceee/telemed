@@ -21,7 +21,8 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
       <Card className="group py-0 overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-primary/30 border-transparent shadow-sm cursor-pointer hover:scale-[1.02]">
         <CardContent className="p-0">
           <div className="flex flex-col sm:flex-row sm:items-stretch">
-            <div className="relative w-full sm:w-50 sm:h-auto flex-shrink-0">
+            {/* Квадрат: фото уже обрезано 1:1 в админке, поэтому кадр не искажается */}
+            <div className="relative w-full sm:w-48 aspect-square flex-shrink-0">
               {(doctor?.photo as Media)?.url ? (
                 <img
                   src={(doctor?.photo as Media)?.url ?? "/placeholder.svg"}

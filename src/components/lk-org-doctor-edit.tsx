@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { fetchCategoriesAction, revalidateDoctorsAction } from "@/lib/api/actions"
 import { DoctorsApi } from "@/lib/api/doctors"
+import { ImageCropperDialog } from "@/components/image-cropper-dialog"
 import type { ApiCategory, ApiDoctor } from "@/lib/api/types"
 import {
   Plus,
   Trash2,
   Upload,
+  Crop,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -46,6 +48,8 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
   const [doctor, setDoctor] = useState<ApiDoctor | null>(null)
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  /** Файл до кропа — пока он не null, открыт редактор области. */
+  const [pendingPhoto, setPendingPhoto] = useState<File | null>(null)
   const [existingPhotoId, setExistingPhotoId] = useState<number | null>(null)
   const [categories, setCategories] = useState<ApiCategory[]>([])
   const [success, setSuccess] = useState<string | null>(null)
@@ -165,18 +169,27 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      const MAX_SIZE_MB = 10
-      const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024
-      if (file.size > MAX_SIZE_BYTES) {
-        setError("Максимальный размер фото 10мб, сожмите его или используйте другое")
-        e.target.value = ""
-        return
-      }
-      setError(null)
-      setPhoto(file)
-      setPhotoPreview(URL.createObjectURL(file))
+    // Сбрасываем input, иначе повторный выбор того же файла не вызовет change.
+    e.target.value = ""
+    if (!file) return
+
+    const MAX_SIZE_BYTES = 10 * 1024 * 1024
+    if (file.size > MAX_SIZE_BYTES) {
+      setError("Максимальный размер фото 10 МБ, сожмите его или используйте другое")
+      return
     }
+
+    setError(null)
+    // Сначала кроп — в базу должен попасть уже квадрат.
+    setPendingPhoto(file)
+  }
+
+  function handleCropApply(cropped: File) {
+    // Старый preview мог быть blob-URL от предыдущего кропа.
+    if (photoPreview?.startsWith("blob:")) URL.revokeObjectURL(photoPreview)
+    setPhoto(cropped)
+    setPhotoPreview(URL.createObjectURL(cropped))
+    setPendingPhoto(null)
   }
 
   function removePhoto() {
@@ -468,7 +481,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
             {/* Professional info */}
             <fieldset className="flex flex-col gap-4">
               <legend className="text-sm font-semibold text-foreground mb-2">
-                Профессиональная и��формация
+                Профессиональная информация
               </legend>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -608,7 +621,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
               </legend>
               {photoPreview ? (
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden border border-border bg-muted">
+                  <div className="w-20 aspect-square rounded-xl overflow-hidden border border-border bg-muted shrink-0">
                     <img
                       src={photoPreview}
                       alt="Preview"
@@ -619,14 +632,26 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                     <p className="text-sm text-foreground font-medium">
                       {photo?.name || "Текущее фото"}
                     </p>
-                    <button
-                      type="button"
-                      onClick={removePhoto}
-                      className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Удалить
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {photo && (
+                        <button
+                          type="button"
+                          onClick={() => setPendingPhoto(photo)}
+                          className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                        >
+                          <Crop className="w-3.5 h-3.5" />
+                          Изменить область
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={removePhoto}
+                        className="inline-flex items-center gap-1 text-sm text-destructive hover:text-destructive/80 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Удалить
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -642,7 +667,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                     Нажмите для загрузки фото
                   </span>
                   <span className="text-xs text-muted-foreground/60">
-                    JPG, PNG до 10 МБ
+                    JPG, PNG до 10 МБ — дальше выберете квадратную область
                   </span>
                   <input
                     id="doctor-photo"
@@ -760,6 +785,12 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
           </form>
         </div>
       </div>
+
+      <ImageCropperDialog
+        file={pendingPhoto}
+        onCancel={() => setPendingPhoto(null)}
+        onApply={handleCropApply}
+      />
     </div>
   )
 }

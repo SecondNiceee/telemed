@@ -73,7 +73,7 @@ export function DoctorPageClient({
       <Card className="mb-2 py-0 px-0 overflow-hidden">
         <CardContent className="py-0 px-0">
           <div className="flex flex-col py-0 md:flex-row gap-3 md:items-stretch">
-            <div className="w-full md:w-80 h-72 md:h-auto flex-shrink-0 relative">
+            <div className="w-full md:w-72 aspect-square flex-shrink-0 relative">
               {photoUrl ? (
                 <img
                   src={photoUrl}

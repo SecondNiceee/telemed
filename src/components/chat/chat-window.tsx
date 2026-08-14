@@ -187,7 +187,7 @@ export function ChatWindow({
       toast.success('Пациент может писать сообщения')
     } else {
       blockChat(appointment.id)
-      toast.success('Пациент боль��е не может писать сообщения')
+      toast.success('Пациент больше не может писать сообщения')
     }
   }
 
