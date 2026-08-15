@@ -193,7 +193,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             </div>
             {(filter === 'all' || filter === 'upcoming') && (
               <Button asChild variant="outline" size="sm">
-                <Link href="/">Найти врача</Link>
+                <Link href="/appointment">Найти врача</Link>
               </Button>
             )}
           </div>
