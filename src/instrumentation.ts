@@ -16,9 +16,24 @@ export function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
 
   // Guard against double registration during dev hot reload.
-  const g = globalThis as typeof globalThis & { __v0ErrorHooksInstalled?: boolean }
-  if (g.__v0ErrorHooksInstalled) return
-  g.__v0ErrorHooksInstalled = true
+  //
+  // Два ОТДЕЛЬНЫХ флага намеренно. Раньше был один (`__v0ErrorHooksInstalled`),
+  // и защита sweeper'а от повторного запуска работала лишь как побочный эффект
+  // раннего `return`: достаточно переставить блоки местами, чтобы получить
+  // два таймера в одном процессе.
+  const g = globalThis as typeof globalThis & {
+    __v0ErrorHooksInstalled?: boolean
+    __v0HoldsSweeperStarted?: boolean
+  }
+
+  const installErrorHooks = !g.__v0ErrorHooksInstalled
+  const startSweeper =
+    !g.__v0HoldsSweeperStarted &&
+    // Пропускаем во время `next build`: сборка запускает этот файл, но таймер
+    // там не нужен (и лезть в БД на этапе билда нельзя).
+    process.env.NEXT_PHASE !== 'phase-production-build'
+
+  if (!installErrorHooks && !startSweeper) return
 
   const describe = (err: unknown) => {
     if (err instanceof Error) {
@@ -44,21 +59,27 @@ export function register() {
     )
   }
 
-  process.on('unhandledRejection', (reason) => {
-    report('unhandledRejection', reason)
-  })
+  if (installErrorHooks) {
+    g.__v0ErrorHooksInstalled = true
 
-  process.on('uncaughtException', (err) => {
-    report('uncaughtException', err)
-  })
+    process.on('unhandledRejection', (reason) => {
+      report('unhandledRejection', reason)
+    })
 
-  // Фоновое освобождение просроченных броней.
-  //
-  // Пропускаем во время `next build`: сборка запускает этот файл, но таймер там
-  // не нужен (и лезть в БД на этапе билда нельзя).
+    process.on('uncaughtException', (err) => {
+      report('uncaughtException', err)
+    })
+
+    console.log(`[v0][instrumentation] error hooks installed (pid ${process.pid})`)
+  }
+
+  // Фоновое освобождение просроченных броней: единственный планировщик sweep'а.
+  // Страницы (/doctor/[id], /lk) его больше не вызывают.
   let stopSweeper: (() => void) | undefined
 
-  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+  if (startSweeper) {
+    g.__v0HoldsSweeperStarted = true
+
     // Динамический импорт: Payload тянет за собой конфиг и адаптер БД, и держать
     // это в статическом графе instrumentation мешает сборке.
     import('@/lib/server/appointment-holds')
@@ -67,6 +88,7 @@ export function register() {
         console.log(`[v0][instrumentation] holds sweeper started (pid ${process.pid})`)
       })
       .catch((err) => {
+        g.__v0HoldsSweeperStarted = false
         report('holdsSweeperStartFailed', err)
       })
   }
@@ -79,6 +101,4 @@ export function register() {
       stopSweeper?.()
     })
   }
-
-  console.log(`[v0][instrumentation] error hooks installed (pid ${process.pid})`)
 }

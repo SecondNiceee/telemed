@@ -34,10 +34,13 @@ export async function restoreDoctorSlots({
   payload,
   doctorId,
   slots,
+  req,
 }: {
   payload: PayloadInstance
   doctorId: number
   slots: SlotRef[]
+  /** Транзакция вызывающего (releaseHold), чтобы отмена брони и возврат слота были атомарны. */
+  req?: { transactionID?: string | number }
 }): Promise<void> {
   if (slots.length === 0) return
 
@@ -46,6 +49,7 @@ export async function restoreDoctorSlots({
     id: doctorId,
     depth: 0,
     overrideAccess: true,
+    req,
   })
 
   if (!doctor) return
@@ -92,6 +96,7 @@ export async function restoreDoctorSlots({
     id: doctorId,
     data: { schedule: updatedSchedule },
     overrideAccess: true,
+    req,
   })
 }
 
@@ -101,13 +106,15 @@ export async function restoreDoctorSlot({
   doctorId,
   date,
   time,
+  req,
 }: {
   payload: PayloadInstance
   doctorId: number
   date: string
   time: string
+  req?: { transactionID?: string | number }
 }): Promise<void> {
-  await restoreDoctorSlots({ payload, doctorId, slots: [{ date, time }] })
+  await restoreDoctorSlots({ payload, doctorId, slots: [{ date, time }], req })
 }
 
 /**
@@ -129,19 +136,41 @@ export async function releaseHold({
 
   if (!appointment || appointment.status !== 'pending_payment') return false
 
-  await payload.update({
-    collection: 'appointments',
-    id: appointmentId,
-    data: { status: 'cancelled' },
-    overrideAccess: true,
-  })
+  // Отмена брони и возврат слота — одна транзакция.
+  //
+  // Без неё падение между двумя шагами теряет слот навсегда: запись уже
+  // 'cancelled', а время в расписание не вернулось. Фоновый sweep такое не
+  // подберёт — он ищет только 'pending_payment'.
+  //
+  // Оба вызова идут с одним transactionID, то есть в одном соединении и
+  // последовательно. Это не тот случай, что описан в afterChange у create:
+  // там дедлок возникал из-за апдейта doctors ДРУГИМ соединением, пока
+  // транзакция appointments держала блокировку.
+  const transactionID = (await payload.db.beginTransaction()) ?? undefined
+  const req = transactionID !== undefined ? { transactionID } : undefined
 
-  await restoreDoctorSlot({
-    payload,
-    doctorId: toId(appointment.doctor),
-    date: appointment.date,
-    time: appointment.time,
-  })
+  try {
+    await payload.update({
+      collection: 'appointments',
+      id: appointmentId,
+      data: { status: 'cancelled' },
+      overrideAccess: true,
+      req,
+    })
+
+    await restoreDoctorSlot({
+      payload,
+      doctorId: toId(appointment.doctor),
+      date: appointment.date,
+      time: appointment.time,
+      req,
+    })
+
+    if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
+  } catch (err) {
+    if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+    throw err
+  }
 
   return true
 }
@@ -149,9 +178,12 @@ export async function releaseHold({
 /**
  * Минимальный интервал между sweep'ами с одинаковым скоупом.
  *
- * Страницы, которые вызывают sweep, помечены force-dynamic, поэтому без троттла
- * пачка одновременных запросов (в т.ч. от ботов) даёт по запросу в БД на каждый.
- * Брони живут 15 минут, так что задержка в несколько секунд не влияет на UX.
+ * Защита от пачки одновременных вызовов с одним и тем же скоупом.
+ *
+ * ВАЖНО: из-за троттла `releaseExpiredHolds()` возвращает 0 в двух разных
+ * случаях — «освобождать было нечего» и «проход пропущен». Поэтому по нулю
+ * НЕЛЬЗЯ судить о состоянии расписания (ровно на этом раньше ошибалась
+ * страница врача, отдавая расписание из кеша).
  */
 const SWEEP_THROTTLE_MS = 10_000
 
@@ -162,12 +194,10 @@ const lastSweepAt = new Map<string, number>()
 const inFlightSweeps = new Map<string, Promise<number>>()
 
 /**
- * Максимум броней за один проход.
+ * Максимум броней за один проход адресного (не фонового) sweep'а.
  *
- * Sweep выполняется внутри рендера страницы, поэтому у него должен быть предел:
- * без него после долгого простоя накопившиеся просрочки уводят в таймаут
- * случайного пользователя. Остаток разберёт следующий заход (брони уже просрочены,
- * задержка на них не влияет).
+ * Лимит нужен, чтобы вызывающий не ждал разбора всех накопившихся просрочек.
+ * Остаток разберёт фоновый sweeper.
  */
 const SWEEP_MAX_BATCH = 100
 
@@ -260,18 +290,18 @@ async function runSweep({
 }
 
 /**
- * Освободить все просроченные брони (пользователь закрыл вкладку и не оплатил).
- * Вызывается при чтении страниц записи, поэтому внешний cron не нужен.
+ * Освободить просроченные брони по требованию (пользователь закрыл вкладку и не оплатил).
+ *
+ * Штатно этим занимается фоновый sweeper из instrumentation.ts — из рендера
+ * страниц эта функция НЕ вызывается. Оставлена для адресных сценариев:
+ * ручной прогон из админки, скрипты, тесты.
  *
  * Запрос опирается на составной индекс (status, paymentExpiresAt) из коллекции
  * Appointments, поэтому в обычной ситуации (просрочек нет) стоит близко к нулю
  * независимо от размера таблицы.
  *
- * Скоуп стоит сужать всегда, когда он известен: `doctorId` — для страницы врача,
- * `userId` — для личного кабинета. Без аргументов проход идёт по всей таблице,
- * то есть один пользователь чинит брони всех остальных.
- *
- * @returns количество освобождённых слотов
+ * @returns количество освобождённых слотов, либо 0 если проход пропущен троттлом
+ *          (см. SWEEP_THROTTLE_MS — по нулю нельзя судить о расписании)
  */
 export async function releaseExpiredHolds({
   doctorId,

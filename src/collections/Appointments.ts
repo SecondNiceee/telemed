@@ -2,7 +2,12 @@ import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
-import { applyBookingGuards } from './helpers/appointment-booking-guard'
+import {
+  applyBookingGuards,
+  applyUpdateGuards,
+  isSlotConflictError,
+  SLOT_TAKEN_MESSAGE,
+} from './helpers/appointment-booking-guard'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { sendAppointmentEmail, sendPatientAppointmentEmail } from '@/utils/sendAppointmentEmail'
 
@@ -134,9 +139,29 @@ export const Appointments: CollectionConfig = {
     { fields: ['user', 'status', 'paymentExpiresAt'] },
   ],
   hooks: {
+    // Гонку за слот ловит уникальный индекс в БД, но наружу это летит как
+    // невнятная 500 с текстом про duplicate key. Переводим в понятный 409 —
+    // тот же текст, что и у предварительной проверки в beforeChange.
+    afterError: [
+      ({ error }) => {
+        if (!isSlotConflictError(error)) return
+
+        return {
+          status: 409,
+          response: { errors: [{ message: SLOT_TAKEN_MESSAGE }] },
+        }
+      },
+    ],
     beforeOperation: [ensureReqUser],
     beforeChange: [
-      async ({ data, operation, req }) => {
+      async ({ data, operation, req, originalDoc }) => {
+        if (operation === 'update') {
+          // access.update пускает сюда админа и врача, но не ограничивает набор
+          // полей: без whitelist врач мог бы выставить себе confirmed + paidAt.
+          await applyUpdateGuards({ data, req, originalDoc })
+          return data
+        }
+
         if (operation === 'create') {
           // Тело запроса приходит от клиента: принудительно перезаписываем
           // user / price / status / paymentExpiresAt и проверяем сам слот.
@@ -166,8 +191,12 @@ export const Appointments: CollectionConfig = {
               return new Date(appt.paymentExpiresAt).getTime() > Date.now()
             })
 
+            // Это только быстрая проверка для понятной ошибки. От гонки
+            // «два пациента — один слот» защищает частичный уникальный индекс
+            // appointments_slot_unique (см. scripts/add-slot-unique-index.ts):
+            // между этим find и вставкой есть окно, в которое проходят оба запроса.
             if (blocking.length > 0) {
-              throw new Error('Этот слот уже занят. Пожалуйста, выберите другое время.')
+              throw new Error(SLOT_TAKEN_MESSAGE)
             }
           }
         }
@@ -472,7 +501,7 @@ export const Appointments: CollectionConfig = {
         {
           name: 'startedAt',
           type: 'date',
-          label: 'Время начала',
+          label: '��ремя начала',
           admin: {
             date: {
               pickerAppearance: 'dayAndTime',

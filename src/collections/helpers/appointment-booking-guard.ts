@@ -21,6 +21,18 @@ import { getPaymentDeadline } from '@/lib/constants/payment'
 /** Сколько неоплаченных броней одновременно может держать один пациент. */
 export const MAX_ACTIVE_HOLDS = 2
 
+/**
+ * Единый текст ошибки для занятого слота.
+ *
+ * Используется и предварительной проверкой в beforeChange, и обработчиком
+ * нарушения уникального индекса (afterError), чтобы пользователь видел одно
+ * и то же сообщение независимо от того, кто поймал конфликт.
+ */
+export const SLOT_TAKEN_MESSAGE = 'Этот слот уже занят. Пожалуйста, выберите другое время.'
+
+/** Имя частичного уникального индекса на слот (см. scripts/add-slot-unique-index.ts). */
+export const SLOT_UNIQUE_INDEX = 'appointments_slot_unique'
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
 
@@ -67,20 +79,38 @@ const ADMIN_WRITABLE_FIELDS = new Set([
   'recording',
 ])
 
+/**
+ * Поля, которые врач вправе менять в СВОЕЙ записи.
+ *
+ * Здесь нет ни `price`, ни `paidAt`, ни `status: 'confirmed'`, ни `user`/`doctor`/
+ * `date`/`time`: иначе врач через нативный `PATCH /api/appointments/{id}` мог бы
+ * пометить свою запись оплаченной или переписать её на другого пациента.
+ */
+const DOCTOR_UPDATABLE_FIELDS = new Set(['status', 'chatBlocked', 'recording', 'activeCall'])
+
+/**
+ * Статусы, в которые врач вправе перевести запись.
+ *
+ * `confirmed` недоступен намеренно — подтверждение делает только оплата.
+ * `cancelled` тоже: отмена возвращает слот в расписание, это делает releaseHold.
+ */
+const DOCTOR_ALLOWED_STATUSES = new Set(['in_progress', 'completed'])
+
+/**
+ * Из каких статусов врач вправе двигать запись.
+ * Неоплаченную бронь (`pending_payment`) врач не трогает вообще, иначе перевод
+ * в `in_progress` стал бы обходом оплаты.
+ */
+const DOCTOR_UPDATABLE_FROM_STATUSES = new Set(['confirmed', 'in_progress'])
+
+/** Поля, которые админка вправе менять у существующей записи. */
+const ADMIN_UPDATABLE_FIELDS = new Set([...ADMIN_WRITABLE_FIELDS, 'activeCall'])
+
 type ScheduleDay = { date?: string | null; slots?: ({ time?: string | null } | null)[] | null }
 
 /** Извлечь числовой id из relationship-поля Payload (populated | string | number). */
 function toId(raw: unknown): number {
   return typeof raw === 'object' && raw !== null ? Number((raw as { id: unknown }).id) : Number(raw)
-}
-
-/** Дата «сегодня» в локальной зоне сервера в формате YYYY-MM-DD. */
-function todayStr(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
 }
 
 function sanitizeText(raw: unknown): string | undefined {
@@ -112,6 +142,52 @@ function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): 
   }
 
   return dropped
+}
+
+/**
+ * Вернуть поля вне whitelist к их текущим значениям в БД.
+ *
+ * Для update нельзя просто удалять поля из `data`, как это делается при create:
+ * в зависимости от пути вызова Payload может писать документ целиком, и тогда
+ * удалённое поле обнулилось бы в БД. Поэтому запрещённое поле не вырезается,
+ * а откатывается к значению из `originalDoc` — попытка изменения просто
+ * не даёт эффекта.
+ *
+ * Возвращает имена полей, попытку изменить которые мы отклонили.
+ */
+function revertToOriginal(
+  data: Record<string, unknown>,
+  allowed: Set<string>,
+  originalDoc: Record<string, unknown> | undefined,
+): string[] {
+  const reverted: string[] = []
+
+  for (const key of Object.keys(data)) {
+    if (allowed.has(key)) continue
+    if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue
+
+    const current = originalDoc?.[key]
+
+    // Значение и так совпадает с текущим — это не попытка изменения.
+    if (JSON.stringify(current ?? null) === JSON.stringify(data[key] ?? null)) continue
+
+    reverted.push(key)
+
+    if (originalDoc && key in originalDoc) {
+      data[key] = current
+    } else {
+      delete data[key]
+    }
+  }
+
+  return reverted
+}
+
+/** Слот уже прошёл (сравниваем дату И время, а не только дату). */
+function isPastSlot(date: string, time: string): boolean {
+  const slot = new Date(`${date}T${time}:00`)
+  if (Number.isNaN(slot.getTime())) return true
+  return slot.getTime() <= Date.now()
 }
 
 /**
@@ -220,9 +296,12 @@ export async function applyBookingGuards({
   data.doctorName = doctor.name || 'Врач'
 
   // Шаг 4 (всегда): вид связи только из допустимого набора.
-  data.connectionType = CONNECTION_TYPES.has(data.connectionType as string)
-    ? data.connectionType
-    : 'chat'
+  // Молча подменять на 'chat' нельзя: пациент выбрал видео, а получил бы чат.
+  if (data.connectionType === undefined || data.connectionType === null) {
+    data.connectionType = 'chat'
+  } else if (!CONNECTION_TYPES.has(data.connectionType as string)) {
+    throw new Error('Некорректный вид связи.')
+  }
 
   data.specialty = sanitizeText(data.specialty) || ''
 
@@ -231,6 +310,138 @@ export async function applyBookingGuards({
   }
 
   return await applyPatientGuards({ data, req, doctor, userId: callerId, date, time })
+}
+
+/**
+ * Серверная валидация ИЗМЕНЕНИЯ записи.
+ *
+ * `access.update` пускает сюда админа (любая запись) и врача (только свои),
+ * но сам по себе не ограничивает НАБОР полей. Без этого guard'а врач мог бы
+ * через нативный `PATCH /api/appointments/{id}` выставить своей записи
+ * `status: 'confirmed'` + `paidAt` (обход оплаты), обнулить `price` или
+ * переписать `date`/`time`/`user`.
+ *
+ * Пациент сюда не попадает: для него `access.update` возвращает false.
+ *
+ * @throws Error с текстом для пользователя, если изменение недопустимо.
+ */
+export async function applyUpdateGuards({
+  data,
+  req,
+  originalDoc,
+}: {
+  data: Record<string, unknown>
+  req: PayloadRequest
+  originalDoc?: Record<string, unknown>
+}): Promise<Record<string, unknown>> {
+  const caller = req.user
+
+  // Доверенный серверный вызов Local API: наши роуты (/pay, /release, /complete),
+  // socket-обработчики звонков и чата, sweep просроченных броней. Все они уже
+  // проверили права до вызова payload.update.
+  if (!caller && req.payloadAPI === 'local') return data
+
+  if (!caller) throw new Error('Недостаточно прав для изменения записи.')
+
+  // --- Врач: узкий whitelist, статус только вперёд по ходу консультации.
+  if (caller.collection === 'doctors') {
+    const doctorId = Number(caller.id)
+    const ownerId = toId(originalDoc?.doctor)
+
+    if (!Number.isFinite(doctorId) || doctorId !== ownerId) {
+      throw new Error('Недостаточно прав для изменения записи.')
+    }
+
+    const reverted = revertToOriginal(data, DOCTOR_UPDATABLE_FIELDS, originalDoc)
+    if (reverted.length > 0) {
+      console.warn(
+        `[appointments] отклоняю изменение полей от doctor ${doctorId}: ${reverted.join(', ')}`,
+      )
+    }
+
+    if ('status' in data && data.status !== originalDoc?.status) {
+      const currentStatus = String(originalDoc?.status ?? '')
+
+      if (!DOCTOR_UPDATABLE_FROM_STATUSES.has(currentStatus)) {
+        throw new Error('Статус этой записи нельзя изменить.')
+      }
+      if (!DOCTOR_ALLOWED_STATUSES.has(data.status as string)) {
+        throw new Error('Недопустимый статус записи.')
+      }
+    }
+
+    if ('chatBlocked' in data) data.chatBlocked = data.chatBlocked === true
+
+    return data
+  }
+
+  // --- Админ: широкий whitelist, но значения нормализуются.
+  if (caller.collection === 'users') {
+    const callerId = Number(caller.id)
+
+    if (!(await isVerifiedAdmin(req, callerId))) {
+      throw new Error('Недостаточно прав для изменения записи.')
+    }
+
+    const reverted = revertToOriginal(data, ADMIN_UPDATABLE_FIELDS, originalDoc)
+    if (reverted.length > 0) {
+      console.warn(
+        `[appointments] отклоняю изменение полей от admin ${callerId}: ${reverted.join(', ')}`,
+      )
+    }
+
+    if ('status' in data && !STATUS_VALUES.has(data.status as string)) {
+      throw new Error('Недопустимый статус записи.')
+    }
+
+    if ('price' in data) {
+      const rawPrice = Number(data.price)
+      if (!Number.isFinite(rawPrice) || rawPrice < 0) {
+        throw new Error('Некорректная стоимость.')
+      }
+      data.price = rawPrice
+    }
+
+    if ('paidAt' in data) data.paidAt = sanitizeDate(data.paidAt) ?? null
+    if ('paymentExpiresAt' in data) {
+      data.paymentExpiresAt = sanitizeDate(data.paymentExpiresAt) ?? null
+    }
+    if ('chatBlocked' in data) data.chatBlocked = data.chatBlocked === true
+
+    return data
+  }
+
+  throw new Error('Недостаточно прав для изменения записи.')
+}
+
+/**
+ * Нарушение частичного уникального индекса на слот (двойная бронь).
+ *
+ * Постгресовая ошибка приходит завёрнутой (drizzle → payload), поэтому проверяем
+ * и саму ошибку, и её `cause`.
+ */
+export function isSlotConflictError(error: unknown): boolean {
+  const seen = new Set<unknown>()
+  let current: unknown = error
+
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current)
+
+    const err = current as { code?: unknown; constraint?: unknown; message?: unknown; cause?: unknown }
+
+    const isUniqueViolation = String(err.code ?? '') === '23505'
+    const mentionsIndex =
+      String(err.constraint ?? '').includes(SLOT_UNIQUE_INDEX) ||
+      String(err.message ?? '').includes(SLOT_UNIQUE_INDEX)
+
+    if (isUniqueViolation && mentionsIndex) return true
+    // Некоторые обёртки теряют code, но сохраняют имя индекса в тексте.
+    if (mentionsIndex) return true
+
+    current = err.cause
+  }
+
+  return false
 }
 
 /**
@@ -303,7 +514,11 @@ async function applyPatientGuards({
   date: string
   time: string
 }): Promise<Record<string, unknown>> {
-  if (date < todayStr()) throw new Error('Нельзя записаться на прошедшую дату.')
+  // Сравниваем дату вместе со временем: проверки только по дате недостаточно —
+  // в 18:00 она пропускала запись на 09:00 того же дня.
+  if (isPastSlot(date, time)) {
+    throw new Error('Нельзя записаться на прошедшее время.')
+  }
 
   // --- Владелец записи: всегда владелец токена, а не тот, кого прислал клиент.
   data.user = userId
