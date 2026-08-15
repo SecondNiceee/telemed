@@ -48,7 +48,15 @@ import { type MigrateDownArgs, type MigrateUpArgs, sql } from '@payloadcms/db-po
 
 const INDEX_NAME = 'appointments_slot_unique'
 
-/** Статусы, при которых запись реально занимает слот. `cancelled` — нет. */
+/**
+ * Статусы, при которых запись реально занимает слот. `cancelled` — нет.
+ *
+ * ВАЖНО: без приведения `status::text`. Payload хранит `select` как PostgreSQL
+ * enum, а каст enum -> text помечен как STABLE (не IMMUTABLE), поэтому в
+ * предикате индекса он запрещён: `functions in index predicate must be marked
+ * IMMUTABLE`. Сравнение enum-колонки напрямую с литералами immutable — литералы
+ * приводятся к типу enum на этапе разбора запроса.
+ */
 const ACTIVE_STATUSES = "('pending_payment', 'confirmed', 'in_progress', 'completed')"
 
 type DuplicateRow = {
@@ -92,7 +100,7 @@ export async function up({ db, payload }: MigrateUpArgs): Promise<void> {
   const duplicates = await db.execute(sql`
     SELECT doctor_id, "date", "time", COUNT(*) AS total
     FROM appointments
-    WHERE status::text IN ${sql.raw(ACTIVE_STATUSES)}
+    WHERE status IN ${sql.raw(ACTIVE_STATUSES)}
     GROUP BY doctor_id, "date", "time"
     HAVING COUNT(*) > 1
     ORDER BY COUNT(*) DESC
@@ -118,7 +126,7 @@ export async function up({ db, payload }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
     CREATE UNIQUE INDEX IF NOT EXISTS ${sql.raw(INDEX_NAME)}
     ON appointments (doctor_id, "date", "time")
-    WHERE status::text IN ${sql.raw(ACTIVE_STATUSES)}
+    WHERE status IN ${sql.raw(ACTIVE_STATUSES)}
   `)
 
   payload.logger.info(
