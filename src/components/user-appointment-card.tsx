@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, Clock, User as UserIcon, ExternalLink, MessageSquare } from "lucide-react"
+import { Calendar, Clock, User as UserIcon, ExternalLink, MessageSquare, CreditCard } from "lucide-react"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 
@@ -21,6 +21,8 @@ interface UserAppointmentCardProps {
 
 export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
   const doc = getDoctorFromAppointment(appointment)
+  // Неоплаченная бронь: чата ещё нет, единственное действие — оплатить.
+  const isPendingPayment = appointment.status === "pending_payment"
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -29,6 +31,8 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
         className={`h-0.5 w-full ${
           appointment.status === "confirmed"
             ? "bg-green-500"
+            : appointment.status === "pending_payment"
+            ? "bg-amber-500"
             : appointment.status === "cancelled"
             ? "bg-destructive"
             : "bg-border"
@@ -77,7 +81,15 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
             </span>
           </div>
 
-          {doc && (
+          {isPendingPayment ? (
+            <Link
+              href={`/appointment/${appointment.id}/payment`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20"
+            >
+              <CreditCard className="h-3.5 w-3.5" />
+              Оплатить
+            </Link>
+          ) : doc && (
             <div className="flex items-center gap-2">
               {appointment.status !== "cancelled" && (
                 <Link

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import { AuthApi, AppointmentsApi } from "@/lib/api/index"
 import type { ApiAppointment } from "@/lib/api/types"
+import { releaseExpiredHolds } from "@/lib/server/appointment-holds"
 
 export const dynamic = "force-dynamic"
 
@@ -22,6 +23,10 @@ export default async function LkPage() {
       redirect("/")
     }
     
+    // Просроченные неоплаченные брони отменяем до чтения списка,
+    // чтобы в кабинете не висело «Ожидает оплаты» с истёкшим таймером.
+    await releaseExpiredHolds()
+
     // Fetch appointments on server - explicitly filter by user ID
     appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie, userId: user.id })
   } catch (e) {

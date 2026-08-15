@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useUserStore } from "@/stores/user-store"
 import { useUserAppointmentStore } from "@/stores/user-appointments-store"
-import { CalendarX, CheckCircle2, Play } from "lucide-react"
+import { CalendarX, CheckCircle2, CreditCard, Play } from "lucide-react"
 import Link from "next/link"
 import type { ApiAppointment } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
@@ -54,6 +54,8 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
   const isLoading = apptLoading && !apptFetched
   
   // Filter appointments
+  // Неоплаченные брони: их нужно оплатить, иначе слот вернётся врачу.
+  const pendingPaymentAppointments = appointments.filter((a) => a.status === "pending_payment")
   const upcomingAppointments = appointments.filter((a) => a.status === "confirmed")
   const activeAppointments = appointments.filter((a) => a.status === "in_progress")
   const completedAppointments = appointments.filter((a) => a.status === "completed")
@@ -85,6 +87,31 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
           <ConsultationGuide 
             appointment={activeAppointments[0] || upcomingAppointments[0]} 
           />
+        )}
+
+        {/* Неоплаченная бронь — самое срочное действие в кабинете */}
+        {pendingPaymentAppointments.length > 0 && (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2.5">
+              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {pendingPaymentAppointments.length === 1
+                    ? "Запись ожидает оплаты"
+                    : `Записи ожидают оплаты: ${pendingPaymentAppointments.length}`}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground text-pretty">
+                  Время у врача забронировано ненадолго. Если не оплатить, слот вернётся
+                  в расписание.
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" className="shrink-0 bg-amber-500 text-white hover:bg-amber-500/90">
+              <Link href={`/appointment/${pendingPaymentAppointments[0].id}/payment`}>
+                Перейти к оплате
+              </Link>
+            </Button>
+          </div>
         )}
 
         {/* Feedback prompt for completed consultations */}
