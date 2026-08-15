@@ -3,7 +3,7 @@
 import type { Socket } from 'socket.io'
 import type { AuthenticatedSocket } from '../types'
 import getCookieValue from '../utils/getCookieValue'
-import decodeToken from '../utils/verifyToken'
+import verifyToken from '../utils/verifyToken'
 
 
 export function createAuthMiddleware() {
@@ -20,8 +20,7 @@ export function createAuthMiddleware() {
     const userToken = getCookieValue(cookies, 'payload-token');
     console.log('[v0] userToken extracted:', userToken ? `${userToken.substring(0, 20)}...` : null)
     if (userToken) {
-      // 🔴 Используем decode вместо verify
-      const decoded = decodeToken(userToken)  // ← здесь подмена
+      const decoded = verifyToken(userToken)
       if (decoded?.id) {
         userId = decoded.id
       } else {
@@ -33,8 +32,7 @@ export function createAuthMiddleware() {
     const doctorToken = getCookieValue(cookies, 'doctors-token')
     console.log('[v0] doctorToken extracted:', doctorToken ? `${doctorToken.substring(0, 20)}...` : null)
     if (doctorToken) {
-      // 🔴 Используем decode вместо verify
-      const decoded = decodeToken(doctorToken)  // ← здесь подмена
+      const decoded = verifyToken(doctorToken)
       console.log('[v0] doctorToken decoded:', decoded)
       if (decoded?.id) {
         doctorId = decoded.id
