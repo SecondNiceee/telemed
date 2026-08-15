@@ -6,8 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowLeft,
   GraduationCap,
-  Video,
-  Shield,
   Award,
   CheckCircle,
   User,
@@ -15,6 +13,7 @@ import {
 import { DoctorReviews } from "@/components/doctor-reviews";
 import { DoctorBookingSection } from "@/components/doctor-booking-section";
 import type { DoctorScheduleDate } from "@/lib/api/types";
+import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
 
 interface DoctorPageClientProps {
   doctor: {
@@ -25,6 +24,7 @@ interface DoctorPageClientProps {
     experience: number | null;
     degree: string | null;
     bio: string | null;
+    slotDuration?: string | null;
   };
   photoUrl: string | null;
   specialty: string;
@@ -44,6 +44,11 @@ export function DoctorPageClient({
   schedule,
 }: DoctorPageClientProps) {
   const firstCategorySlug = categories[0]?.slug;
+  // null, если врач не выставил ни одного слота — длительность тогда неизвестна.
+  const consultationDuration = getConsultationDurationLabel({
+    slotDuration: doctor.slotDuration,
+    schedule,
+  });
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -106,6 +111,12 @@ export function DoctorPageClient({
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground text-base">Стоимость консультации:</span>
                     <span className="font-medium text-foreground text-base">{doctor.price.toLocaleString("ru-RU")} ₽</span>
+                  </div>
+                )}
+                {consultationDuration && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-base">Время консультации:</span>
+                    <span className="font-medium text-foreground text-base">{consultationDuration}</span>
                   </div>
                 )}
               </div>
@@ -190,43 +201,6 @@ export function DoctorPageClient({
           </CardContent>
         </Card>
       )}
-
-      {/* Features */}
-      <div className="grid sm:grid-cols-3 gap-1.5 mb-2">
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Video className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Видеоконсультация</p>
-              <p className="text-xs text-muted-foreground leading-tight">HD качество</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Конфиденциально</p>
-              <p className="text-xs text-muted-foreground leading-tight">Защита данных</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Award className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Сертифицирован</p>
-              <p className="text-xs text-muted-foreground leading-tight">Все лицензии</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Reviews Section */}
       <DoctorReviews doctorId={doctor.id} doctorName={doctor.name || 'Врач'} />

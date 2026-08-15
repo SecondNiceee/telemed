@@ -12,6 +12,12 @@ export interface CreateCategoryPayload {
   iconImage?: number
 }
 
+/**
+ * Сортировка по русскому алфавиту: сортировка на стороне БД идёт по байтам,
+ * из-за чего «ё» и латиница оказываются в конце списка.
+ */
+const ruCollator = new Intl.Collator('ru', { sensitivity: 'base', numeric: true })
+
 export class CategoriesApi {
   /**
    * Fetch all doctor categories
@@ -21,7 +27,7 @@ export class CategoriesApi {
       '/api/doctor-categories?limit=100&sort=name',
       { next: { tags: [CATEGORIES_CACHE_TAG] }},
     )
-    return data.docs
+    return [...data.docs].sort((a, b) => ruCollator.compare(a.name ?? '', b.name ?? ''))
   }
 
   /**

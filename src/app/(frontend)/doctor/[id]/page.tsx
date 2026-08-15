@@ -91,6 +91,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
             experience: doctor.experience ?? null,
             degree: doctor.degree ?? null,
             bio: doctor.bio ?? null,
+            slotDuration: doctor.slotDuration ?? null,
           }}
           photoUrl={photoUrl}
           specialty={specialty}

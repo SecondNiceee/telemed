@@ -6,6 +6,20 @@ import type { ApiCategory } from './types'
 export const CATEGORIES_CACHE_TAG = 'categories'
 
 /**
+ * Сортировка по русскому алфавиту.
+ *
+ * Payload/БД сортирует по байтам (или по локали БД), из-за чего «Ёндокринолог»,
+ * буква «ё» и латиница уезжают в конец списка. Intl.Collator с локалью 'ru'
+ * даёт корректный порядок: а, б, в … е, ё, ж …, а numeric заодно правильно
+ * сравнивает названия с цифрами.
+ */
+const ruCollator = new Intl.Collator('ru', { sensitivity: 'base', numeric: true })
+
+function sortCategoriesRu(categories: ApiCategory[]): ApiCategory[] {
+  return [...categories].sort((a, b) => ruCollator.compare(a.name ?? '', b.name ?? ''))
+}
+
+/**
  * Internal function to fetch categories via Payload Local API.
  */
 async function fetchCategoriesInternal(): Promise<ApiCategory[]> {
@@ -19,7 +33,7 @@ async function fetchCategoriesInternal(): Promise<ApiCategory[]> {
     sort: 'name',
   })
   
-  return data.docs as unknown as ApiCategory[]
+  return sortCategoriesRu(data.docs as unknown as ApiCategory[])
 }
 
 /**
