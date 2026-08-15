@@ -11,8 +11,8 @@ import {
   type ApiDoctor,
   type ApiCategory,
 } from "@/lib/api/index";
-import { ArrowLeft } from "lucide-react";
 import { CategoryPageClient } from "./category-client";
+import { BackButton } from "@/components/back-button";
 import { BackgroundDecor } from "@/components/background-decor";
 import { SectionBadge } from "@/components/section-badge";
 
@@ -85,17 +85,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       <main className="relative z-10 flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="mb-4 rounded-full text-teal hover:bg-teal/10 hover:text-teal"
-            >
-              <Link href="/appointment">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Назад к категориям
-              </Link>
-            </Button>
+            <BackButton fallbackHref="/appointment" className="mb-4" />
 
             <div className="space-y-3">
               <SectionBadge tone="teal">Специалисты</SectionBadge>
@@ -118,7 +108,6 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
           <CategoryPageClient 
             doctors={doctors} 
-            categorySlug={slug}
             initialSelectedDate={selectedDate}
           />
         </div>

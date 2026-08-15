@@ -1,25 +1,40 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
+import { useState, useMemo, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DoctorCard } from "@/components/doctor-card";
-import { Search, X, Calendar } from "lucide-react";
+import { Search, X } from "lucide-react";
 import type { ApiDoctor } from "@/lib/api/types";
+import { DateFilter } from "@/components/date-filter";
 
 interface CategoryPageClientProps {
   doctors: ApiDoctor[];
-  categorySlug: string;
   initialSelectedDate?: string;
 }
 
 export function CategoryPageClient({ 
   doctors, 
-  categorySlug,
   initialSelectedDate 
 }: CategoryPageClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string | null>(
+    initialSelectedDate ?? null,
+  );
+
+  // Дата живёт в state (фильтруем на клиенте), но дублируем её в URL, чтобы
+  // ссылку можно было переслать и чтобы переход из /appointment с ?date= работал.
+  // replace + scroll:false — чтобы не плодить историю и не прыгать к началу.
+  const handleDateChange = useCallback(
+    (date: string | null) => {
+      setSelectedDate(date);
+      router.replace(date ? `${pathname}?date=${date}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   // Filter doctors by search query and selected date
   const filteredDoctors = useMemo(() => {
@@ -37,7 +52,7 @@ export function CategoryPageClient({
     }
 
     // Filter by selected date (check if doctor has available slot on that date)
-    if (initialSelectedDate) {
+    if (selectedDate) {
       result = result.filter((doctor) => {
         if (!doctor.schedule || !Array.isArray(doctor.schedule)) return false;
         
@@ -45,7 +60,7 @@ export function CategoryPageClient({
           if (typeof dayEntry === 'object' && dayEntry !== null && 'date' in dayEntry) {
             const scheduleDay = dayEntry as { date: string; slots?: unknown[] };
             return (
-              scheduleDay.date === initialSelectedDate &&
+              scheduleDay.date === selectedDate &&
               scheduleDay.slots &&
               scheduleDay.slots.length > 0
             );
@@ -56,7 +71,7 @@ export function CategoryPageClient({
     }
 
     return result;
-  }, [doctors, searchQuery, initialSelectedDate]);
+  }, [doctors, searchQuery, selectedDate]);
 
   return (
     <div>
@@ -82,31 +97,23 @@ export function CategoryPageClient({
           )}
         </div>
 
-        {/* Date filter indicator */}
-        {initialSelectedDate && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-teal/10 border border-teal/25">
-            <Calendar className="w-4 h-4 text-teal" />
-            <span className="text-sm text-foreground">
-              Показаны врачи, доступные на{" "}
-              <span className="font-medium">
-                {new Date(initialSelectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
-                  day: "numeric",
-                  month: "long",
-                })}
-              </span>
+        {/* Date filter */}
+        <DateFilter
+          value={selectedDate}
+          onChange={handleDateChange}
+          hint="Выберите дату, чтобы найти врачей со свободными слотами"
+        />
+
+        {selectedDate && (
+          <p className="text-sm text-muted-foreground">
+            Показаны врачи, доступные на{" "}
+            <span className="font-medium text-foreground">
+              {new Date(`${selectedDate}T00:00:00`).toLocaleDateString("ru-RU", {
+                day: "numeric",
+                month: "long",
+              })}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="ml-auto rounded-full text-teal hover:bg-teal/15 hover:text-teal"
-            >
-              <Link href={`/category/${categorySlug}`}>
-                <X className="w-4 h-4 mr-1" />
-                Сбросить
-              </Link>
-            </Button>
-          </div>
+          </p>
         )}
 
         {/* Count */}
@@ -134,24 +141,20 @@ export function CategoryPageClient({
           <p className="text-muted-foreground text-lg">
             {searchQuery
               ? "Врачи не найдены по вашему запросу"
-              : initialSelectedDate
+              : selectedDate
                 ? "Нет врачей, доступных на выбранную дату"
                 : "В данной категории пока нет врачей"}
           </p>
-          {(searchQuery || initialSelectedDate) && (
-            <Button 
-              variant="outline" 
+          {(searchQuery || selectedDate) && (
+            <Button
+              variant="outline"
               className="mt-4 rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal transition-all"
               onClick={() => {
                 setSearchQuery("");
+                handleDateChange(null);
               }}
-              asChild={!!initialSelectedDate}
             >
-              {initialSelectedDate ? (
-                <Link href={`/category/${categorySlug}`}>Сбросить фильтры</Link>
-              ) : (
-                "Сбросить поиск"
-              )}
+              Сбросить фильтры
             </Button>
           )}
         </div>
