@@ -130,6 +130,8 @@ export const Appointments: CollectionConfig = {
     { fields: ['status', 'paymentExpiresAt'] },
     // Тот же sweep, но суженный по врачу (страница /doctor/[id]).
     { fields: ['doctor', 'status', 'paymentExpiresAt'] },
+    // Sweep, суженный по пользователю (личный кабинет /lk).
+    { fields: ['user', 'status', 'paymentExpiresAt'] },
   ],
   hooks: {
     beforeOperation: [ensureReqUser],
