@@ -83,20 +83,20 @@ export function DateFilter({
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         className={cn(
-          "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all",
+          "w-full flex items-center justify-between px-3 py-2 rounded-xl border transition-all",
           isOpen || value
             ? "border-teal/45 bg-teal/[0.07]"
             : "border-teal/20 bg-card/80 hover:border-teal/40 hover:bg-teal/[0.05]",
         )}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
             className={cn(
-              "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
+              "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0",
               value ? "bg-teal text-teal-foreground" : "bg-teal/10 text-teal",
             )}
           >
-            <Calendar className="w-5 h-5" />
+            <Calendar className="w-4 h-4" />
           </div>
           <div className="text-left">
             <p className="text-sm font-medium text-foreground">Фильтр по дате</p>
@@ -150,22 +150,22 @@ export function DateFilter({
       <div
         className={cn(
           "overflow-hidden transition-all duration-300 ease-in-out",
-          isOpen ? "max-h-96 opacity-100 mt-3" : "max-h-0 opacity-0",
+          isOpen ? "max-h-40 opacity-100 mt-2" : "max-h-0 opacity-0",
         )}
       >
-        <Card className="border-teal/20 bg-card/80">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
+        <Card className="border-teal/20 bg-card/80 py-0">
+          <CardContent className="px-2.5 py-2.5 sm:px-3">
+            <div className="flex items-center justify-between mb-1.5">
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Предыдущая неделя"
                 onClick={() => shiftWeek(-7)}
-                className="rounded-full text-teal hover:bg-teal/10 hover:text-teal"
+                className="h-7 w-7 rounded-full text-teal hover:bg-teal/10 hover:text-teal"
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h3 className="text-sm font-medium text-muted-foreground capitalize">
+              <h3 className="text-xs font-medium text-muted-foreground capitalize">
                 {formatMonthYear()}
               </h3>
               <Button
@@ -173,13 +173,13 @@ export function DateFilter({
                 size="icon"
                 aria-label="Следующая неделя"
                 onClick={() => shiftWeek(7)}
-                className="rounded-full text-teal hover:bg-teal/10 hover:text-teal"
+                className="h-7 w-7 rounded-full text-teal hover:bg-teal/10 hover:text-teal"
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-7 gap-1">
               {weekDays.map((date) => {
                 const dateStr = toDateStr(date);
                 const past = isPast(date);
@@ -193,7 +193,7 @@ export function DateFilter({
                     disabled={past}
                     aria-pressed={selected}
                     className={cn(
-                      "flex flex-col items-center p-2 sm:p-3 rounded-xl transition-all",
+                      "flex flex-col items-center py-1.5 rounded-lg transition-all",
                       selected
                         ? "bg-teal text-teal-foreground shadow-sm"
                         : past
@@ -203,10 +203,12 @@ export function DateFilter({
                             : "bg-teal/[0.06] text-foreground hover:bg-teal/15",
                     )}
                   >
-                    <span className="text-xs uppercase mb-1">
+                    <span className="text-[10px] leading-none uppercase">
                       {date.toLocaleDateString("ru-RU", { weekday: "short" })}
                     </span>
-                    <span className="text-base sm:text-lg font-semibold">{date.getDate()}</span>
+                    <span className="text-sm font-semibold leading-tight mt-0.5">
+                      {date.getDate()}
+                    </span>
                   </button>
                 );
               })}

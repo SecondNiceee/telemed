@@ -3,47 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
+import { ArrowRight } from "lucide-react";
 import type { ApiCategory } from "@/lib/api/types";
 import { CategoryIcon } from "@/lib/utils/categoryIcon";
 
 /** Сколько карточек категорий показываем на одной странице */
 const CATEGORIES_PER_PAGE = 6;
-
-/**
- * Формирует список страниц с многоточиями:
- * 1 ... 4 5 6 ... 12
- */
-function buildPageItems(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-
-  const pages = new Set<number>([1, total, current]);
-  if (current - 1 > 1) pages.add(current - 1);
-  if (current + 1 < total) pages.add(current + 1);
-
-  // Держим на краях чуть больше номеров, чтобы блок не «прыгал» по ширине
-  if (current <= 3) {
-    pages.add(2).add(3).add(4);
-  }
-  if (current >= total - 2) {
-    pages.add(total - 1).add(total - 2).add(total - 3);
-  }
-
-  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b);
-
-  const items: (number | "ellipsis")[] = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) {
-      items.push("ellipsis");
-    }
-    items.push(page);
-  });
-
-  return items;
-}
 
 export function CategoriesGrid({ categories }: { categories: ApiCategory[] }) {
   const [page, setPage] = useState(1);
@@ -61,11 +27,6 @@ export function CategoriesGrid({ categories }: { categories: ApiCategory[] }) {
     const start = (currentPage - 1) * CATEGORIES_PER_PAGE;
     return categories.slice(start, start + CATEGORIES_PER_PAGE);
   }, [categories, currentPage]);
-
-  const pageItems = useMemo(
-    () => buildPageItems(currentPage, totalPages),
-    [currentPage, totalPages],
-  );
 
   const goToPage = (next: number) => {
     const clamped = Math.min(Math.max(1, next), totalPages);
@@ -122,64 +83,13 @@ export function CategoriesGrid({ categories }: { categories: ApiCategory[] }) {
         </div>
       </div>
 
-      {totalPages > 1 && (
-        <nav
-          aria-label="Пагинация по категориям"
-          className="mt-10 flex flex-col items-center gap-4"
-        >
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              aria-label="Предыдущая страница"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-
-            <div className="flex items-center gap-1">
-              {pageItems.map((item, index) =>
-                item === "ellipsis" ? (
-                  <span
-                    key={`ellipsis-${index}`}
-                    aria-hidden="true"
-                    className="w-9 text-center text-muted-foreground select-none"
-                  >
-                    &hellip;
-                  </span>
-                ) : (
-                  <Button
-                    key={item}
-                    variant={item === currentPage ? "default" : "ghost"}
-                    size="icon"
-                    onClick={() => goToPage(item)}
-                    aria-label={`Страница ${item}`}
-                    aria-current={item === currentPage ? "page" : undefined}
-                    className="tabular-nums"
-                  >
-                    {item}
-                  </Button>
-                ),
-              )}
-            </div>
-
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              aria-label="Следующая страница"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            {rangeStart}&ndash;{rangeEnd} из {categories.length} специальностей
-          </p>
-        </nav>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={goToPage}
+        ariaLabel="Пагинация по категориям"
+        label={`${rangeStart}–${rangeEnd} из ${categories.length} специальностей`}
+      />
     </div>
   );
 }

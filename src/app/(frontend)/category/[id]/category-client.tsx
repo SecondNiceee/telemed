@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,10 @@ import { DoctorCard } from "@/components/doctor-card";
 import { Search, X } from "lucide-react";
 import type { ApiDoctor } from "@/lib/api/types";
 import { DateFilter } from "@/components/date-filter";
+import { Pagination } from "@/components/ui/pagination";
+
+/** Сколько врачей показываем на одной странице */
+const DOCTORS_PER_PAGE = 6;
 
 interface CategoryPageClientProps {
   doctors: ApiDoctor[];
@@ -24,6 +28,8 @@ export function CategoryPageClient({
   const [selectedDate, setSelectedDate] = useState<string | null>(
     initialSelectedDate ?? null,
   );
+  const [page, setPage] = useState(1);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Дата живёт в state (фильтруем на клиенте), но дублируем её в URL, чтобы
   // ссылку можно было переслать и чтобы переход из /appointment с ?date= работал.
@@ -72,6 +78,36 @@ export function CategoryPageClient({
 
     return result;
   }, [doctors, searchQuery, selectedDate]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / DOCTORS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+
+  // Список отфильтровался — страница из state может стать «мёртвой», подтягиваем её обратно
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  // Смена фильтров всегда возвращает к первой странице: иначе после сужения
+  // выборки пользователь остаётся на странице, которой в новой выдаче нет.
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedDate]);
+
+  const visibleDoctors = useMemo(() => {
+    const start = (currentPage - 1) * DOCTORS_PER_PAGE;
+    return filteredDoctors.slice(start, start + DOCTORS_PER_PAGE);
+  }, [filteredDoctors, currentPage]);
+
+  const goToPage = (next: number) => {
+    const clamped = Math.min(Math.max(1, next), totalPages);
+    if (clamped === currentPage) return;
+    setPage(clamped);
+    // Возвращаем к началу списка, чтобы не оказаться в середине новой страницы
+    listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const rangeStart = (currentPage - 1) * DOCTORS_PER_PAGE + 1;
+  const rangeEnd = rangeStart + visibleDoctors.length - 1;
 
   return (
     <div>
@@ -128,10 +164,21 @@ export function CategoryPageClient({
 
       {/* Doctors list */}
       {filteredDoctors.length > 0 ? (
-        <div className="grid gap-3">
-          {filteredDoctors.map((doctor) => (
-            <DoctorCard key={doctor.id} doctor={doctor} />
-          ))}
+        <div ref={listRef} className="scroll-mt-28">
+          <div className="grid gap-3">
+            {visibleDoctors.map((doctor) => (
+              <DoctorCard key={doctor.id} doctor={doctor} />
+            ))}
+          </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            ariaLabel="Пагинация по врачам"
+            label={`${rangeStart}–${rangeEnd} из ${filteredDoctors.length} врачей`}
+            className="mt-8 flex flex-col items-center gap-4"
+          />
         </div>
       ) : (
         <div className="text-center py-12 rounded-2xl border border-teal/20 bg-teal/[0.04]">
