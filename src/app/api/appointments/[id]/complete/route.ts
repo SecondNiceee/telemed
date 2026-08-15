@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
+import { getPayloadJwtSecret } from '@/lib/server/payload-jwt-secret'
 
 interface DecodedToken {
   id: number
@@ -37,7 +38,7 @@ export async function POST(
     }
 
     // Decode token to get doctor ID
-    const secret = process.env.PAYLOAD_SECRET
+    const secret = getPayloadJwtSecret()
     if (!secret) {
       return NextResponse.json(
         { message: 'Server configuration error' },

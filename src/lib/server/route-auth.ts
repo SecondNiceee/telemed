@@ -2,6 +2,7 @@ import 'server-only'
 
 import { cookies } from 'next/headers'
 import jwt from 'jsonwebtoken'
+import { getPayloadJwtSecret } from './payload-jwt-secret'
 
 interface DecodedToken {
   id: number
@@ -24,7 +25,7 @@ export async function getUserFromCookies(): Promise<
     return { user: null, error: { message: 'Требуется авторизация', status: 401 } }
   }
 
-  const secret = process.env.PAYLOAD_SECRET
+  const secret = getPayloadJwtSecret()
   if (!secret) {
     return { user: null, error: { message: 'Ошибка конфигурации сервера', status: 500 } }
   }
