@@ -8,6 +8,8 @@
  *                       поверх него должны быть прозрачными.
  * ecg=false           — только сетка и логотипы, без линий ЭКГ (страницы со
  *                       плотными списками, где линии мешают читать контент).
+ * ecg="bottom"        — только нижняя линия ЭКГ (личный кабинет: верхняя и
+ *                       средняя линии пересекали карточки и мешали чтению).
  */
 export function BackgroundDecor({
   id = "decor",
@@ -16,7 +18,7 @@ export function BackgroundDecor({
 }: {
   id?: string
   position?: "absolute" | "fixed"
-  ecg?: boolean
+  ecg?: boolean | "bottom"
 }) {
   const patternId = `dot-grid-${id}`
   const ecgPath = "M0 40 H120 l10 0 6 -22 8 44 7 -52 6 60 7 -30 H210 l8 0 5 -12 5 12 H600"
@@ -35,7 +37,7 @@ export function BackgroundDecor({
         <rect width="100%" height="100%" fill={`url(#${patternId})`} />
       </svg>
 
-      {ecg && (
+      {ecg === true && (
         <>
       <svg
         className="absolute left-0 top-[14%] h-12 w-full text-primary/[0.07] md:h-16"
@@ -62,6 +64,11 @@ export function BackgroundDecor({
         />
         <path d="M0 40 H180" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
+        </>
+      )}
+
+      {/* Нижняя линия — единственная, которая остаётся при ecg="bottom". */}
+      {ecg !== false && (
       <svg
         className="absolute left-0 top-[82%] h-12 w-full text-primary/[0.06] md:h-16"
         viewBox="0 0 600 80"
@@ -79,7 +86,6 @@ export function BackgroundDecor({
         />
         <path d="M0 40 H360" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
-        </>
       )}
 
       {/* Водяные знаки логотипа. В тёмной теме инвертируем jpg и подмешиваем
