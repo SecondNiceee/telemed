@@ -178,8 +178,8 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
         aria-hidden="true"
         className="block h-1 bg-gradient-to-r from-teal via-primary to-transparent"
       />
-      <CardContent className="px-4 py-4 sm:px-6 sm:py-5">
-        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+      <CardContent className="px-4 pt-3 pb-4 sm:px-6 sm:pt-3 sm:pb-5">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="flex items-center gap-3">
             <h2 className="flex items-center gap-2.5 text-lg font-semibold text-foreground">
               <span
@@ -205,11 +205,10 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal"
+              className="rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal"
               onClick={handleLeaveReviewClick}
               disabled={loadingUserAppointments}
             >
-              <Star className="w-4 h-4" />
               Оставить отзыв
             </Button>
           )}

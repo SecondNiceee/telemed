@@ -381,16 +381,24 @@ export function DoctorBookingSection({
             )}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-4 text-center">
-            {/* Намёк на будущие слоты времени вместо шаблонной иконки */}
-            <div aria-hidden="true" className="mb-2.5 flex justify-center gap-1.5">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className="h-5 w-11 rounded-md border border-dashed border-teal/35"
-                />
-              ))}
-            </div>
+          <div className="flex flex-col items-center rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-5 text-center">
+            {/* Своя иконка записи: лист приёма с отмеченным временем */}
+            <svg
+              viewBox="0 0 48 48"
+              aria-hidden="true"
+              className="mb-2.5 h-10 w-10 text-teal"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M13 8h16a4 4 0 0 1 4 4v24a4 4 0 0 1-4 4H13a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" />
+              <path d="M18 6h6a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1V8a2 2 0 0 1 2-2Z" />
+              <path d="M15 20h8M15 26h5" opacity="0.55" />
+              <circle cx="32" cy="30" r="9" className="fill-teal/10" />
+              <path d="M32 26.5V30l2.5 2" />
+            </svg>
             <p className="text-sm text-muted-foreground">
               Выберите дату для просмотра доступного времени
             </p>
