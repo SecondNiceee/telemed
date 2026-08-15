@@ -27,9 +27,9 @@ function formatDate(dateString: string): string {
   })
 }
 
-function StarRating({ rating }: { rating: number }) {
+function StarRating({ rating, className }: { rating: number; className?: string }) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className={cn('flex items-center gap-0.5', className)}>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -45,24 +45,43 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
+/** Инициалы вместо аватара — отзывы приходят без фото. */
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
 function ReviewCard({ feedback }: { feedback: ApiFeedback }) {
   const userName = typeof feedback.user === 'object' 
     ? feedback.user.name || feedback.user.email 
     : 'Пациент'
   
   return (
-    <div className="py-4 border-b border-border last:border-b-0">
-      <div className="flex items-start justify-between gap-4 mb-2">
-        <div>
-          <p className="font-medium text-foreground">{userName}</p>
+    <article className="flex gap-3 py-4">
+      <span
+        aria-hidden="true"
+        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal/10 text-xs font-semibold text-teal ring-1 ring-teal/20"
+      >
+        {initialsOf(userName) || '—'}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <p className="truncate font-medium text-foreground">{userName}</p>
+          <StarRating rating={feedback.rating} className="translate-y-0.5" />
           <p className="text-xs text-muted-foreground">{formatDate(feedback.createdAt)}</p>
         </div>
-        <StarRating rating={feedback.rating} />
+        {feedback.text && (
+          <p className="mt-1.5 border-l-2 border-teal/25 pl-3 text-sm leading-relaxed text-muted-foreground">
+            {feedback.text}
+          </p>
+        )}
       </div>
-      {feedback.text && (
-        <p className="text-sm text-muted-foreground leading-relaxed">{feedback.text}</p>
-      )}
-    </div>
+    </article>
   )
 }
 
@@ -153,21 +172,32 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
   const canLeaveReview = !!user
 
   return (
-    <Card className="mb-2">
-      <CardContent className="px-6 py-0">
-        <div className="flex items-center justify-between mb-4">
+    <Card className="mb-2 overflow-hidden py-0">
+      {/* Фирменная линия — как в шапке врача и баннере консультации */}
+      <span
+        aria-hidden="true"
+        className="block h-1 bg-gradient-to-r from-teal via-primary to-transparent"
+      />
+      <CardContent className="px-4 py-4 sm:px-6 sm:py-5">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
+            <h2 className="flex items-center gap-2.5 text-lg font-semibold text-foreground">
+              <span
+                aria-hidden="true"
+                className="h-5 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-teal to-primary"
+              />
               Отзывы
             </h2>
             {feedbacks.length > 0 && (
-              <div className="flex items-center gap-2">
-                <StarRating rating={Math.round(averageRating)} />
-                <span className="text-sm text-muted-foreground">
-                  {averageRating.toFixed(1)} ({feedbacks.length})
+              <span className="inline-flex items-center gap-2 rounded-full bg-teal/10 px-2.5 py-1">
+                <span className="text-sm font-semibold tabular-nums text-teal">
+                  {averageRating.toFixed(1)}
                 </span>
-              </div>
+                <StarRating rating={Math.round(averageRating)} />
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {feedbacks.length}
+                </span>
+              </span>
             )}
           </div>
           
@@ -175,7 +205,7 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 border-yellow-500 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-700"
+              className="gap-1.5 rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal"
               onClick={handleLeaveReviewClick}
               disabled={loadingUserAppointments}
             >
@@ -186,15 +216,21 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
         </div>
 
         {isLoading ? (
-          <div className="py-8 text-center">
+          <div className="py-6 text-center">
             <p className="text-sm text-muted-foreground">Загрузка отзывов...</p>
           </div>
         ) : feedbacks.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">Пока нет отзывов</p>
+          <div className="mt-3 rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-5 text-center">
+            <MessageSquare
+              className="mx-auto mb-2 h-5 w-5 text-teal/60"
+              aria-hidden="true"
+            />
+            <p className="text-sm text-muted-foreground">
+              Пока нет отзывов — станьте первым, кто поделится опытом
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-teal/12">
             {feedbacks.map((feedback) => (
               <ReviewCard key={feedback.id} feedback={feedback} />
             ))}
