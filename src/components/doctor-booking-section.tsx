@@ -193,14 +193,12 @@ export function DoctorBookingSection({
       // но подтверждённой запись станет только после оплаты.
       const appointment = await createAppointment({
         doctor: doctorId,
-        user: user.id,
-        doctorName,
-        userName: user.name || user.email,
         specialty: doctorSpecialty,
         date: selectedDate,
         time: selectedTime,
         connectionType,
-        // Цену, статус и срок брони выставляет сервер — с клиента они не идут.
+        // Пациента, имена, цену, статус и срок брони выставляет сервер:
+        // всё, что не входит в whitelist, он вырезает из запроса.
         // Pass full doctor data so the store has all info immediately
         doctorData: {
           id: doctorId,
