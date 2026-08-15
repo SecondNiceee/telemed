@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { BackgroundDecor } from "@/components/background-decor";
 import { Button } from "@/components/ui/button";
 import {
   fetchDoctorById,
@@ -58,11 +59,12 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
   if (error || !doctor) {
     return (
       <div className="min-h-screen flex flex-col">
+        <BackgroundDecor id="doctor-error" position="fixed" />
         <Header />
-        <main className="flex-1 flex items-center justify-center bg-background">
+        <main className="relative z-10 flex-1 flex items-center justify-center">
           <div className="text-center px-4">
             <p className="text-destructive text-lg mb-4">{error || "Врач не найден"}</p>
-            <Button variant="outline" asChild className="border-primary text-primary hover:bg-primary/5 transition-all">
+            <Button variant="outline" asChild className="rounded-full border-teal/40 text-teal hover:bg-teal/10 hover:text-teal transition-all">
               <Link href="/#categories">На главную</Link>
             </Button>
           </div>
@@ -80,8 +82,11 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Сквозной декор smartcardio (ЭКГ + водяные знаки логотипа), как на главной.
+          main прозрачный и лежит выше по z, поэтому декор просвечивает сквозь него. */}
+      <BackgroundDecor id="doctor" position="fixed" />
       <Header />
-      <main className="flex-1 bg-gradient-to-b from-primary/5 via-background to-background">
+      <main className="relative z-10 flex-1">
         <DoctorPageClient
           doctor={{
             id: doctor.id,
