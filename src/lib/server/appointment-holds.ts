@@ -171,9 +171,23 @@ const inFlightSweeps = new Map<string, Promise<number>>()
  */
 const SWEEP_MAX_BATCH = 100
 
+/**
+ * Максимум броней за один проход фонового sweep'а.
+ *
+ * Фоновый проход никого не заставляет ждать (он не внутри рендера), поэтому
+ * лимит здесь выше — накопившиеся просрочки разбираются за меньшее число проходов.
+ */
+const BACKGROUND_SWEEP_MAX_BATCH = 1000
+
 type SweepScope = { doctorId?: number; userId?: number }
 
-async function runSweep({ doctorId, userId }: SweepScope): Promise<number> {
+type SweepOptions = SweepScope & { maxBatch?: number }
+
+async function runSweep({
+  doctorId,
+  userId,
+  maxBatch = SWEEP_MAX_BATCH,
+}: SweepOptions): Promise<number> {
   const payload = await getPayloadInstance()
 
   const expired = await payload.find({
@@ -187,7 +201,7 @@ async function runSweep({ doctorId, userId }: SweepScope): Promise<number> {
     // pagination: false убирает второй запрос (SELECT COUNT), который Payload
     // делает только чтобы посчитать totalDocs — он здесь не нужен.
     pagination: false,
-    limit: SWEEP_MAX_BATCH,
+    limit: maxBatch,
     // Тянем ровно то, что нужно для восстановления слота, — без повторного
     // findByID на каждую бронь.
     select: { doctor: true, date: true, time: true },
@@ -196,7 +210,7 @@ async function runSweep({ doctorId, userId }: SweepScope): Promise<number> {
   })
 
   // pagination: false в некоторых адаптерах игнорирует limit — страхуемся.
-  const batch = expired.docs.slice(0, SWEEP_MAX_BATCH)
+  const batch = expired.docs.slice(0, maxBatch)
   if (batch.length === 0) return 0
 
   // Один UPDATE ... WHERE id IN (...) вместо N апдейтов. Повторная проверка
@@ -262,7 +276,8 @@ async function runSweep({ doctorId, userId }: SweepScope): Promise<number> {
 export async function releaseExpiredHolds({
   doctorId,
   userId,
-}: SweepScope = {}): Promise<number> {
+  maxBatch,
+}: SweepOptions = {}): Promise<number> {
   const scope = doctorId ? `doctor:${doctorId}` : userId ? `user:${userId}` : 'all'
 
   // Уже идёт такой же sweep — присоединяемся к нему вместо второго прохода.
@@ -272,7 +287,7 @@ export async function releaseExpiredHolds({
   const last = lastSweepAt.get(scope) ?? 0
   if (Date.now() - last < SWEEP_THROTTLE_MS) return 0
 
-  const sweep = runSweep({ doctorId, userId })
+  const sweep = runSweep({ doctorId, userId, maxBatch })
     .catch((err) => {
       console.error('Failed to release expired holds:', err)
       return 0
@@ -284,6 +299,83 @@ export async function releaseExpiredHolds({
 
   inFlightSweeps.set(scope, sweep)
   return sweep
+}
+
+/** Как часто фоновый sweeper проверяет просроченные брони. */
+const BACKGROUND_SWEEP_INTERVAL_MS = 60_000
+
+/** Максимум проходов за один тик — чтобы дренаж очереди не крутился бесконечно. */
+const BACKGROUND_SWEEP_MAX_PASSES = 5
+
+/**
+ * Один тик фонового sweeper'а.
+ *
+ * Если просрочек больше лимита пачки, добираем остаток следующими проходами
+ * в этом же тике (но не больше BACKGROUND_SWEEP_MAX_PASSES), чтобы после
+ * долгого простоя расписание не восстанавливалось по 1000 слотов в минуту.
+ */
+async function backgroundSweepTick(): Promise<number> {
+  let total = 0
+
+  for (let pass = 0; pass < BACKGROUND_SWEEP_MAX_PASSES; pass += 1) {
+    // Скоуп 'all' занят исключительно фоновым проходом: страницы ходят
+    // со скоупом doctor/user, так что троттл здесь не мешает.
+    const released = await runSweep({ maxBatch: BACKGROUND_SWEEP_MAX_BATCH })
+    total += released
+
+    // Пачка неполная — значит просрочек больше не осталось.
+    if (released < BACKGROUND_SWEEP_MAX_BATCH) break
+  }
+
+  return total
+}
+
+/**
+ * Запустить фоновое освобождение просроченных броней.
+ *
+ * Рассчитано на долгоживущий сервер (`next start` под pm2/systemd): в отличие от
+ * serverless, процесс живёт постоянно, поэтому таймер — самый простой планировщик,
+ * без внешнего cron и без защищённого HTTP-роута.
+ *
+ * Вызывать ТОЛЬКО из instrumentation.ts: на уровне модуля Next.js может как не
+ * выполнить код вообще, так и выполнить его несколько раз (по разу на воркер
+ * компиляции и на каждый серверный чанк).
+ *
+ * @returns функция остановки таймера
+ */
+export function startExpiredHoldsSweeper(): () => void {
+  let running = false
+
+  const tick = async () => {
+    // Предыдущий тик ещё идёт (после простоя проход может быть долгим) — пропускаем.
+    if (running) return
+    running = true
+
+    try {
+      const released = await backgroundSweepTick()
+      if (released > 0) {
+        console.log(`[v0][holds-sweeper] released ${released} expired hold(s)`)
+      }
+    } catch (err) {
+      console.error('[v0][holds-sweeper] sweep failed:', err)
+    } finally {
+      running = false
+    }
+  }
+
+  const timer = setInterval(tick, BACKGROUND_SWEEP_INTERVAL_MS)
+
+  // Таймер не должен сам удерживать процесс живым — за это отвечает http-сервер.
+  timer.unref()
+
+  // Первый проход — с задержкой, чтобы не конкурировать с прогревом приложения.
+  const warmup = setTimeout(tick, 10_000)
+  warmup.unref()
+
+  return () => {
+    clearInterval(timer)
+    clearTimeout(warmup)
+  }
 }
 
 /**
