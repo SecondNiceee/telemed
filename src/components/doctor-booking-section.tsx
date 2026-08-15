@@ -17,7 +17,7 @@ import {
   Info,
   CreditCard,
 } from "lucide-react";
-import { getPaymentDeadline, PAYMENT_WINDOW_MINUTES } from "@/lib/constants/payment";
+import { PAYMENT_WINDOW_MINUTES } from "@/lib/constants/payment";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
@@ -199,10 +199,8 @@ export function DoctorBookingSection({
         specialty: doctorSpecialty,
         date: selectedDate,
         time: selectedTime,
-        price: doctorPrice,
         connectionType,
-        status: "pending_payment",
-        paymentExpiresAt: getPaymentDeadline().toISOString(),
+        // Цену, статус и срок брони выставляет сервер — с клиента они не идут.
         // Pass full doctor data so the store has all info immediately
         doctorData: {
           id: doctorId,
