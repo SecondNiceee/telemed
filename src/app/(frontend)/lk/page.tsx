@@ -5,7 +5,6 @@ import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import { AuthApi, AppointmentsApi } from "@/lib/api/index"
 import type { ApiAppointment } from "@/lib/api/types"
-import { releaseExpiredHolds } from "@/lib/server/appointment-holds"
 
 export const dynamic = "force-dynamic"
 
@@ -23,10 +22,9 @@ export default async function LkPage() {
       redirect("/")
     }
     
-    // Просроченные неоплаченные брони отменяем до чтения списка,
-    // чтобы в кабинете не висело «Ожидает оплаты» с истёкшим таймером.
-    // Скоуп — только свои брони: чужие разберут страницы их врачей и кабинетов.
-    await releaseExpiredHolds({ userId: user.id })
+    // Просроченные брони отменяет фоновый sweeper (см. instrumentation.ts),
+    // поэтому здесь sweep не запускаем. Истёкшую бронь, которая ещё не попала
+    // под фоновый проход, клиент и так показывает по таймеру paymentExpiresAt.
 
     // Fetch appointments on server - explicitly filter by user ID
     appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie, userId: user.id })
