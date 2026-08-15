@@ -25,7 +25,8 @@ export default async function LkPage() {
     
     // Просроченные неоплаченные брони отменяем до чтения списка,
     // чтобы в кабинете не висело «Ожидает оплаты» с истёкшим таймером.
-    await releaseExpiredHolds()
+    // Скоуп — только свои брони: чужие разберут страницы их врачей и кабинетов.
+    await releaseExpiredHolds({ userId: user.id })
 
     // Fetch appointments on server - explicitly filter by user ID
     appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie, userId: user.id })

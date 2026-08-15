@@ -5,6 +5,14 @@ interface ServerOptions {
   cookie?: string
 }
 
+/**
+ * Тело создания записи.
+ *
+ * ВАЖНО: `user`, `price`, `status`, `paymentExpiresAt` и `paidAt` сервер
+ * выставляет сам (см. `applyBookingGuards` в collections/helpers), поэтому
+ * с клиента их присылать бессмысленно — значения будут перезаписаны.
+ * Клиент выбирает только врача, дату, время и способ связи.
+ */
 export interface CreateAppointmentPayload {
   doctor: number
   user: number
@@ -13,10 +21,7 @@ export interface CreateAppointmentPayload {
   specialty: string
   date: string
   time: string
-  price: number
   connectionType?: 'chat' | 'audio' | 'video'
-  status?: 'pending_payment' | 'confirmed'
-  paymentExpiresAt?: string
 }
 
 export class AppointmentsApi {

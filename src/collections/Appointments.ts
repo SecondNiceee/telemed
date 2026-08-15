@@ -2,6 +2,7 @@ import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
+import { applyBookingGuards } from './helpers/appointment-booking-guard'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { sendAppointmentEmail, sendPatientAppointmentEmail } from '@/utils/sendAppointmentEmail'
 
@@ -129,12 +130,18 @@ export const Appointments: CollectionConfig = {
     { fields: ['status', 'paymentExpiresAt'] },
     // Тот же sweep, но суженный по врачу (страница /doctor/[id]).
     { fields: ['doctor', 'status', 'paymentExpiresAt'] },
+    // Sweep, суженный по пользователю (личный кабинет /lk).
+    { fields: ['user', 'status', 'paymentExpiresAt'] },
   ],
   hooks: {
     beforeOperation: [ensureReqUser],
     beforeChange: [
       async ({ data, operation, req }) => {
         if (operation === 'create') {
+          // Тело запроса приходит от клиента: принудительно перезаписываем
+          // user / price / status / paymentExpiresAt и проверяем сам слот.
+          await applyBookingGuards({ data, req })
+
           // Validate that the slot is not already booked
           const doctorId = data.doctor
           const date = data.date
@@ -475,7 +482,7 @@ export const Appointments: CollectionConfig = {
         {
           name: 'doctorPeerId',
           type: 'text',
-          label: 'PeerJS ID врача',
+          label: 'PeerJS ID в��ача',
         },
         {
           name: 'userPeerId',

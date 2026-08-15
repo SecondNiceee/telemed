@@ -52,9 +52,31 @@ export function register() {
     report('uncaughtException', err)
   })
 
+  // Фоновое освобождение просроченных броней.
+  //
+  // Пропускаем во время `next build`: сборка запускает этот файл, но таймер там
+  // не нужен (и лезть в БД на этапе билда нельзя).
+  let stopSweeper: (() => void) | undefined
+
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    // Динамический импорт: Payload тянет за собой конфиг и адаптер БД, и держать
+    // это в статическом графе instrumentation мешает сборке.
+    import('@/lib/server/appointment-holds')
+      .then(({ startExpiredHoldsSweeper }) => {
+        stopSweeper = startExpiredHoldsSweeper()
+        console.log(`[v0][instrumentation] holds sweeper started (pid ${process.pid})`)
+      })
+      .catch((err) => {
+        report('holdsSweeperStartFailed', err)
+      })
+  }
+
   for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     process.on(signal, () => {
       console.error(`[v0][signal] received ${signal}, pid ${process.pid}`)
+      // Останавливаем таймер, чтобы при `pm2 restart` не начинать новый проход
+      // в уже завершающемся процессе.
+      stopSweeper?.()
     })
   }
 
