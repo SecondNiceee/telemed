@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Video, ArrowRight, Clock } from "lucide-react"
+import { Video, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCountdownParts, formatCountdown } from "@/lib/utils/date"
 import type { ApiAppointment } from "@/lib/api/types"
@@ -17,12 +17,24 @@ interface AppointmentCountdownBannerProps {
   variant?: "hero" | "header"
   /** Путь кнопки "Перейти в чат". По умолчанию /lk/chat */
   chatHref?: string
+  /**
+   * Палитра hero-варианта:
+   * "onLight" — светлая подложка (по умолчанию, /lk-med)
+   * "onDark"  — тёмная секция surface-dark (шапка кабинета /lk)
+   */
+  tone?: "onLight" | "onDark"
   /** Контекст для отображения имени: "patient" покажет имя врача, "doctor" покажет имя пациента */
   context?: "patient" | "doctor"
   className?: string
 }
 
-function CountdownDigits({ parts }: { parts: NonNullable<ReturnType<typeof getCountdownParts>> }) {
+function CountdownDigits({
+  parts,
+  onDark = false,
+}: {
+  parts: NonNullable<ReturnType<typeof getCountdownParts>>
+  onDark?: boolean
+}) {
   const pad = (n: number) => String(n).padStart(2, "0")
   const blocks = parts.days > 0
     ? [
@@ -41,10 +53,22 @@ function CountdownDigits({ parts }: { parts: NonNullable<ReturnType<typeof getCo
     <div className="flex items-end gap-2">
       {blocks.map((b, i) => (
         <div key={i} className="flex items-end gap-0.5">
-          <span className="text-3xl font-bold tabular-nums leading-none text-foreground font-mono">
+          <span
+            className={cn(
+              "font-mono text-3xl font-bold tabular-nums leading-none",
+              onDark ? "text-white" : "text-foreground",
+            )}
+          >
             {b.value}
           </span>
-          <span className="text-xs font-semibold text-teal mb-0.5">{b.label}</span>
+          <span
+            className={cn(
+              "mb-0.5 text-xs font-semibold",
+              onDark ? "text-teal-on-dark" : "text-teal",
+            )}
+          >
+            {b.label}
+          </span>
         </div>
       ))}
     </div>
@@ -55,6 +79,7 @@ export function AppointmentCountdownBanner({
   appointment,
   variant = "hero",
   chatHref,
+  tone = "onLight",
   context = "patient",
   className,
 }: AppointmentCountdownBannerProps) {
@@ -121,55 +146,90 @@ export function AppointmentCountdownBanner({
     : (appointment.doctorName || null)
   const specialty = (appointment as ApiAppointment & { specialty?: string }).specialty
 
+  const onDark = tone === "onDark"
+
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border border-teal/25 bg-teal-soft",
+        "relative overflow-hidden rounded-2xl",
+        onDark
+          ? "bg-white/[0.06] ring-1 ring-inset ring-white/12"
+          : "border border-teal/25 bg-teal-soft",
         className
       )}
     >
-      {/* Top accent bar */}
-      <div className="h-1 w-full bg-gradient-to-r from-primary to-teal" />
+      {/* Верхняя градиентная черта бренда: бирюзовый → фиолетовый */}
+      <div
+        aria-hidden="true"
+        className="h-1 w-full"
+        style={{
+          background: onDark
+            ? "linear-gradient(to right, var(--teal-on-dark), var(--primary))"
+            : "linear-gradient(to right, var(--teal), var(--primary))",
+        }}
+      />
 
-      <div className="px-5 py-5 flex flex-col sm:flex-row sm:items-center gap-5">
-        {/* Icon */}
-        <div className="w-14 h-14 rounded-2xl bg-card border border-teal/25 shadow-sm flex items-center justify-center shrink-0">
-          <Video className="w-7 h-7 text-teal" />
-        </div>
-
+      <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center">
         {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2">
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal" />
+              <span
+                className={cn(
+                  "absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+                  onDark ? "bg-teal-on-dark" : "bg-teal",
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-flex h-2 w-2 rounded-full",
+                  onDark ? "bg-teal-on-dark" : "bg-teal",
+                )}
+              />
             </span>
-            <p className="text-xs font-semibold uppercase tracking-widest text-teal">
+            <p
+              className={cn(
+                "text-[11px] font-semibold uppercase tracking-[0.18em]",
+                onDark ? "text-teal-on-dark" : "text-teal",
+              )}
+            >
               Предстоящая консультация
             </p>
           </div>
 
-          <CountdownDigits parts={parts} />
+          <CountdownDigits parts={parts} onDark={onDark} />
 
-          <div className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground">
-            <Clock className="w-3.5 h-3.5 shrink-0" />
-            <span>
-              {dateFormatted} в {appointment.time}
-              {displayName && (
-                <> · <span className="font-medium">{displayName}</span></>
-              )}
-              {specialty && <> · {specialty}</>}
-            </span>
-          </div>
+          <p
+            className={cn(
+              "mt-2 text-sm",
+              onDark ? "text-white/55" : "text-muted-foreground",
+            )}
+          >
+            {dateFormatted} в {appointment.time}
+            {displayName && (
+              <>
+                {" · "}
+                <span className={cn("font-medium", onDark && "text-white/80")}>
+                  {displayName}
+                </span>
+              </>
+            )}
+            {specialty && <> · {specialty}</>}
+          </p>
         </div>
 
         {/* CTA */}
         <Button
           asChild
-          className="shrink-0 gap-2 bg-teal hover:bg-teal/90 text-teal-foreground sm:self-center"
+          className={cn(
+            "shrink-0 gap-2 rounded-full sm:self-center",
+            onDark
+              ? "bg-white text-surface-dark hover:bg-white/90"
+              : "bg-teal text-teal-foreground hover:bg-teal/90",
+          )}
         >
           <Link href={resolvedChatHref}>
-            <Video className="w-4 h-4" />
+            <Video className="h-4 w-4" aria-hidden="true" />
             Перейти в чат
           </Link>
         </Button>

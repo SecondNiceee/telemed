@@ -18,86 +18,140 @@ interface UserHeroBannerProps {
   appointments?: ApiAppointment[]
 }
 
-export function UserHeroBanner({ user, upcomingCount, activeCount, completedCount, onLogout, appointments = [] }: UserHeroBannerProps) {
+/**
+ * Тёмная «шапка» кабинета в стилистике главной: surface-dark + точечный узор,
+ * бирюзово-фиолетовый градиент на аватаре и статистике.
+ */
+export function UserHeroBanner({
+  user,
+  upcomingCount,
+  activeCount,
+  completedCount,
+  onLogout,
+  appointments = [],
+}: UserHeroBannerProps) {
   const upcomingAppointment = getUpcomingAppointment(appointments)
 
+  const stats = [
+    { value: upcomingCount, label: "Предстоящих", accent: "primary" as const },
+    { value: activeCount, label: "Активных", accent: "teal" as const },
+    { value: completedCount, label: "Завершённых", accent: "muted" as const },
+  ]
+
   return (
-    <div className="bg-white border-b border-border">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-start justify-between gap-4">
+    <section className="relative overflow-hidden bg-surface-dark">
+      {/* Точечный узор — тот же приём, что в секции «Кому подходит» на главной */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: "radial-gradient(oklch(1 0 0 / 0.07) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          maskImage: "radial-gradient(ellipse 70% 70% at 30% 0%, black 0%, transparent 80%)",
+        }}
+        aria-hidden="true"
+      />
+      {/* Мягкое бирюзово-фиолетовое свечение */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 80% at 88% 10%, oklch(0.6273 0.1067 201.3 / 0.20) 0%, oklch(0.4989 0.1406 299.8 / 0.16) 45%, transparent 75%)",
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-10 mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-xl font-bold text-primary">
-                {getInitials(user.name, user.email ?? undefined)}
-              </span>
+            {/* Аватар: градиентная рамка бренда */}
+            <div
+              className="shrink-0 rounded-[1.15rem] p-[1.5px]"
+              style={{
+                background: "linear-gradient(140deg, var(--teal) 0%, var(--primary) 100%)",
+              }}
+            >
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-dark">
+                <span className="text-xl font-bold text-white">
+                  {getInitials(user.name, user.email ?? undefined)}
+                </span>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
+
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-on-dark">
                 Личный кабинет
               </p>
-              <h1 className="text-xl font-bold text-foreground text-balance">
+              <h1 className="mt-1.5 text-balance text-2xl font-bold tracking-[-0.02em] text-white">
                 {user.name || "Пользователь"}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{user.email}</p>
+              <p className="mt-1 truncate text-sm text-white/55">{user.email}</p>
               {user.phone && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {formatPhone(user.phone)}
-                </p>
+                <p className="text-sm text-white/40">{formatPhone(user.phone)}</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+
+          <div className="flex shrink-0 items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
               asChild
+              size="sm"
+              className="gap-2 rounded-full bg-white/10 px-4 text-white hover:bg-white/20"
             >
               <Link href="/lk/chat">
-                <MessageSquare className="w-4 h-4" />
+                <MessageSquare className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Сообщения</span>
               </Link>
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              className="gap-2"
               onClick={onLogout}
+              className="gap-2 rounded-full bg-transparent px-4 text-white/60 ring-1 ring-inset ring-white/15 hover:bg-white/10 hover:text-white"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">Выйти</span>
             </Button>
           </div>
         </div>
 
-        {/* Upcoming appointment countdown */}
+        {/* Обратный отсчёт до консультации */}
         {upcomingAppointment && (
-          <div className="mt-6">
+          <div className="mt-7">
             <AppointmentCountdownBanner
               appointment={upcomingAppointment}
               variant="hero"
+              tone="onDark"
               chatHref={`/lk/chat?appointment=${upcomingAppointment.id}`}
             />
           </div>
         )}
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3 mt-6">
-          <div className="rounded-xl bg-background border border-border px-4 py-3">
-            <p className="text-2xl font-bold text-foreground">{upcomingCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Предстоящих</p>
-          </div>
-          <div className="rounded-xl bg-background border border-border px-4 py-3">
-            <p className="text-2xl font-bold text-foreground">{activeCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Активных</p>
-          </div>
-          <div className="rounded-xl bg-background border border-border px-4 py-3">
-            <p className="text-2xl font-bold text-foreground">{completedCount}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Завершённых</p>
-          </div>
+        {/* Статистика: крупные цифры, тонкая градиентная черта сверху */}
+        <div className="mt-7 grid grid-cols-3 gap-3">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="relative overflow-hidden rounded-xl bg-white/[0.06] px-4 py-3.5 ring-1 ring-inset ring-white/10"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-[2px]"
+                style={{
+                  background:
+                    stat.accent === "primary"
+                      ? "linear-gradient(to right, var(--primary), transparent)"
+                      : stat.accent === "teal"
+                        ? "linear-gradient(to right, var(--teal-on-dark), transparent)"
+                        : "linear-gradient(to right, oklch(1 0 0 / 0.35), transparent)",
+                }}
+              />
+              <p className="font-mono text-3xl font-bold tabular-nums leading-none text-white">
+                {stat.value}
+              </p>
+              <p className="mt-1.5 text-xs text-white/50">{stat.label}</p>
+            </div>
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   )
 }
