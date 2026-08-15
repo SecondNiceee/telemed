@@ -193,7 +193,8 @@ export const Appointments: CollectionConfig = {
 
             // Это только быстрая проверка для понятной ошибки. От гонки
             // «два пациента — один слот» защищает частичный уникальный индекс
-            // appointments_slot_unique (см. scripts/add-slot-unique-index.ts):
+            // appointments_slot_unique (миграция
+            // src/migrations/20260815_000000_appointments_slot_unique.ts):
             // между этим find и вставкой есть окно, в которое проходят оба запроса.
             if (blocking.length > 0) {
               throw new Error(SLOT_TAKEN_MESSAGE)

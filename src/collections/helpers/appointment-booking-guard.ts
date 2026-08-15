@@ -30,7 +30,13 @@ export const MAX_ACTIVE_HOLDS = 2
  */
 export const SLOT_TAKEN_MESSAGE = 'Этот слот уже занят. Пожалуйста, выберите другое время.'
 
-/** Имя частичного уникального индекса на слот (см. scripts/add-slot-unique-index.ts). */
+/**
+ * Имя частичного уникального индекса на слот.
+ * Создаётся миграцией src/migrations/20260815_000000_appointments_slot_unique.ts.
+ *
+ * Значение намеренно продублировано в миграции литералом: миграции — это
+ * замороженный снимок схемы, они не должны меняться вслед за константой в коде.
+ */
 export const SLOT_UNIQUE_INDEX = 'appointments_slot_unique'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
