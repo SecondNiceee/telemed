@@ -15,6 +15,8 @@ export interface CreateAppointmentPayload {
   time: string
   price: number
   connectionType?: 'chat' | 'audio' | 'video'
+  status?: 'pending_payment' | 'confirmed'
+  paymentExpiresAt?: string
 }
 
 export class AppointmentsApi {
@@ -26,6 +28,27 @@ export class AppointmentsApi {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify(data),
+    })
+  }
+
+  /**
+   * Pay for a pending appointment — moves it to "confirmed".
+   */
+  static async pay(appointmentId: number): Promise<ApiAppointment> {
+    return apiFetch<ApiAppointment>(`/api/appointments/${appointmentId}/pay`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+  }
+
+  /**
+   * Release an unpaid hold (cancel button or expired timer).
+   * The doctor's slot goes back into the schedule.
+   */
+  static async release(appointmentId: number): Promise<{ released: boolean }> {
+    return apiFetch<{ released: boolean }>(`/api/appointments/${appointmentId}/release`, {
+      method: 'POST',
+      credentials: 'include',
     })
   }
 
@@ -167,8 +190,8 @@ export class AppointmentsApi {
       // Only confirmed (upcoming) consultations - exclude completed and in_progress
       params.append('where[status][equals]', 'confirmed')
     } else {
-      // 'all' - exclude only cancelled
-      params.append('where[status][not_equals]', 'cancelled')
+      // 'all' - exclude cancelled and unpaid holds (not real bookings yet)
+      params.append('where[status][not_in]', 'cancelled,pending_payment')
     }
     
     // Search by doctor name or user name

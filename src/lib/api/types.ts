@@ -82,6 +82,13 @@ export interface ApiActiveCall {
   userConnected?: boolean | null
 }
 
+export type AppointmentStatus =
+  | 'pending_payment'
+  | 'confirmed'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled'
+
 export interface ApiAppointment {
   id: number
   doctor: ApiDoctor | number
@@ -92,7 +99,10 @@ export interface ApiAppointment {
   date: string // YYYY-MM-DD
   time: string // HH:MM
   price?: number | null
-  status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  status: AppointmentStatus
+  /** Пока запись ожидает оплаты — до этого момента слот забронирован. */
+  paymentExpiresAt?: string | null
+  paidAt?: string | null
   connectionType?: 'chat' | 'audio' | 'video' | null
   chatBlocked?: boolean | null
   activeCall?: ApiActiveCall | null

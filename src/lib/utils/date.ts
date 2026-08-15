@@ -1,3 +1,5 @@
+import type { AppointmentStatus } from "@/lib/api/types"
+
 /**
  * Format date string to Russian locale (e.g., "15 марта 2024")
  */
@@ -41,8 +43,10 @@ export function getInitials(name?: string | null, email?: string): string {
 /**
  * Get status label in Russian
  */
-export function getStatusLabel(status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): string {
+export function getStatusLabel(status: AppointmentStatus): string {
   switch (status) {
+    case "pending_payment":
+      return "Ожидает оплаты"
     case "confirmed":
       return "Подтверждена"
     case "in_progress":
@@ -115,8 +119,10 @@ export function formatCountdown(parts: ReturnType<typeof getCountdownParts>): st
 /**
  * Get status color classes for Tailwind
  */
-export function getStatusColor(status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled'): string {
+export function getStatusColor(status: AppointmentStatus): string {
   switch (status) {
+    case "pending_payment":
+      return "bg-amber-500/10 text-amber-600 border border-amber-500/25"
     case "confirmed":
       return "bg-primary/10 text-primary border border-primary/25"
     case "in_progress":

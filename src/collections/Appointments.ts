@@ -51,6 +51,71 @@ function ensureReqUser({
   }
 }
 
+/** Extract a numeric id from a relationship value that may be populated, a string, or a raw id. */
+function toId(raw: unknown): number {
+  return typeof raw === 'object' && raw !== null ? (raw as { id: number }).id : Number(raw)
+}
+
+type PayloadInstance = Awaited<ReturnType<typeof getPayload>>
+
+/**
+ * Notify the doctor and the patient about a booked consultation.
+ * Called only once the appointment is actually paid/confirmed, so unpaid
+ * holds ("Ожидает оплаты") never trigger notifications.
+ */
+async function sendBookingEmails({
+  payload,
+  doc,
+  doctor,
+}: {
+  payload: PayloadInstance
+  doc: Record<string, unknown>
+  doctor: { email?: string | null; name?: string | null } | null
+}) {
+  const appointmentDate = doc.date as string
+  const appointmentTime = doc.time as string
+
+  if (doctor?.email) {
+    try {
+      await sendAppointmentEmail({
+        payload,
+        doctorEmail: doctor.email,
+        doctorName: (doc.doctorName as string) || doctor.name || 'Врач',
+        patientName: (doc.userName as string) || 'Пациент',
+        specialty: (doc.specialty as string) || '',
+        date: appointmentDate,
+        time: appointmentTime,
+        price: (doc.price as number) || 0,
+      })
+    } catch (emailErr) {
+      console.error('Failed to send appointment email to doctor:', emailErr)
+    }
+  }
+
+  try {
+    const user = await payload.findByID({
+      collection: 'users',
+      id: toId(doc.user),
+      overrideAccess: true,
+    })
+
+    if (user?.email) {
+      await sendPatientAppointmentEmail({
+        payload,
+        patientEmail: user.email,
+        patientName: (doc.userName as string) || user.name || 'Пациент',
+        doctorName: (doc.doctorName as string) || doctor?.name || 'Врач',
+        specialty: (doc.specialty as string) || '',
+        date: appointmentDate,
+        time: appointmentTime,
+        price: (doc.price as number) || 0,
+      })
+    }
+  } catch (emailErr) {
+    console.error('Failed to send appointment email to patient:', emailErr)
+  }
+}
+
 export const Appointments: CollectionConfig = {
   slug: 'appointments',
   admin: {
@@ -77,10 +142,17 @@ export const Appointments: CollectionConfig = {
                 time: { equals: time },
                 status: { not_equals: 'cancelled' },
               },
-              limit: 1,
+              limit: 10,
             })
 
-            if (existing.docs.length > 0) {
+            // An unpaid hold whose 15-minute window has elapsed no longer occupies the slot.
+            const blocking = existing.docs.filter((appt) => {
+              if (appt.status !== 'pending_payment') return true
+              if (!appt.paymentExpiresAt) return true
+              return new Date(appt.paymentExpiresAt).getTime() > Date.now()
+            })
+
+            if (blocking.length > 0) {
               throw new Error('Этот слот уже занят. Пожалуйста, выберите другое время.')
             }
           }
@@ -89,14 +161,10 @@ export const Appointments: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, operation }) => {
+      async ({ doc, previousDoc, operation }) => {
         if (operation === 'create') {
           // doc.doctor may be a populated object, a JSON string, or a raw id — extract numeric id
-          const doctorRaw: unknown = doc.doctor;
-          const doctorId: number =
-            typeof doctorRaw === 'object' && doctorRaw !== null
-              ? (doctorRaw as { id: number }).id
-              : Number(doctorRaw)
+          const doctorId: number = toId(doc.doctor)
 
           const appointmentDate = doc.date as string
           const appointmentTime = doc.time as string
@@ -140,59 +208,34 @@ export const Appointments: CollectionConfig = {
 
               revalidateDoctorsCache()
 
-              // Send notification email to doctor
-              if (doctor?.email) {
-                try {
-                  await sendAppointmentEmail({
-                    payload,
-                    doctorEmail: doctor.email,
-                    doctorName: (doc.doctorName as string) || doctor.name || 'Врач',
-                    patientName: (doc.userName as string) || 'Пациент',
-                    specialty: (doc.specialty as string) || '',
-                    date: appointmentDate,
-                    time: appointmentTime,
-                    price: (doc.price as number) || 0,
-                  })
-                } catch (emailErr) {
-                  console.error('Failed to send appointment email to doctor:', emailErr)
-                }
-              }
-
-              // Send notification email to patient
-              const userRaw: unknown = doc.user
-              const userId: number =
-                typeof userRaw === 'object' && userRaw !== null
-                  ? (userRaw as { id: number }).id
-                  : Number(userRaw)
-              
-              try {
-                const user = await payload.findByID({
-                  collection: 'users',
-                  id: userId,
-                  overrideAccess: true,
-                })
-                
-                if (user?.email) {
-                  await sendPatientAppointmentEmail({
-                    payload,
-                    patientEmail: user.email,
-                    patientName: (doc.userName as string) || user.name || 'Пациент',
-                    doctorName: (doc.doctorName as string) || doctor?.name || 'Врач',
-                    specialty: (doc.specialty as string) || '',
-                    date: appointmentDate,
-                    time: appointmentTime,
-                    price: (doc.price as number) || 0,
-                  })
-                }
-              } catch (emailErr) {
-                console.error('Failed to send appointment email to patient:', emailErr)
+              // Unpaid holds must stay silent — notifications go out only once paid.
+              if (doc.status !== 'pending_payment') {
+                await sendBookingEmails({ payload, doc, doctor })
               }
             } catch (err) {
               console.error('Failed to update doctor schedule after booking:', err)
             }
           })
-        } else {
-          revalidateDoctorsCache()
+          return
+        }
+
+        revalidateDoctorsCache()
+
+        // Payment just went through: the hold became a real, confirmed booking.
+        if (previousDoc?.status === 'pending_payment' && doc.status === 'confirmed') {
+          setImmediate(async () => {
+            try {
+              const payload = await getPayload({ config })
+              const doctor = await payload.findByID({
+                collection: 'doctors',
+                id: toId(doc.doctor),
+                overrideAccess: true,
+              })
+              await sendBookingEmails({ payload, doc, doctor })
+            } catch (err) {
+              console.error('Failed to send emails after payment:', err)
+            }
+          })
         }
       },
     ],
@@ -334,11 +377,35 @@ export const Appointments: CollectionConfig = {
       defaultValue: 'confirmed',
       label: 'Статус',
       options: [
+        { label: 'Ожидает оплаты', value: 'pending_payment' },
         { label: 'Подтверждена', value: 'confirmed' },
         { label: 'В процессе', value: 'in_progress' },
         { label: 'Завершена', value: 'completed' },
         { label: 'Отменена', value: 'cancelled' },
       ],
+    },
+    {
+      name: 'paymentExpiresAt',
+      type: 'date',
+      label: 'Бронь действует до',
+      admin: {
+        description:
+          'Пока запись в статусе «Ожидает оплаты», слот забронирован до этого времени. После истечения слот возвращается в расписание врача.',
+        date: {
+          pickerAppearance: 'dayAndTime',
+        },
+      },
+    },
+    {
+      name: 'paidAt',
+      type: 'date',
+      label: 'Оплачено в',
+      admin: {
+        description: 'Время успешной оплаты консультации',
+        date: {
+          pickerAppearance: 'dayAndTime',
+        },
+      },
     },
     {
       name: 'connectionType',
