@@ -25,18 +25,35 @@ function toMediaId(value: unknown): number | string | null {
 }
 
 /**
- * Ждёт, пока транзакция врача закроется: и commit, и rollback удаляют
- * req.transactionID, так что его исчезновение — надёжный признак, что запись
- * уже зафиксирована (или откатилась) и с media можно работать снаружи.
+ * Ждёт, пока изменение врача станет видно вне транзакции.
+ *
+ * Раньше здесь опрашивался req.transactionID, но это ненадёжный признак:
+ * у вложенной операции id принадлежит родительской транзакции и не исчезает,
+ * а если транзакций нет вовсе — id пуст с самого начала и ожидание проходит
+ * мгновенно, ещё до коммита. Тогда проверка ссылок читала старое состояние,
+ * видела живого врача с этим фото и молча пропускала файл (`continue`) — без
+ * ретрая и без лога. Поэтому ждём не транзакцию, а сам результат: пока
+ * `isCommitted` не подтвердит, что запись действительно изменилась в БД.
+ *
+ * Возвращает false, если за дедлайн подтверждения не случилось — значит
+ * транзакция, скорее всего, откатилась и удалять media нельзя.
  */
-async function waitForTransactionToSettle(req: PayloadRequest) {
+async function waitForCommit(isCommitted: () => Promise<boolean>): Promise<boolean> {
   const DEADLINE_MS = 15_000
-  const STEP_MS = 25
+  const STEP_MS = 50
   const startedAt = Date.now()
 
-  while (req.transactionID != null && Date.now() - startedAt < DEADLINE_MS) {
+  do {
+    try {
+      if (await isCommitted()) return true
+    } catch {
+      // Читаем БД снаружи транзакции: разрыв соединения или недоступность —
+      // повод повторить попытку, а не считать коммит состоявшимся.
+    }
     await new Promise((resolve) => setTimeout(resolve, STEP_MS))
-  }
+  } while (Date.now() - startedAt < DEADLINE_MS)
+
+  return false
 }
 
 /**
@@ -60,20 +77,31 @@ async function waitForTransactionToSettle(req: PayloadRequest) {
 async function deleteOrphanedMedia({
   req,
   ids,
+  isCommitted,
 }: {
   req: PayloadRequest
   ids: (number | string)[]
+  /** Подтверждает, что изменение врача уже видно вне транзакции. */
+  isCommitted: () => Promise<boolean>
 }) {
   const unique = [...new Set(ids.filter((id) => id != null))]
   if (unique.length === 0) return
 
-  await waitForTransactionToSettle(req)
+  const { payload } = req
+
+  if (!(await waitForCommit(isCommitted))) {
+    // Коммит не подтвердился: либо откат, либо БД недоступна. В обоих случаях
+    // врач всё ещё может ссылаться на файл — удалять нельзя.
+    console.warn('[doctors] media cleanup skipped: commit not confirmed', { ids: unique })
+    return
+  }
 
   for (const id of unique) {
     try {
-      // Без user, req и с overrideAccess по умолчанию: это внутренняя уборка,
-      // она не должна зависеть от прав того, кто правил врача.
-      const stillUsed = await req.payload.find({
+      // Без user и req, с overrideAccess по умолчанию: это внутренняя уборка,
+      // она не должна зависеть от прав того, кто правил врача. Отдельный req
+      // ещё и обязателен — media удаляется вне транзакции врача.
+      const stillUsed = await payload.find({
         collection: 'doctors',
         where: {
           or: [{ photo: { equals: id } }, { photoOriginal: { equals: id } }],
@@ -81,11 +109,17 @@ async function deleteOrphanedMedia({
         limit: 1,
         depth: 0,
       })
-      if (stillUsed.totalDocs > 0) continue
 
-      await req.payload.delete({ collection: 'media', id })
+      // Один файл мог достаться двум врачам — тогда он ещё нужен.
+      if (stillUsed.totalDocs > 0) {
+        console.log('[doctors] media kept, still referenced', { id })
+        continue
+      }
+
+      await payload.delete({ collection: 'media', id })
+      console.log('[doctors] orphaned media deleted', { id })
     } catch (error) {
-      // Осиротевший файл — не причина ронять уже успешное сохранение врача.
+      // Осиротевший файл — не причина ронять уже успешное изменение врача.
       console.error('[doctors] failed to delete orphaned media', {
         id,
         error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
@@ -101,16 +135,29 @@ async function deleteOrphanedMedia({
  * запроса нет (локальный API, сиды, админка вне запроса) — просто отпускаем
  * промис.
  */
-function scheduleOrphanedMediaCleanup(args: { req: PayloadRequest; ids: (number | string)[] }) {
+function scheduleOrphanedMediaCleanup(args: {
+  req: PayloadRequest
+  ids: (number | string)[]
+  isCommitted: () => Promise<boolean>
+}) {
   if (args.ids.length === 0) return
 
   const run = () => {
-    void deleteOrphanedMedia(args)
+    // Ошибку внутри уборки глотать нельзя молча: floating promise без catch
+    // в Node роняет процесс через unhandledRejection.
+    void deleteOrphanedMedia(args).catch((error) => {
+      console.error('[doctors] media cleanup crashed', {
+        ids: args.ids,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      })
+    })
   }
 
   try {
     after(run)
   } catch {
+    // Вне контекста запроса (локальный API, сиды, скрипты) after() кидает —
+    // тогда просто отпускаем промис: уборка сама дождётся коммита.
     run()
   }
 }
@@ -184,7 +231,27 @@ export const Doctors: CollectionConfig = {
           if (before != null && String(before) !== String(next)) orphaned.push(before)
         }
 
-        scheduleOrphanedMediaCleanup({ req, ids: orphaned })
+        // Коммит виден, когда у врача в БД уже стоит новая ссылка на фото.
+        scheduleOrphanedMediaCleanup({
+          req,
+          ids: orphaned,
+          isCommitted: async () => {
+            const fresh = await req.payload.findByID({
+              collection: 'doctors',
+              id: (doc as { id: number | string }).id,
+              depth: 0,
+              disableErrors: true,
+            })
+            if (!fresh) return true // врача уже удалили — старые файлы точно осиротели
+            const record = fresh as unknown as Record<string, unknown>
+            return orphaned.every((id) => {
+              return (
+                String(toMediaId(record.photo)) !== String(id) &&
+                String(toMediaId(record.photoOriginal)) !== String(id)
+              )
+            })
+          },
+        })
       },
     ],
     afterDelete: [
@@ -192,13 +259,23 @@ export const Doctors: CollectionConfig = {
         revalidateDoctorsCache()
       },
       // Врача удалили — его фото тоже.
-      ({ doc, req }) => {
+      ({ doc, id, req }) => {
         const record = doc as Record<string, unknown>
         scheduleOrphanedMediaCleanup({
           req,
           ids: [toMediaId(record.photo), toMediaId(record.photoOriginal)].filter(
-            (id): id is number | string => id != null,
+            (mediaId): mediaId is number | string => mediaId != null,
           ),
+          // Коммит виден, когда врача больше нельзя прочитать из БД.
+          isCommitted: async () => {
+            const fresh = await req.payload.findByID({
+              collection: 'doctors',
+              id: id ?? (record.id as number | string),
+              depth: 0,
+              disableErrors: true,
+            })
+            return !fresh
+          },
         })
       },
     ],
