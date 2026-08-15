@@ -43,6 +43,7 @@ export function Header() {
 
   /** При клике на «Войти» / «Записаться»: проверяем сессию, если есть — редирект на /lk, иначе — открываем модалку */
   const handleAuthClick = async () => {
+    setMobileMenuOpen(false);
     try {
       const user = await AuthApi.me();
       if (!user) setLoginModalOpen(true);
@@ -185,11 +186,9 @@ export function Header() {
               </>
             ) : (
               <>
-                <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
-                  <Button variant="ghost" size="sm" onClick={handleAuthClick}>
-                    Войти
-                  </Button>
-                </LoginModal>
+                <Button variant="ghost" size="sm" onClick={handleAuthClick}>
+                  Войти
+                </Button>
                 <Button
                   size="sm"
                   className="rounded-full bg-primary px-5 text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90 transition-all duration-200"
@@ -257,11 +256,9 @@ export function Header() {
                   </>
                 ) : (
                   <div className="flex gap-2">
-                    <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen}>
-                      <Button variant="ghost" size="sm" className="flex-1" onClick={handleAuthClick}>
-                        Войти
-                      </Button>
-                    </LoginModal>
+                    <Button variant="ghost" size="sm" className="flex-1" onClick={handleAuthClick}>
+                      Войти
+                    </Button>
                     <Button
                       size="sm"
                       className="flex-1 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
@@ -276,6 +273,12 @@ export function Header() {
           </div>
         )}
       </div>
+
+      {/* Единственный экземпляр модалки на весь хэдер.
+          Раньше она рендерилась дважды (десктоп + мобильное меню) с одним и тем же
+          controlled-состоянием: при открытом мобильном меню монтировались два
+          диалога с дублирующимися id полей и конкурирующими focus-trap. */}
+      <LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} />
 
       {/* Upcoming appointment banner — shown only on homepage for users with appointments */}
       {showBanner && (

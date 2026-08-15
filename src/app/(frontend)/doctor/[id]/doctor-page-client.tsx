@@ -209,31 +209,29 @@ export function DoctorPageClient({
                 </div>
               )}
             </div>
+            {/* Уголки повторяют радиус портрета и прилегают к нему без зазора */}
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -left-1 -top-1 h-5 w-5 rounded-tl-md border-l-2 border-t-2 border-teal"
+              className="pointer-events-none absolute right-0 top-0 h-9 w-9 rounded-tr-2xl border-r-2 border-t-2 border-teal"
             />
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -bottom-1 -right-1 h-5 w-5 rounded-br-md border-b-2 border-r-2 border-teal"
+              className="pointer-events-none absolute bottom-0 left-0 h-9 w-9 rounded-bl-2xl border-b-2 border-l-2 border-teal"
             />
           </div>
 
           <div className="min-w-0 flex-1">
-            <span className="inline-flex w-fit items-center gap-2 rounded-full bg-teal/10 px-3 py-1 text-xs font-medium text-teal">
-              <span
-                aria-hidden="true"
-                className="h-1.5 w-1.5 rounded-full bg-teal"
-              />
-              {specialty}
-            </span>
-            <h1 className="mt-2.5 text-xl font-bold leading-tight text-balance text-foreground sm:text-3xl">
+            <h1 className="text-xl font-bold leading-tight text-balance text-foreground sm:text-3xl">
               {doctor.name}
             </h1>
             <span
               aria-hidden="true"
-              className="mt-3 block h-[2px] w-16 rounded-full bg-gradient-to-r from-teal to-transparent sm:w-24"
+              className="mt-2.5 block h-[2px] w-16 rounded-full bg-gradient-to-r from-teal to-transparent sm:w-24"
             />
+            <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base sm:text-lg">
+              <span className="font-medium text-muted-foreground">Специальность:</span>
+              <span className="font-semibold text-teal">{specialty}</span>
+            </p>
           </div>
         </div>
 

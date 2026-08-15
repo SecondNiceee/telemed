@@ -39,21 +39,33 @@ export function formatPhone(phone: string | null | undefined): string {
 /**
  * Маска для поля ввода: возвращает частично отформатированную строку,
  * пока пользователь печатает.
+ *
+ * Два важных для удаления правила:
+ *  1. Префикс «+7» в уже отформатированном значении отрезается как строка,
+ *     а не как цифра. Раньше он попадал в digits и глушился эвристикой
+ *     «убрать ведущую 7/8», из-за чего номера, начинающиеся на 7, ломались.
+ *  2. Разделитель добавляется только если за ним есть хотя бы одна цифра.
+ *     Раньше на трёх цифрах маска дописывала «)», и Backspace, стирая скобку,
+ *     тут же получал её назад — ввод залипал на «+7 (XXX» и не стирался.
  */
 export function formatPhoneInput(raw: string): string {
-  let digits = raw.replace(/\D/g, '')
+  const trimmed = raw.trim()
+  const hasPrefix = trimmed.startsWith('+7')
 
-  if (digits.startsWith('8') || digits.startsWith('7')) {
+  let digits = (hasPrefix ? trimmed.slice(2) : trimmed).replace(/\D/g, '')
+
+  // Ввод/вставка без префикса: 8XXXXXXXXXX или 7XXXXXXXXXX — отрезаем код страны.
+  // Проверяем именно длину 11, чтобы не съесть первую цифру у 10-значного номера.
+  if (!hasPrefix && digits.length === 11 && /^[78]/.test(digits)) {
     digits = digits.slice(1)
   }
+
   digits = digits.slice(0, 10)
 
   if (digits.length === 0) return ''
 
-  let result = '+7'
-  if (digits.length > 0) result += ` (${digits.slice(0, 3)}`
-  if (digits.length >= 3) result += ')'
-  if (digits.length > 3) result += ` ${digits.slice(3, 6)}`
+  let result = `+7 (${digits.slice(0, 3)}`
+  if (digits.length > 3) result += `) ${digits.slice(3, 6)}`
   if (digits.length > 6) result += `-${digits.slice(6, 8)}`
   if (digits.length > 8) result += `-${digits.slice(8, 10)}`
 

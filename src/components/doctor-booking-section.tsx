@@ -275,15 +275,19 @@ export function DoctorBookingSection({
   }
 
   return (
-    <Card className="border-2 border-primary/20">
-      <CardContent className="p-6">
-        <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-primary" />
+    <Card className="border-2 border-primary/20 py-0">
+      <CardContent className="px-4 py-4 sm:px-5">
+        {/* Вместо дефолтной иконки календаря — бирюзовый маркер-«отсечка» */}
+        <h2 className="mb-3 flex items-center gap-2.5 text-lg font-semibold text-foreground sm:text-xl">
+          <span
+            aria-hidden="true"
+            className="h-5 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-primary to-teal"
+          />
           Записаться на приём
         </h2>
 
         {/* Week Navigation */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <Button variant="ghost" size="icon" onClick={goToPreviousWeek}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
@@ -296,7 +300,7 @@ export function DoctorBookingSection({
         </div>
 
         {/* Days Row */}
-        <div className="grid grid-cols-7 gap-2 mb-6">
+        <div className="grid grid-cols-7 gap-2 mb-4">
           {weekDays.map((date) => {
             const dateStr = toDateStr(date);
             const available = isDateAvailable(date);
@@ -332,9 +336,12 @@ export function DoctorBookingSection({
         {/* Time Slots */}
         {selectedDate ? (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Calendar className="w-5 h-5 text-primary" />
-              <span className="font-medium text-foreground">
+            <div className="flex items-center gap-2.5 mb-3">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal ring-3 ring-teal/20"
+              />
+              <span className="font-medium capitalize text-foreground">
                 {new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
                   weekday: "long",
                   day: "numeric",
@@ -374,15 +381,25 @@ export function DoctorBookingSection({
             )}
           </div>
         ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Выберите дату для просмотра доступного времени</p>
+          <div className="rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-4 text-center">
+            {/* Намёк на будущие слоты времени вместо шаблонной иконки */}
+            <div aria-hidden="true" className="mb-2.5 flex justify-center gap-1.5">
+              {[0, 1, 2, 3].map((i) => (
+                <span
+                  key={i}
+                  className="h-5 w-11 rounded-md border border-dashed border-teal/35"
+                />
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Выберите дату для просмотра доступного времени
+            </p>
           </div>
         )}
 
         {/* Connection Type Selection */}
         {selectedDate && selectedTime && (
-          <div className="mt-6 pt-6 border-t border-border">
+          <div className="mt-4 pt-4 border-t border-teal/15">
             <p className="text-sm font-medium text-foreground mb-3">
               Выберите предпочтительный способ связи
             </p>
@@ -415,7 +432,7 @@ export function DoctorBookingSection({
 
         {/* Booking Button */}
         {selectedDate && selectedTime && (
-          <div className="mt-6 pt-6 border-t border-border">
+          <div className="mt-4 pt-4 border-t border-teal/15">
             {bookingError && (
               <p className="text-sm text-destructive text-center mb-4">
                 {bookingError}
