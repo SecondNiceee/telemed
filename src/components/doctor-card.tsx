@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, User } from "lucide-react";
+import { Clock, Timer, User } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
+import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;
@@ -15,6 +16,8 @@ interface DoctorCardProps {
 export function DoctorCard({ doctor }: DoctorCardProps) {
   const specialty = getDoctorSpecialty(doctor);
   const router = useRouter();
+  // null, если у врача нет ни одного слота — тогда длительность не показываем.
+  const consultationDuration = getConsultationDurationLabel(doctor);
 
   return (
     <div onClick={() => router.push(`/doctor/${doctor.id}`)} className="block">
@@ -61,6 +64,12 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                       <span>Стаж {doctor.experience} лет</span>
                     </div>
                   )}
+                  {consultationDuration && (
+                    <div className="flex items-center gap-1">
+                      <Timer className="w-4 h-4 text-primary" />
+                      <span>Консультация {consultationDuration}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -80,8 +89,10 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                     className="border-primary text-primary hover:bg-primary/5 transition-all"
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   >
+                    {/* Роута /doctor/{id}/booking не существует — он давал 404.
+                        Форма записи живёт на самой странице врача. */}
                     <Link
-                      href={`/doctor/${doctor.id}/booking`}
+                      href={`/doctor/${doctor.id}`}
                       onClick={(e: React.MouseEvent) => e.stopPropagation()}
                     >
                       Записаться

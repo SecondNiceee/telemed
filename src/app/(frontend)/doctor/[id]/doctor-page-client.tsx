@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowLeft,
   GraduationCap,
-  Video,
-  Shield,
   Award,
   CheckCircle,
   User,
+  FileText,
+  Stethoscope,
+  type LucideIcon,
 } from "lucide-react";
 import { DoctorReviews } from "@/components/doctor-reviews";
 import { DoctorBookingSection } from "@/components/doctor-booking-section";
 import type { DoctorScheduleDate } from "@/lib/api/types";
+import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
 
 interface DoctorPageClientProps {
   doctor: {
@@ -25,6 +27,7 @@ interface DoctorPageClientProps {
     experience: number | null;
     degree: string | null;
     bio: string | null;
+    slotDuration?: string | null;
   };
   photoUrl: string | null;
   specialty: string;
@@ -32,6 +35,20 @@ interface DoctorPageClientProps {
   services: string[];
   categories: { slug: string }[];
   schedule: DoctorScheduleDate[];
+}
+
+/** Строка «паспорта» врача в шапке: подпись сверху, значение снизу. */
+interface DoctorFact {
+  label: string;
+  value: string;
+}
+
+/** Блок досье: маркер на бирюзовой «спине», надзаголовок и произвольный контент. */
+interface DossierEntry {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  content: ReactNode;
 }
 
 export function DoctorPageClient({
@@ -44,10 +61,108 @@ export function DoctorPageClient({
   schedule,
 }: DoctorPageClientProps) {
   const firstCategorySlug = categories[0]?.slug;
+  // null, если врач не выставил ни одного слота — длительность тогда неизвестна.
+  const consultationDuration = getConsultationDurationLabel({
+    slotDuration: doctor.slotDuration,
+    schedule,
+  });
+
+  /** Ключевые факты идут в шапку одной «приборной» строкой вместо списка label: value. */
+  const facts: DoctorFact[] = [];
+  if (doctor.experience != null) {
+    facts.push({ label: "Стаж", value: `${doctor.experience} лет` });
+  }
+  if (doctor.price != null) {
+    facts.push({
+      label: "Стоимость консультации",
+      value: `${doctor.price.toLocaleString("ru-RU")} ₽`,
+    });
+  }
+  if (consultationDuration) {
+    facts.push({ label: "Время консультации", value: consultationDuration });
+  }
+
+  /**
+   * Все текстовые блоки собираем в одно досье. Раньше это был стек из четырёх
+   * одинаковых карточек — самый узнаваемый «шаблонный» приём, поэтому теперь
+   * блоки нанизаны на общую вертикальную бирюзовую линию.
+   */
+  const dossier: DossierEntry[] = [];
+  if (doctor.bio) {
+    dossier.push({
+      key: "bio",
+      label: "О враче",
+      icon: FileText,
+      content: (
+        <p className="text-sm leading-relaxed text-muted-foreground">{doctor.bio}</p>
+      ),
+    });
+  }
+  if (doctor.degree) {
+    dossier.push({
+      key: "degree",
+      label: "Степень",
+      icon: Award,
+      content: (
+        <p className="text-sm leading-relaxed text-muted-foreground">{doctor.degree}</p>
+      ),
+    });
+  }
+  if (education.length > 0) {
+    dossier.push({
+      key: "education",
+      label: "Образование",
+      icon: GraduationCap,
+      content:
+        education.length === 1 ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">{education[0]}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {education.map((edu, index) => (
+              <li
+                key={index}
+                className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground"
+              >
+                <span
+                  aria-hidden="true"
+                  className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-teal"
+                />
+                <span>{edu}</span>
+              </li>
+            ))}
+          </ul>
+        ),
+    });
+  }
+  if (services.length > 0) {
+    dossier.push({
+      key: "services",
+      label: "Услуги",
+      icon: Stethoscope,
+      content: (
+        <div className="flex flex-wrap gap-2">
+          {services.map((service, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center gap-2 rounded-full border border-teal/25 bg-teal/[0.07] px-3 py-1.5 text-sm text-foreground"
+            >
+              <CheckCircle className="h-3.5 w-3.5 shrink-0 text-teal" aria-hidden="true" />
+              {service}
+            </span>
+          ))}
+        </div>
+      ),
+    });
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <Button variant="ghost" size="sm" asChild className="mb-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        asChild
+        className="mb-4 rounded-full text-teal hover:bg-teal/10 hover:text-teal"
+      >
         <Link href={firstCategorySlug ? `/category/${firstCategorySlug}` : "/#categories"}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Назад к списку врачей
@@ -55,7 +170,7 @@ export function DoctorPageClient({
       </Button>
 
       {/* Booking Section - at top */}
-      <div className="mb-4">
+      <div className="mb-3">
         <DoctorBookingSection
           doctorId={doctor.id}
           doctorName={doctor.name || "Врач"}
@@ -69,164 +184,102 @@ export function DoctorPageClient({
         />
       </div>
 
-      {/* Doctor Header */}
-      <Card className="mb-2 py-0 px-0 overflow-hidden">
-        <CardContent className="py-0 px-0">
-          <div className="flex flex-col py-0 md:flex-row gap-3 md:items-stretch">
-            <div className="w-full md:w-72 aspect-square flex-shrink-0 relative">
+      {/* Шапка врача */}
+      <div className="sc-card relative mb-3 overflow-hidden">
+        {/* Фирменная градиентная линия как в баннере консультации */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-teal to-transparent"
+        />
+
+        <div className="flex items-start gap-4 p-5 sm:gap-6 sm:p-7">
+          {/* Портрет в «рамке снимка»: бирюзовые уголки — единственный акцентный
+              элемент шапки, всё остальное держим тихим. */}
+          <div className="relative h-28 w-28 shrink-0 sm:h-40 sm:w-40">
+            <div className="h-full w-full overflow-hidden rounded-2xl bg-teal-soft">
               {photoUrl ? (
                 <img
                   src={photoUrl}
                   alt={doctor.name || "Врач"}
-                  className="w-full h-full object-cover absolute inset-0"
+                  className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full absolute inset-0 bg-muted flex items-center justify-center">
-                  <User className="w-24 h-24 text-muted-foreground/50" />
+                <div className="flex h-full w-full items-center justify-center">
+                  <User className="h-12 w-12 text-teal/50 sm:h-16 sm:w-16" />
                 </div>
               )}
             </div>
-
-            <div className="flex-1 px-6 py-6 text-center md:text-left flex flex-col justify-center">
-              <div className="mb-1 gap-2 flex flex-col">
-                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                  {doctor.name}
-                </h1>
-                <p className="text-lg text-primary">{specialty}</p>
-              </div>
-
-              <div className="flex flex-col gap-1 text-sm mb-4">
-                {doctor.experience != null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-base">Стаж:</span>
-                    <span className="font-medium text-foreground text-base">{doctor.experience} лет</span>
-                  </div>
-                )}
-                {doctor.price != null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-base">Стоимость консультации:</span>
-                    <span className="font-medium text-foreground text-base">{doctor.price.toLocaleString("ru-RU")} ₽</span>
-                  </div>
-                )}
-              </div>
-            </div>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -left-1 -top-1 h-5 w-5 rounded-tl-md border-l-2 border-t-2 border-teal"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-1 -right-1 h-5 w-5 rounded-br-md border-b-2 border-r-2 border-teal"
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* About */}
-      {doctor.bio && (
-        <Card className="mb-2">
-          <CardContent className="px-6 py-0">
-            <h2 className="text-lg font-semibold text-foreground mb-0.5">
-              О враче :
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {doctor.bio}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          <div className="min-w-0 flex-1">
+            <span className="inline-flex w-fit items-center gap-2 rounded-full bg-teal/10 px-3 py-1 text-xs font-medium text-teal">
+              <span
+                aria-hidden="true"
+                className="h-1.5 w-1.5 rounded-full bg-teal"
+              />
+              {specialty}
+            </span>
+            <h1 className="mt-2.5 text-xl font-bold leading-tight text-balance text-foreground sm:text-3xl">
+              {doctor.name}
+            </h1>
+            <span
+              aria-hidden="true"
+              className="mt-3 block h-[2px] w-16 rounded-full bg-gradient-to-r from-teal to-transparent sm:w-24"
+            />
+          </div>
+        </div>
 
-      {/* Degree */}
-      {doctor.degree && (
-        <Card className="mb-2">
-          <CardContent className="px-6 py-0">
-            <h2 className="text-lg font-semibold text-foreground mb-0.5 flex items-center gap-2">
-              <Award className="w-5 h-5 text-primary" />
-              Степень :
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed">
-              {doctor.degree}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Education */}
-      {education.length > 0 && (
-        <Card className="mb-2">
-          <CardContent className="px-6 py-0">
-            <h2 className="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              Образование :
-            </h2>
-            {education.length === 1 ? (
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {education[0]}
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {education.map((edu, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>{edu}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Services */}
-      {services.length > 0 && (
-        <Card className="mb-2">
-          <CardContent className="px-6 flex flex-col py-0">
-            <h2 className="text-lg font-semibold text-foreground mb-3">
-              Услуги :
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-1.5">
-              {services.map((service, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg"
-                >
-                  <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
-                  <span className="text-foreground text-sm">{service}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Features */}
-      <div className="grid sm:grid-cols-3 gap-1.5 mb-2">
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Video className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Видеоконсультация</p>
-              <p className="text-xs text-muted-foreground leading-tight">HD качество</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Конфиденциально</p>
-              <p className="text-xs text-muted-foreground leading-tight">Защита данных</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-4 sm:py-6">
-          <CardContent className="px-5 py-0 flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-md flex items-center justify-center flex-shrink-0">
-              <Award className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-sm text-foreground leading-tight">Сертифицирован</p>
-              <p className="text-xs text-muted-foreground leading-tight">Все лицензии</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* «Приборная» строка ключевых фактов вместо списка подписей со значениями */}
+        {facts.length > 0 && (
+          <dl
+            className="grid divide-x divide-teal/15 border-t border-teal/15"
+            style={{ gridTemplateColumns: `repeat(${facts.length}, minmax(0, 1fr))` }}
+          >
+            {facts.map((fact) => (
+              <div key={fact.label} className="px-4 py-3.5 sm:px-6">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-teal">
+                  {fact.label}
+                </dt>
+                <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground sm:text-base">
+                  {fact.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
+
+      {/* Досье: блоки нанизаны на общую бирюзовую вертикаль */}
+      {dossier.length > 0 && (
+        <div className="sc-card relative mb-3 px-5 py-6 sm:px-7 sm:py-7">
+          <span
+            aria-hidden="true"
+            className="absolute left-4 top-8 bottom-8 w-px bg-gradient-to-b from-teal/45 via-teal/20 to-transparent"
+          />
+
+          <div className="flex flex-col gap-7">
+            {dossier.map((entry) => (
+              <section key={entry.key} className="relative pl-12 sm:pl-14">
+                <span className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-card ring-1 ring-teal/30">
+                  <entry.icon className="h-4 w-4 text-teal" aria-hidden="true" />
+                </span>
+                <h2 className="mb-2 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal">
+                  {entry.label}
+                </h2>
+                {entry.content}
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Reviews Section */}
       <DoctorReviews doctorId={doctor.id} doctorName={doctor.name || 'Врач'} />
