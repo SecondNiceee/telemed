@@ -103,7 +103,8 @@ export class AppointmentsApi {
    */
   static async fetchDoctorAppointments(): Promise<ApiAppointment[]> {
     const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
-      '/api/appointments?limit=100&depth=1&sort=-date',
+      // Неоплаченные брони врачу не показываем — это ещё не запись.
+      '/api/appointments?where[status][not_equals]=pending_payment&limit=100&depth=1&sort=-date',
       { credentials: 'include' },
     )
     return data.docs
@@ -115,7 +116,7 @@ export class AppointmentsApi {
    */
   static async fetchDoctorAppointmentsServer(options: ServerOptions & { doctorId: number }): Promise<ApiAppointment[]> {
     const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
-      `/api/appointments?where[doctor][equals]=${options.doctorId}&limit=100&depth=1&sort=-date`,
+      `/api/appointments?where[doctor][equals]=${options.doctorId}&where[status][not_equals]=pending_payment&limit=100&depth=1&sort=-date`,
       { ...options, cache: 'no-store' },
     )
     return data.docs
@@ -127,7 +128,7 @@ export class AppointmentsApi {
    */
   static async fetchByDoctorServer(doctorId: number, options: ServerOptions = {}): Promise<ApiAppointment[]> {
     const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
-      `/api/appointments?where[doctor][equals]=${doctorId}&limit=500&depth=1&sort=-date`,
+      `/api/appointments?where[doctor][equals]=${doctorId}&where[status][not_equals]=pending_payment&limit=500&depth=1&sort=-date`,
       { ...options, cache: 'no-store' },
     )
     return data.docs
@@ -140,7 +141,7 @@ export class AppointmentsApi {
     if (doctorIds.length === 0) return []
     const query = doctorIds.map(id => `where[doctor][in]=${id}`).join('&')
     const data = await serverApiFetch<PayloadListResponse<ApiAppointment>>(
-      `/api/appointments?${query}&limit=500&depth=1&sort=-date`,
+      `/api/appointments?${query}&where[status][not_equals]=pending_payment&limit=500&depth=1&sort=-date`,
       { ...options, cache: 'no-store' },
     )
     return data.docs

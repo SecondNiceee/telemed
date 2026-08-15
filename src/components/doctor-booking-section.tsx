@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   ChevronLeft,
   ChevronRight,
-  Check,
   Clock,
   Calendar,
   Loader2,
@@ -16,7 +14,10 @@ import {
   MessageSquare,
   Mic,
   Video,
+  Info,
+  CreditCard,
 } from "lucide-react";
+import { getPaymentDeadline, PAYMENT_WINDOW_MINUTES } from "@/lib/constants/payment";
 import { useUserStore } from "@/stores/user-store";
 import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
@@ -47,6 +48,10 @@ export function DoctorBookingSection({
   schedule,
 }: DoctorBookingSectionProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Страница оплаты возвращает сюда с ?payment=expired | cancelled,
+  // чтобы человек понимал, почему запись не состоялась.
+  const paymentNotice = searchParams.get("payment");
   const { user, fetchUser } = useUserStore();
   const { createAppointment, creating } = useUserAppointmentStore();
 
@@ -91,7 +96,7 @@ export function DoctorBookingSection({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [connectionType, setConnectionType] = useState<'chat' | 'audio' | 'video'>('chat');
-  const [isBooked, setIsBooked] = useState(false);
+  const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
@@ -184,7 +189,9 @@ export function DoctorBookingSection({
     setBookingError(null);
 
     try {
-      await createAppointment({
+      // Запись создаётся как неоплаченная бронь: слот сразу пропадает у всех,
+      // но подтверждённой запись станет только после оплаты.
+      const appointment = await createAppointment({
         doctor: doctorId,
         user: user.id,
         doctorName,
@@ -194,6 +201,8 @@ export function DoctorBookingSection({
         time: selectedTime,
         price: doctorPrice,
         connectionType,
+        status: "pending_payment",
+        paymentExpiresAt: getPaymentDeadline().toISOString(),
         // Pass full doctor data so the store has all info immediately
         doctorData: {
           id: doctorId,
@@ -206,7 +215,8 @@ export function DoctorBookingSection({
         },
       });
       setDisclaimerOpen(false);
-      setIsBooked(true);
+      setRedirectingToPayment(true);
+      router.push(`/appointment/${appointment.id}/payment`);
     } catch (err) {
       setDisclaimerOpen(false);
       setBookingError(
@@ -215,41 +225,21 @@ export function DoctorBookingSection({
     }
   };
 
-  if (isBooked) {
+  if (redirectingToPayment) {
     return (
-      <Card className="border-2 border-primary/20 bg-primary/5">
-        <CardContent className="p-8 text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="w-8 h-8 text-primary" />
+      <Card className="border-2 border-teal/25 bg-teal/[0.04]">
+        <CardContent className="flex flex-col items-center p-8 text-center">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-teal/10 ring-1 ring-teal/25">
+            <CreditCard className="h-7 w-7 text-teal" aria-hidden="true" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Запись подтверждена!
+          <h2 className="mb-2 text-xl font-semibold text-foreground text-balance sm:text-2xl">
+            Время забронировано
           </h2>
-          <p className="text-muted-foreground mb-6">
-            Вы записаны к врачу {doctorName} на{" "}
-            {selectedDate &&
-              new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", {
-                day: "numeric",
-                month: "long",
-              })}{" "}
-            в {selectedTime}
+          <p className="max-w-sm text-sm leading-relaxed text-muted-foreground text-pretty">
+            Переходим к оплате консультации. Бронь действует{" "}
+            {PAYMENT_WINDOW_MINUTES} минут.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button variant="outline" asChild className="border-primary text-primary hover:bg-primary/5 transition-all">
-              <Link href="/lk">Мои записи</Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setIsBooked(false);
-                setSelectedDate(null);
-                setSelectedTime(null);
-              }}
-              className="bg-transparent"
-            >
-              Записаться ещё
-            </Button>
-          </div>
+          <Loader2 className="mt-4 h-5 w-5 animate-spin text-teal" aria-hidden="true" />
         </CardContent>
       </Card>
     );
@@ -285,6 +275,20 @@ export function DoctorBookingSection({
           />
           Записаться на приём
         </h2>
+
+        {paymentNotice === "expired" || paymentNotice === "cancelled" ? (
+          <div
+            role="status"
+            className="mb-3 flex items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] px-3.5 py-3"
+          >
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <p className="text-sm leading-relaxed text-foreground text-pretty">
+              {paymentNotice === "expired"
+                ? `Бронь истекла: консультация не была оплачена за ${PAYMENT_WINDOW_MINUTES} минут. Время снова доступно для записи.`
+                : "Запись отменена, оплата не проходила. Выберите время заново — слот снова свободен."}
+            </p>
+          </div>
+        ) : null}
 
         {/* Week Navigation */}
         <div className="flex items-center justify-between mb-3">

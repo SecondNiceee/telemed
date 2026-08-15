@@ -15,6 +15,10 @@ import {
   type ApiDoctor,
 } from "@/lib/api/index";
 import { Media } from "@/payload-types";
+import {
+  getFreshDoctorSchedule,
+  releaseExpiredHolds,
+} from "@/lib/server/appointment-holds";
 import { DoctorPageClient } from "./doctor-page-client";
 
 export const dynamic = 'force-dynamic';
@@ -74,6 +78,14 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
     );
   }
 
+  // Просроченные неоплаченные брони освобождаем прямо при заходе на страницу
+  // (внешний cron не нужен) и читаем расписание напрямую из БД, минуя кеш,
+  // чтобы освободившиеся слоты сразу были видны.
+  const releasedCount = await releaseExpiredHolds({ doctorId: doctor.id });
+  const schedule = releasedCount > 0
+    ? await getFreshDoctorSchedule(doctor.id)
+    : (doctor.schedule ?? []);
+
   const photoUrl = (doctor.photo as Media)?.url ?? null;
   const specialty = getDoctorSpecialty(doctor);
   const education = getDoctorEducation(doctor);
@@ -103,7 +115,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           education={education}
           services={services}
           categories={categories.map(c => ({ slug: c.slug }))}
-          schedule={doctor.schedule ?? []}
+          schedule={schedule}
         />
       </main>
       <Footer />

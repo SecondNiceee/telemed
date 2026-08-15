@@ -385,7 +385,15 @@ export interface Appointment {
    */
   time: string;
   price?: number | null;
-  status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending_payment' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  /**
+   * Пока запись в статусе «Ожидает оплаты», слот забронирован до этого времени. После истечения слот возвращается в расписание врача.
+   */
+  paymentExpiresAt?: string | null;
+  /**
+   * Время успешной оплаты консультации
+   */
+  paidAt?: string | null;
   /**
    * Предпочтительный способ связи пациента
    */
@@ -763,6 +771,8 @@ export interface AppointmentsSelect<T extends boolean = true> {
   time?: T;
   price?: T;
   status?: T;
+  paymentExpiresAt?: T;
+  paidAt?: T;
   connectionType?: T;
   chatBlocked?: T;
   recording?: T;

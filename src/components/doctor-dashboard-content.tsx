@@ -245,8 +245,12 @@ function formatAppointmentDate(dateStr: string) {
 
 function getStatusLabel(status: ApiAppointment["status"]) {
   switch (status) {
+    case "pending_payment":
+      return "Ожидает оплаты"
     case "confirmed":
       return "Подтверждена"
+    case "in_progress":
+      return "В процессе"
     case "completed":
       return "Завершена"
     case "cancelled":
@@ -256,8 +260,12 @@ function getStatusLabel(status: ApiAppointment["status"]) {
 
 function getStatusColor(status: ApiAppointment["status"]) {
   switch (status) {
+    case "pending_payment":
+      return "bg-amber-500/10 text-amber-600"
     case "confirmed":
       return "bg-teal-soft text-teal"
+    case "in_progress":
+      return "bg-primary/10 text-primary"
     case "completed":
       return "bg-muted text-muted-foreground"
     case "cancelled":
