@@ -63,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
   if (error) {
     return (
       <div className="min-h-screen flex flex-col">
-        <BackgroundDecor id="category-error" position="fixed" />
+        <BackgroundDecor id="category-error" position="fixed" ecg={false} />
         <Header />
         <main className="relative z-10 flex-1 flex items-center justify-center">
           <div className="text-center px-4">
@@ -80,7 +80,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <div className="min-h-screen flex flex-col">
-      <BackgroundDecor id="category" position="fixed" />
+      <BackgroundDecor id="category" position="fixed" ecg={false} />
       <Header />
       <main className="relative z-10 flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
