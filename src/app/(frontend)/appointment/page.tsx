@@ -20,9 +20,8 @@ export default async function AppointmentPage() {
           ecg={false} — под плотным списком специальностей линии мешают читать. */}
       <BackgroundDecor id="appointment" position="fixed" ecg={false} />
       <Header />
-      {/* Градиент прозрачный (teal/…), иначе непрозрачный to-background
-          перекрыл бы фиксированный декор под ним. */}
-      <main className="relative z-10 flex-1 bg-gradient-to-b from-teal/[0.07] via-transparent to-transparent">
+      {/* Фон полностью прозрачный — сквозь него виден фиксированный BackgroundDecor. */}
+      <main className="relative z-10 flex-1 bg-transparent">
         <AppointmentPageClient initialCategories={categories} />
       </main>
       <Footer />

@@ -144,13 +144,18 @@ export async function DELETE(
 
     console.log('[v0] Deleting category:', { id, organisationId: decoded.id })
 
-    // Check if category has doctors assigned
+    // Check if category has doctors assigned.
+    // В коллекции Doctors поле называется `categories` (hasMany relationship),
+    // а не `category` — иначе Payload бросает
+    // "The following path cannot be queried: category".
     const doctorsWithCategory = await payload.find({
       collection: 'doctors',
       where: {
-        category: { equals: parseInt(id, 10) },
+        categories: { in: [parseInt(id, 10)] },
       },
       limit: 1,
+      depth: 0,
+      overrideAccess: true,
     })
 
     if (doctorsWithCategory.docs.length > 0) {

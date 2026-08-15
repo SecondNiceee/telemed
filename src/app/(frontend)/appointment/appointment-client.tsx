@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ArrowRight, Search, X } from "lucide-react";
 import type { ApiCategory } from "@/lib/api/types";
 import { CategoryIcon } from "@/lib/utils/categoryIcon";
-import { SectionBadge } from "@/components/section-badge";
 import { BackButton } from "@/components/back-button";
 
 interface AppointmentPageClientProps {
@@ -36,7 +35,6 @@ export function AppointmentPageClient({ initialCategories }: AppointmentPageClie
         <BackButton fallbackHref="/" className="mb-4" />
 
         <div className="space-y-3">
-          <SectionBadge tone="teal">Запись</SectionBadge>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground text-balance">
             Записаться на приём
           </h1>
