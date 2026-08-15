@@ -110,44 +110,87 @@ export async function releaseHold({
 }
 
 /**
+ * Минимальный интервал между sweep'ами с одинаковым скоупом.
+ *
+ * Страницы, которые вызывают sweep, помечены force-dynamic, поэтому без троттла
+ * пачка одновременных запросов (в т.ч. от ботов) даёт по запросу в БД на каждый.
+ * Брони живут 15 минут, так что задержка в несколько секунд не влияет на UX.
+ */
+const SWEEP_THROTTLE_MS = 10_000
+
+/** Время последнего завершённого sweep'а по скоупу. */
+const lastSweepAt = new Map<string, number>()
+
+/** Sweep'ы, выполняющиеся прямо сейчас — чтобы не дублировать работу. */
+const inFlightSweeps = new Map<string, Promise<number>>()
+
+async function runSweep(doctorId?: number): Promise<number> {
+  const payload = await getPayloadInstance()
+
+  const expired = await payload.find({
+    collection: 'appointments',
+    where: {
+      status: { equals: 'pending_payment' },
+      paymentExpiresAt: { less_than: new Date().toISOString() },
+      ...(doctorId ? { doctor: { equals: doctorId } } : {}),
+    },
+    // pagination: false убирает второй запрос (SELECT COUNT), который Payload
+    // делает только чтобы посчитать totalDocs — он здесь не нужен.
+    pagination: false,
+    // id возвращается всегда; тянем минимум колонок — сами документы не нужны,
+    // releaseHold перечитывает запись по id и заново проверяет статус.
+    select: { status: true },
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  let released = 0
+  for (const appointment of expired.docs) {
+    try {
+      const ok = await releaseHold({ payload, appointmentId: appointment.id })
+      if (ok) released += 1
+    } catch (err) {
+      console.error('Failed to release expired hold', appointment.id, err)
+    }
+  }
+
+  return released
+}
+
+/**
  * Освободить все просроченные брони (пользователь закрыл вкладку и не оплатил).
  * Вызывается при чтении страниц записи, поэтому внешний cron не нужен.
+ *
+ * Запрос опирается на составной индекс (status, paymentExpiresAt) из коллекции
+ * Appointments, поэтому в обычной ситуации (просрочек нет) стоит близко к нулю
+ * независимо от размера таблицы.
  *
  * @returns количество освобождённых слотов
  */
 export async function releaseExpiredHolds({
   doctorId,
 }: { doctorId?: number } = {}): Promise<number> {
-  try {
-    const payload = await getPayloadInstance()
+  const scope = doctorId ? `doctor:${doctorId}` : 'all'
 
-    const expired = await payload.find({
-      collection: 'appointments',
-      where: {
-        status: { equals: 'pending_payment' },
-        paymentExpiresAt: { less_than: new Date().toISOString() },
-        ...(doctorId ? { doctor: { equals: doctorId } } : {}),
-      },
-      limit: 100,
-      depth: 0,
-      overrideAccess: true,
+  // Уже идёт такой же sweep — присоединяемся к нему вместо второго прохода.
+  const inFlight = inFlightSweeps.get(scope)
+  if (inFlight) return inFlight
+
+  const last = lastSweepAt.get(scope) ?? 0
+  if (Date.now() - last < SWEEP_THROTTLE_MS) return 0
+
+  const sweep = runSweep(doctorId)
+    .catch((err) => {
+      console.error('Failed to release expired holds:', err)
+      return 0
+    })
+    .finally(() => {
+      lastSweepAt.set(scope, Date.now())
+      inFlightSweeps.delete(scope)
     })
 
-    let released = 0
-    for (const appointment of expired.docs) {
-      try {
-        const ok = await releaseHold({ payload, appointmentId: appointment.id })
-        if (ok) released += 1
-      } catch (err) {
-        console.error('Failed to release expired hold', appointment.id, err)
-      }
-    }
-
-    return released
-  } catch (err) {
-    console.error('Failed to release expired holds:', err)
-    return 0
-  }
+  inFlightSweeps.set(scope, sweep)
+  return sweep
 }
 
 /**

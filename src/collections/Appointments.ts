@@ -123,6 +123,13 @@ export const Appointments: CollectionConfig = {
     defaultColumns: ['doctorName', 'user', 'date', 'time', 'status'],
     group: 'Записи',
   },
+  indexes: [
+    // Покрывает releaseExpiredHolds(): status + paymentExpiresAt.
+    // Без него sweep делает Seq Scan по всей таблице на каждый запрос страницы.
+    { fields: ['status', 'paymentExpiresAt'] },
+    // Тот же sweep, но суженный по врачу (страница /doctor/[id]).
+    { fields: ['doctor', 'status', 'paymentExpiresAt'] },
+  ],
   hooks: {
     beforeOperation: [ensureReqUser],
     beforeChange: [
