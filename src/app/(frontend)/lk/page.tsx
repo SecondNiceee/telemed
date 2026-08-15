@@ -40,7 +40,7 @@ export default async function LkPage() {
     <div className="min-h-screen flex flex-col">
       {/* Сквозной декор как на главной: секции кабинета прозрачные,
           поэтому сетка/ЭКГ/водяной знак просвечивают сквозь них. */}
-      <BackgroundDecor id="lk" position="fixed" />
+      <BackgroundDecor id="lk" position="fixed" ecg="bottom" />
       <Header />
       <LkContent user={user} appointments={appointments} />
       <Footer />
