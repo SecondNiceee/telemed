@@ -8,16 +8,14 @@ interface ServerOptions {
 /**
  * Тело создания записи.
  *
- * ВАЖНО: `user`, `price`, `status`, `paymentExpiresAt` и `paidAt` сервер
- * выставляет сам (см. `applyBookingGuards` в collections/helpers), поэтому
- * с клиента их присылать бессмысленно — значения будут перезаписаны.
- * Клиент выбирает только врача, дату, время и способ связи.
+ * ВАЖНО: это ровно тот whitelist, который принимает сервер
+ * (`PATIENT_WRITABLE_FIELDS` в `collections/helpers/appointment-booking-guard`).
+ * `user`, `price`, `status`, `paymentExpiresAt`, `paidAt`, `doctorName` и
+ * `userName` сервер заполняет сам из БД, а любые присланные значения этих
+ * полей вырезает. Клиент выбирает только врача, дату, время и способ связи.
  */
 export interface CreateAppointmentPayload {
   doctor: number
-  user: number
-  doctorName: string
-  userName: string
   specialty: string
   date: string
   time: string

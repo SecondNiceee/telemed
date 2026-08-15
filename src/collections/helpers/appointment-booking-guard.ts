@@ -9,8 +9,13 @@ import { getPaymentDeadline } from '@/lib/constants/payment'
  * пациент может прислать свою цену, чужой `user`, сразу `status: 'confirmed'`
  * (полный обход оплаты) или бесконечный `paymentExpiresAt`.
  *
- * Правило: всё, что влияет на деньги, владельца и срок брони, считает сервер.
- * Клиентские значения этих полей игнорируются.
+ * Правила:
+ *  1. Whitelist полей. Всё, что не входит в список разрешённых для этого типа
+ *     вызывающего, вырезается из `data` до записи в БД — независимо от роли.
+ *  2. Всё, что влияет на деньги, владельца и срок брони, считает сервер.
+ *  3. Роль `admin` не выключает guard'ы целиком: у админки просто более широкий
+ *     whitelist, но формат данных и существование связей проверяются всегда.
+ *  4. Роль берётся из БД, а не из claim'а токена.
  */
 
 /** Сколько неоплаченных броней одновременно может держать один пациент. */
@@ -21,6 +26,46 @@ const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
 
 /** Максимальная длина текстовых «снимков» (попадают в письма). */
 const TEXT_MAX = 200
+
+const STATUS_VALUES = new Set([
+  'pending_payment',
+  'confirmed',
+  'in_progress',
+  'completed',
+  'cancelled',
+])
+
+const CONNECTION_TYPES = new Set(['chat', 'audio', 'video'])
+
+/**
+ * Единственные поля, которые пациент вправе прислать при создании записи.
+ * Всё остальное — `user`, `price`, `status`, `paymentExpiresAt`, `paidAt`,
+ * `doctorName`, `userName`, `chatBlocked`, `recording`, `activeCall` —
+ * заполняет сервер, поэтому клиентские значения вырезаются.
+ */
+const PATIENT_WRITABLE_FIELDS = new Set(['doctor', 'date', 'time', 'specialty', 'connectionType'])
+
+/**
+ * Поля, доступные админке. Шире, чем у пациента (админ действительно может
+ * создать запись за пациента и сразу пометить её оплаченной), но это всё ещё
+ * закрытый список: неизвестные и служебные поля не проходят.
+ */
+const ADMIN_WRITABLE_FIELDS = new Set([
+  'doctor',
+  'user',
+  'date',
+  'time',
+  'specialty',
+  'connectionType',
+  'price',
+  'status',
+  'paymentExpiresAt',
+  'paidAt',
+  'doctorName',
+  'userName',
+  'chatBlocked',
+  'recording',
+])
 
 type ScheduleDay = { date?: string | null; slots?: ({ time?: string | null } | null)[] | null }
 
@@ -44,6 +89,84 @@ function sanitizeText(raw: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+/** Валидная ISO-дата или undefined. */
+function sanitizeDate(raw: unknown): string | undefined {
+  if (typeof raw !== 'string' && !(raw instanceof Date)) return undefined
+  const parsed = new Date(raw as string)
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+}
+
+/**
+ * Вырезать из `data` всё, что не входит в whitelist.
+ * Возвращает имена отброшенных полей — полезно для логов.
+ */
+function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): string[] {
+  const dropped: string[] = []
+
+  for (const key of Object.keys(data)) {
+    if (allowed.has(key)) continue
+    // id/служебные поля Payload не трогаем: их выставляет не клиент.
+    if (key === 'id' || key === 'createdAt' || key === 'updatedAt') continue
+    dropped.push(key)
+    delete data[key]
+  }
+
+  return dropped
+}
+
+/**
+ * Проверить роль по БД, а не по claim'у в токене.
+ * Даже валидный токен несёт снимок роли на момент логина, поэтому решение
+ * «это админ» принимаем только после сверки с актуальной записью.
+ */
+async function isVerifiedAdmin(req: PayloadRequest, userId: number): Promise<boolean> {
+  const claimedRole = (req.user as { role?: string } | null | undefined)?.role
+  if (claimedRole !== 'admin') return false
+
+  try {
+    const user = await req.payload.findByID({
+      collection: 'users',
+      id: userId,
+      depth: 0,
+      overrideAccess: true,
+    })
+    return user?.role === 'admin'
+  } catch {
+    return false
+  }
+}
+
+/** Имя пациента из БД. */
+async function resolveUserName(req: PayloadRequest, userId: number): Promise<string> {
+  try {
+    const user = await req.payload.findByID({
+      collection: 'users',
+      id: userId,
+      depth: 0,
+      overrideAccess: true,
+    })
+    return user?.name || user?.email || 'Пациент'
+  } catch {
+    return 'Пациент'
+  }
+}
+
+/** Врач из БД или ошибка. */
+async function requireDoctor(req: PayloadRequest, raw: unknown) {
+  const doctorId = toId(raw)
+  if (!Number.isFinite(doctorId) || doctorId <= 0) throw new Error('Врач не найден.')
+
+  const doctor = await req.payload.findByID({
+    collection: 'doctors',
+    id: doctorId,
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  if (!doctor) throw new Error('Врач не найден.')
+  return doctor
+}
+
 /**
  * Привести данные новой записи к доверенному виду.
  * Мутирует и возвращает `data`.
@@ -59,36 +182,131 @@ export async function applyBookingGuards({
 }): Promise<Record<string, unknown>> {
   const caller = req.user
 
-  // Записи через админку (админ) и доверенные серверные вызовы Local API
-  // (нет req.user, overrideAccess) оставляем как есть.
-  if (!caller || caller.collection !== 'users') return data
-  if ((caller as { role?: string }).role === 'admin') return data
+  // Доверенный серверный вызов Local API (сиды, миграции, наши роуты):
+  // нет пользователя и запрос не пришёл по HTTP.
+  if (!caller && req.payloadAPI === 'local') return data
 
-  const userId = Number(caller.id)
+  // Всё остальное — внешний запрос. Аноним и не-пациентские токены
+  // (врач, организация) записи не создают.
+  if (!caller || caller.collection !== 'users') {
+    throw new Error('Создавать записи может только авторизованный пациент.')
+  }
 
-  // --- Владелец записи: всегда владелец токена, а не тот, кого прислал клиент.
-  data.user = userId
+  const callerId = Number(caller.id)
+  if (!Number.isFinite(callerId) || callerId <= 0) {
+    throw new Error('Создавать записи может только авторизованный пациент.')
+  }
 
-  // --- Формат даты и времени.
+  const admin = await isVerifiedAdmin(req, callerId)
+
+  // Шаг 1 (всегда): вырезаем всё вне whitelist.
+  const dropped = stripToWhitelist(data, admin ? ADMIN_WRITABLE_FIELDS : PATIENT_WRITABLE_FIELDS)
+  if (dropped.length > 0) {
+    console.warn(
+      `[appointments] игнорирую поля вне whitelist от ${admin ? 'admin' : 'user'} ${callerId}: ${dropped.join(', ')}`,
+    )
+  }
+
+  // Шаг 2 (всегда): формат даты и времени.
   const date = typeof data.date === 'string' ? data.date : ''
   const time = typeof data.time === 'string' ? data.time : ''
 
   if (!DATE_RE.test(date)) throw new Error('Некорректная дата записи.')
   if (!TIME_RE.test(time)) throw new Error('Некорректное время записи.')
+
+  // Шаг 3 (всегда): врач должен существовать.
+  const doctor = await requireDoctor(req, data.doctor)
+  data.doctor = doctor.id
+  data.doctorName = doctor.name || 'Врач'
+
+  // Шаг 4 (всегда): вид связи только из допустимого набора.
+  data.connectionType = CONNECTION_TYPES.has(data.connectionType as string)
+    ? data.connectionType
+    : 'chat'
+
+  data.specialty = sanitizeText(data.specialty) || ''
+
+  if (admin) {
+    return await applyAdminGuards({ data, req, doctor })
+  }
+
+  return await applyPatientGuards({ data, req, doctor, userId: callerId, date, time })
+}
+
+/**
+ * Ветка админки: широкий whitelist, но данные всё равно нормализуются.
+ * Слот вне расписания и произвольный статус разрешены осознанно —
+ * админ заводит записи вручную.
+ */
+async function applyAdminGuards({
+  data,
+  req,
+  doctor,
+}: {
+  data: Record<string, unknown>
+  req: PayloadRequest
+  doctor: { id: number | string; price?: number | null }
+}): Promise<Record<string, unknown>> {
+  // Пациент обязателен и должен существовать.
+  const userId = toId(data.user)
+  if (!Number.isFinite(userId) || userId <= 0) {
+    throw new Error('Укажите пациента для записи.')
+  }
+
+  const patient = await req.payload
+    .findByID({ collection: 'users', id: userId, depth: 0, overrideAccess: true })
+    .catch(() => null)
+
+  if (!patient) throw new Error('Пациент не найден.')
+
+  data.user = patient.id
+  data.userName = sanitizeText(data.userName) || patient.name || patient.email || 'Пациент'
+
+  // Статус — только из enum.
+  const status = STATUS_VALUES.has(data.status as string) ? (data.status as string) : 'confirmed'
+  data.status = status
+
+  // Цена — неотрицательное число; по умолчанию из карточки врача.
+  const rawPrice = Number(data.price)
+  data.price = Number.isFinite(rawPrice) && rawPrice >= 0 ? rawPrice : (doctor.price ?? 0)
+
+  // Срок брони нужен только неоплаченной записи.
+  if (status === 'pending_payment') {
+    data.paymentExpiresAt = sanitizeDate(data.paymentExpiresAt) || getPaymentDeadline().toISOString()
+    data.paidAt = null
+  } else {
+    data.paymentExpiresAt = null
+    data.paidAt = sanitizeDate(data.paidAt) ?? null
+  }
+
+  data.chatBlocked = data.chatBlocked === true
+
+  return data
+}
+
+/**
+ * Ветка пациента: деньги, владелец, статус и срок брони — только с сервера,
+ * плюс проверка реального слота и лимита активных броней.
+ */
+async function applyPatientGuards({
+  data,
+  req,
+  doctor,
+  userId,
+  date,
+  time,
+}: {
+  data: Record<string, unknown>
+  req: PayloadRequest
+  doctor: { schedule?: unknown; price?: number | null }
+  userId: number
+  date: string
+  time: string
+}): Promise<Record<string, unknown>> {
   if (date < todayStr()) throw new Error('Нельзя записаться на прошедшую дату.')
 
-  // --- Врач должен существовать.
-  const doctorId = toId(data.doctor)
-  if (!Number.isFinite(doctorId) || doctorId <= 0) throw new Error('Врач не найден.')
-
-  const doctor = await req.payload.findByID({
-    collection: 'doctors',
-    id: doctorId,
-    depth: 0,
-    overrideAccess: true,
-  })
-
-  if (!doctor) throw new Error('Врач не найден.')
+  // --- Владелец записи: всегда владелец токена, а не тот, кого прислал клиент.
+  data.user = userId
 
   // --- Слот должен реально существовать в расписании врача.
   // Иначе можно записаться на время, которое врач никогда не открывал.
@@ -101,13 +319,17 @@ export async function applyBookingGuards({
     throw new Error('Это время недоступно для записи. Обновите страницу и выберите другое.')
   }
 
-  // --- Цена: только из карточки врача. Клиентское значение игнорируем.
+  // --- Цена: только из карточки врача. Клиентское значение уже вырезано.
   data.price = doctor.price ?? 0
 
   // --- Статус и срок брони считает сервер: новая запись всегда неоплаченная.
   data.status = 'pending_payment'
   data.paymentExpiresAt = getPaymentDeadline().toISOString()
   data.paidAt = null
+
+  // --- Служебные поля стартуют в известном состоянии (клиентские вырезаны).
+  data.chatBlocked = false
+  data.recording = null
 
   // --- Ограничение на число одновременных броней (иначе один аккаунт
   // в цикле выкупает всё расписание врача на 15 минут).
@@ -127,22 +349,8 @@ export async function applyBookingGuards({
     )
   }
 
-  // --- Текстовые «снимки» для отображения и писем: имена берём из БД.
-  data.doctorName = doctor.name || 'Врач'
-
-  try {
-    const user = await req.payload.findByID({
-      collection: 'users',
-      id: userId,
-      depth: 0,
-      overrideAccess: true,
-    })
-    data.userName = user?.name || user?.email || 'Пациент'
-  } catch {
-    data.userName = sanitizeText(data.userName) || 'Пациент'
-  }
-
-  data.specialty = sanitizeText(data.specialty) || ''
+  // --- Имя пациента для отображения и писем: только из БД.
+  data.userName = await resolveUserName(req, userId)
 
   return data
 }
