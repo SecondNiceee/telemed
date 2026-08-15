@@ -70,43 +70,57 @@ export function AdminSeedDialog({
       setPending(null)
       setResult(null)
       setActiveCategoryId(null)
+      // Список категорий тоже сбрасываем: иначе после закрытия диалога здесь
+      // остаётся устаревший (или недогруженный) стейт загрузки.
+      setCategories(null)
+      setCategoriesLoading(false)
     }
   }, [open])
 
-  /** Категории тянем один раз при первом входе на шаг выбора категории. */
+  /**
+   * Категории тянем один раз при первом входе на шаг выбора категории.
+   *
+   * В зависимостях НЕ должно быть categoriesLoading: этот флаг меняется внутри
+   * самого эффекта, эффект перезапускался, cleanup выставлял cancelled = true и
+   * результат уже летящего запроса выбрасывался — спиннер «Загружаем категории…»
+   * висел вечно, без ошибок ни в браузере, ни на сервере.
+   */
   useEffect(() => {
-    if (step !== "category" || categories !== null || categoriesLoading) return
+    if (step !== "category" || categories !== null) return
 
-    let cancelled = false
+    const controller = new AbortController()
     setCategoriesLoading(true)
+
     void (async () => {
       try {
         const res = await fetch("/api/doctor-categories?limit=100&sort=name", {
           credentials: "include",
+          signal: controller.signal,
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data?.message || "Не удалось загрузить категории")
-        if (cancelled) return
+
         setCategories(
-          (data.docs as SeedCategory[]).map((doc) => ({
+          ((data?.docs ?? []) as SeedCategory[]).map((doc) => ({
             id: doc.id,
             name: doc.name,
             slug: doc.slug,
           })),
         )
       } catch (err) {
-        if (cancelled) return
+        if (controller.signal.aborted) return
+        console.error("[admin:seed] failed to load categories", err)
         setCategories([])
         toast.error(err instanceof Error ? err.message : "Не удалось загрузить категории")
       } finally {
-        if (!cancelled) setCategoriesLoading(false)
+        if (!controller.signal.aborted) setCategoriesLoading(false)
       }
     })()
 
     return () => {
-      cancelled = true
+      controller.abort()
     }
-  }, [step, categories, categoriesLoading])
+  }, [step, categories])
 
   const run = async (
     type: SeedType,
