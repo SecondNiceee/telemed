@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { useUserStore } from "@/stores/user-store"
 import { useUserAppointmentStore } from "@/stores/user-appointments-store"
-import { CalendarX, CheckCircle2, CreditCard, Play } from "lucide-react"
 import Link from "next/link"
 import type { ApiAppointment } from "@/lib/api/types"
 import { Button } from "@/components/ui/button"
@@ -20,6 +19,33 @@ interface LkContentProps {
 }
 
 type FilterType = 'all' | 'upcoming' | 'active' | 'completed'
+
+const FILTERS: { id: FilterType; label: string }[] = [
+  { id: 'all', label: 'Все' },
+  { id: 'upcoming', label: 'Предстоящие' },
+  { id: 'active', label: 'Активные' },
+  { id: 'completed', label: 'Завершённые' },
+]
+
+/** Тексты пустого состояния для каждого фильтра */
+const EMPTY_STATE: Record<FilterType, { title: string; hint: string }> = {
+  all: {
+    title: 'У вас пока нет записей',
+    hint: 'Выберите специалиста и удобное время — консультация пройдёт по видео.',
+  },
+  upcoming: {
+    title: 'Нет предстоящих записей',
+    hint: 'Запишитесь на приём, и здесь появится обратный отсчёт до консультации.',
+  },
+  active: {
+    title: 'Нет активных консультаций',
+    hint: 'Консультация станет активной в назначенное время приёма.',
+  },
+  completed: {
+    title: 'Нет завершённых записей',
+    hint: 'После консультации здесь останутся заключения и рекомендации врача.',
+  },
+}
 
 export function LkContent({ user, appointments: serverAppointments }: LkContentProps) {
   const { loading: userLoading, setUser, user: storeUser, fetched: userFetched, logout } = useUserStore()
@@ -60,6 +86,13 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
   const activeAppointments = appointments.filter((a) => a.status === "in_progress")
   const completedAppointments = appointments.filter((a) => a.status === "completed")
   
+  const counts: Record<FilterType, number> = {
+    all: appointments.length,
+    upcoming: upcomingAppointments.length,
+    active: activeAppointments.length,
+    completed: completedAppointments.length,
+  }
+
   const filteredAppointments = filter === 'all' 
     ? appointments 
     : filter === 'upcoming' 
@@ -69,7 +102,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
         : completedAppointments
 
   return (
-    <div className="flex-1 bg-white">
+    <div className="relative z-10 flex-1">
       {/* Hero banner */}
       <UserHeroBanner
         user={user}
@@ -91,135 +124,126 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
 
         {/* Неоплаченная бронь — самое срочное действие в кабинете */}
         {pendingPaymentAppointments.length > 0 && (
-          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-2.5">
-              <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">
+          <div className="relative mb-4 overflow-hidden rounded-2xl bg-amber-50 shadow-[0_0_0_1px_oklch(0.769_0.16_70_/_0.35)] dark:bg-amber-500/10">
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-[3px] bg-amber-500"
+            />
+            <div className="flex flex-col gap-3 pl-6 pr-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400">
+                  Требуется оплата
+                </p>
+                <p className="mt-1.5 text-[15px] font-semibold text-foreground">
                   {pendingPaymentAppointments.length === 1
                     ? "Запись ожидает оплаты"
                     : `Записи ожидают оплаты: ${pendingPaymentAppointments.length}`}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground text-pretty">
+                <p className="mt-1 text-pretty text-[13px] leading-relaxed text-muted-foreground">
                   Время у врача забронировано ненадолго. Если не оплатить, слот вернётся
                   в расписание.
                 </p>
               </div>
+              <Button
+                asChild
+                size="sm"
+                className="shrink-0 rounded-full bg-amber-500 px-5 text-white hover:bg-amber-600"
+              >
+                <Link href={`/appointment/${pendingPaymentAppointments[0].id}/payment`}>
+                  Перейти к оплате
+                </Link>
+              </Button>
             </div>
-            <Button asChild size="sm" className="shrink-0 bg-amber-500 text-white hover:bg-amber-500/90">
-              <Link href={`/appointment/${pendingPaymentAppointments[0].id}/payment`}>
-                Перейти к оплате
-              </Link>
-            </Button>
           </div>
         )}
 
         {/* Feedback prompt for completed consultations */}
         <FeedbackPrompt appointments={appointments} userId={user.id} />
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <h2 className="text-base font-semibold text-foreground">Мои записи</h2>
-          
-          {/* Filter tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-muted">
-            <button
-              onClick={() => setFilter('all')}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                filter === 'all' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Все
-              {appointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
-                  {appointments.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setFilter('upcoming')}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                filter === 'upcoming' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Предстоящие
-              {upcomingAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-primary/10 text-primary">
-                  {upcomingAppointments.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setFilter('active')}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                filter === 'active' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Активные
-              {activeAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-teal-soft text-teal">
-                  {activeAppointments.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setFilter('completed')}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                filter === 'completed' 
-                  ? "bg-background text-foreground shadow-sm" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              Завершённые
-              {completedAppointments.length > 0 && (
-                <span className="ml-1.5 min-w-5 h-5 px-1.5 inline-flex items-center justify-center text-xs rounded-full bg-muted-foreground/20 text-muted-foreground">
-                  {completedAppointments.length}
-                </span>
-              )}
-            </button>
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal">
+              История приёмов
+            </p>
+            <h2 className="mt-1 text-xl font-bold tracking-[-0.01em] text-foreground">
+              Мои записи
+            </h2>
+          </div>
+
+          {/* Фильтры: пилюли с подсветкой активного бренд-цветом */}
+          <div
+            role="tablist"
+            aria-label="Фильтр записей"
+            className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1"
+          >
+            {FILTERS.map((f) => {
+              const isActive = filter === f.id
+              const count = counts[f.id]
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setFilter(f.id)}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors",
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground ring-1 ring-inset ring-border hover:text-foreground hover:ring-primary/30",
+                  )}
+                >
+                  {f.label}
+                  {count > 0 && (
+                    <span
+                      className={cn(
+                        "font-mono text-[11px] tabular-nums",
+                        isActive ? "text-primary-foreground/70" : "text-muted-foreground/70",
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <div className="flex items-center justify-center gap-3 py-16">
+            <span className="h-7 w-7 animate-spin rounded-full border-2 border-teal border-t-transparent" />
+            <span className="text-sm text-muted-foreground">Загружаем записи…</span>
           </div>
         ) : filteredAppointments.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center justify-center text-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-              {filter === 'completed' ? (
-                <CheckCircle2 className="w-7 h-7 text-muted-foreground" />
-              ) : filter === 'active' ? (
-                <Play className="w-7 h-7 text-muted-foreground" />
-              ) : (
-                <CalendarX className="w-7 h-7 text-muted-foreground" />
-              )}
-            </div>
-            <div>
-              <p className="text-base font-semibold text-foreground">
-                {filter === 'all' && "У вас нет записей"}
-                {filter === 'upcoming' && "Нет предстоящих записей"}
-                {filter === 'active' && "Нет активных консультаций"}
-                {filter === 'completed' && "Нет завершённых записей"}
+          <div className="flex flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-14 text-center shadow-[0_0_0_1px_oklch(0_0_0_/_0.07)]">
+            {/* Линия ЭКГ вместо родовой иконки — мотив бренда */}
+            <svg
+              className="h-10 w-40 text-teal/50"
+              viewBox="0 0 240 40"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M0 20 H86 l7 0 5 -14 6 28 5 -33 5 38 5 -19 H240"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+
+            <div className="max-w-sm">
+              <p className="text-[17px] font-bold tracking-[-0.01em] text-foreground">
+                {EMPTY_STATE[filter].title}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {filter === 'all' && "Запишитесь на приём к специалисту на главной странице"}
-                {filter === 'upcoming' && "Запишитесь на приём к специалисту на главной странице"}
-                {filter === 'active' && "Активные консультации появятся здесь во время приёма"}
-                {filter === 'completed' && "Завершённые консультации будут отображаться здесь"}
+              <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">
+                {EMPTY_STATE[filter].hint}
               </p>
             </div>
+
             {(filter === 'all' || filter === 'upcoming') && (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild size="sm" className="rounded-full px-6">
                 <Link href="/appointment">Найти врача</Link>
               </Button>
             )}

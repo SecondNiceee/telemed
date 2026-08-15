@@ -1,14 +1,7 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { 
-  FileUp,
-  MessageCircle,
-  FileCheck,
-  X,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import type { ApiAppointment } from "@/lib/api/types";
 
 interface ConsultationGuideProps {
@@ -18,24 +11,25 @@ interface ConsultationGuideProps {
 const steps = [
   {
     num: 1,
-    icon: FileUp,
     title: "Загрузите документы",
-    description: "Прикрепите анализы, ЭКГ и другие файлы",
+    description: "Прикрепите в чате анализы, ЭКГ и другие файлы — врач изучит их до приёма.",
   },
   {
     num: 2,
-    icon: MessageCircle,
     title: "Перейдите в чат",
-    description: "Опишите жалобы и задайте вопросы врачу",
+    description: "Опишите жалобы и задайте вопросы. Видеозвонок начнётся в назначенное время.",
   },
   {
     num: 3,
-    icon: FileCheck,
     title: "Получите заключение",
-    description: "Врач отправит рекомендации в чат",
+    description: "Врач отправит рекомендации и заключение в чат после консультации.",
   },
 ];
 
+/**
+ * Памятка о порядке консультации. Шаги пронумерованы и соединены линией
+ * бренда (бирюзовый → фиолетовый) — без иконок, чтобы не спорить с карточками записей.
+ */
 export function ConsultationGuide({ appointment }: ConsultationGuideProps) {
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -48,48 +42,67 @@ export function ConsultationGuide({ appointment }: ConsultationGuideProps) {
   if (!isUpcoming && !isActive) return null;
 
   return (
-    <Card className="mb-6 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/5 shadow-sm">
-      <CardContent className="py-5 px-5">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <h3 className="font-semibold text-base text-foreground">
-            Порядок получения консультации
-          </h3>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground flex-shrink-0"
+    <section className="relative mb-6 overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_oklch(0_0_0_/_0.07),0_14px_34px_-16px_oklch(0.2079_0.0399_265.8_/_0.18)]">
+      {/* Градиентная черта бренда */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-[3px]"
+        style={{
+          background: "linear-gradient(to right, var(--teal), var(--primary) 70%, transparent)",
+        }}
+      />
+
+      <div className="px-5 pb-5 pt-6 sm:px-6">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal">
+              Памятка
+            </p>
+            <h3 className="mt-1.5 text-pretty text-lg font-bold tracking-[-0.01em] text-foreground">
+              Как проходит консультация
+            </h3>
+          </div>
+          <button
+            type="button"
             onClick={() => setIsDismissed(true)}
+            aria-label="Скрыть памятку"
+            className="-mr-1 -mt-1 shrink-0 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            <X className="w-4 h-4" />
-          </Button>
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {steps.map((step, index) => (
-            <div
-              key={step.num}
-              className="flex items-start gap-3 p-4 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-sm transition-all"
-            >
-              <div className="relative flex-shrink-0">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <step.icon className="w-5 h-5 text-primary" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-primary-foreground">{step.num}</span>
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground leading-tight mb-0.5">
+        <ol className="relative flex flex-col gap-5 sm:flex-row sm:gap-6">
+          {/* Соединительная линия между шагами (только на широких экранах) */}
+          <span
+            aria-hidden="true"
+            className="absolute left-[15px] top-2 hidden h-[calc(100%-1rem)] w-px sm:left-0 sm:top-[15px] sm:h-px sm:w-full sm:block"
+            style={{
+              background:
+                "linear-gradient(to right, var(--teal) 0%, var(--primary) 100%)",
+              opacity: 0.25,
+            }}
+          />
+
+          {steps.map((step) => (
+            <li key={step.num} className="relative flex flex-1 gap-3.5 sm:flex-col sm:gap-3">
+              <span
+                className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card font-mono text-sm font-bold text-primary ring-[1.5px] ring-inset ring-primary/25"
+              >
+                {step.num}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-snug text-foreground">
                   {step.title}
                 </p>
-                <p className="text-xs text-muted-foreground leading-snug">
+                <p className="mt-1 text-pretty text-[13px] leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
               </div>
-            </div>
+            </li>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </ol>
+      </div>
+    </section>
   );
 }

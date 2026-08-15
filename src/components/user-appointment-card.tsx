@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, Clock, User as UserIcon, ExternalLink, MessageSquare, CreditCard } from "lucide-react"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
-import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
+import { formatDate, getStatusLabel, getStatusColor, getInitials } from "@/lib/utils/date"
+import { cn } from "@/lib/utils"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -15,6 +15,15 @@ function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: s
   return null
 }
 
+/** Цвет вертикальной полосы-акцента слева по статусу записи */
+const STATUS_RAIL: Record<string, string> = {
+  confirmed: "var(--primary)",
+  in_progress: "var(--teal)",
+  pending_payment: "oklch(0.769 0.16 70)",
+  cancelled: "var(--destructive)",
+  completed: "var(--border)",
+}
+
 interface UserAppointmentCardProps {
   appointment: ApiAppointment
 }
@@ -23,59 +32,53 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
   const doc = getDoctorFromAppointment(appointment)
   // Неоплаченная бронь: чата ещё нет, единственное действие — оплатить.
   const isPendingPayment = appointment.status === "pending_payment"
+  const rail = STATUS_RAIL[appointment.status] ?? "var(--border)"
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      {/* Top accent line by status */}
-      <div
-        className={`h-0.5 w-full ${
-          appointment.status === "confirmed"
-            ? "bg-green-500"
-            : appointment.status === "pending_payment"
-            ? "bg-amber-500"
-            : appointment.status === "cancelled"
-            ? "bg-destructive"
-            : "bg-border"
-        }`}
+    <article className="group relative overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_oklch(0_0_0_/_0.07),0_10px_28px_-18px_oklch(0.2079_0.0399_265.8_/_0.20)] transition-shadow duration-300 hover:shadow-[0_0_0_1px_oklch(0.6273_0.1067_201.3_/_0.30),0_16px_36px_-18px_oklch(0.2079_0.0399_265.8_/_0.26)]">
+      {/* Полоса-акцент статуса */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: rail }}
       />
 
-      <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <UserIcon className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm leading-tight">
-                {appointment.doctorName || "Врач"}
-              </p>
-              {appointment.specialty && (
-                <p className="text-xs text-muted-foreground">{appointment.specialty}</p>
-              )}
-            </div>
-          </div>
+      <div className="flex flex-col gap-4 pl-6 pr-5 py-5 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3.5">
+          {/* Инициалы врача вместо родовой иконки пользователя */}
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/8 font-semibold text-primary ring-1 ring-inset ring-primary/15">
+            {getInitials(appointment.doctorName ?? undefined)}
+          </span>
 
-          <div className="flex items-center gap-4 text-xs text-muted-foreground pl-10">
-            <span className="flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5" />
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-semibold leading-tight text-foreground">
+              {appointment.doctorName || "Врач"}
+            </p>
+            {appointment.specialty && (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {appointment.specialty}
+              </p>
+            )}
+            <p className="mt-1.5 font-mono text-xs tabular-nums text-muted-foreground">
               {formatDate(appointment.date)}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" />
-              {appointment.time}
-            </span>
+              <span className="mx-1.5 text-border">|</span>
+              <span className="font-semibold text-foreground">{appointment.time}</span>
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2.5">
-          <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col items-start gap-2.5 sm:items-end">
+          <div className="flex items-center gap-2.5">
             {appointment.price != null && (
-              <span className="text-base font-bold text-foreground">
+              <span className="font-mono text-[15px] font-bold tabular-nums text-foreground">
                 {appointment.price.toLocaleString("ru-RU")} ₽
               </span>
             )}
             <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(appointment.status)}`}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                getStatusColor(appointment.status),
+              )}
             >
               {getStatusLabel(appointment.status)}
             </span>
@@ -84,33 +87,32 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
           {isPendingPayment ? (
             <Link
               href={`/appointment/${appointment.id}/payment`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-500/20"
+              className="inline-flex items-center rounded-full bg-amber-500 px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-600"
             >
-              <CreditCard className="h-3.5 w-3.5" />
               Оплатить
             </Link>
-          ) : doc && (
-            <div className="flex items-center gap-2">
-              {appointment.status !== "cancelled" && (
+          ) : (
+            doc && (
+              <div className="flex items-center gap-2">
+                {appointment.status !== "cancelled" && (
+                  <Link
+                    href={`/lk/chat?appointment=${appointment.id}`}
+                    className="inline-flex items-center rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Чат
+                  </Link>
+                )}
                 <Link
-                  href={`/lk/chat?appointment=${appointment.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors"
+                  href={`/doctor/${doc.id}`}
+                  className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground underline decoration-border decoration-1 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary/40"
                 >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  Чат
+                  Профиль
                 </Link>
-              )}
-              <Link
-                href={`/doctor/${doc.id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Профиль
-              </Link>
-            </div>
+              </div>
+            )
           )}
         </div>
       </div>
-    </div>
+    </article>
   )
 }

@@ -1,6 +1,7 @@
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { LkContent } from "@/components/lk-content"
+import { BackgroundDecor } from "@/components/background-decor"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import { AuthApi, AppointmentsApi } from "@/lib/api/index"
@@ -37,6 +38,9 @@ export default async function LkPage() {
   
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Сквозной декор как на главной: секции кабинета прозрачные,
+          поэтому сетка/ЭКГ/водяной знак просвечивают сквозь них. */}
+      <BackgroundDecor id="lk" position="fixed" />
       <Header />
       <LkContent user={user} appointments={appointments} />
       <Footer />
