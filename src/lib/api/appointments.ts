@@ -22,13 +22,40 @@ export interface CreateAppointmentPayload {
 export class AppointmentsApi {
   /**
    * Create a new appointment (requires payload-token cookie)
+   *
+   * NOTE: this hits Payload's native REST create endpoint directly
+   * (there is no custom /api/appointments route in this app), which wraps
+   * the created document as `{ message, doc }` — unlike our custom routes
+   * (pay/release/complete) which return the document directly. Unwrap it
+   * here so callers always get the appointment itself.
    */
   static async create(data: CreateAppointmentPayload): Promise<ApiAppointment> {
-    return apiFetch<ApiAppointment>('/api/appointments', {
-      method: 'POST',
-      credentials: 'include',
-      body: JSON.stringify(data),
+    const response = await apiFetch<ApiAppointment | { message?: string; doc?: ApiAppointment }>(
+      '/api/appointments',
+      {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(data),
+      },
+    )
+
+    const appointment =
+      response && typeof response === 'object' && 'doc' in response && response.doc
+        ? response.doc
+        : (response as ApiAppointment)
+
+    console.log('[v0] AppointmentsApi.create response', {
+      hadDocWrapper: !!(response as { doc?: unknown })?.doc,
+      appointmentId: appointment?.id,
     })
+
+    if (!appointment?.id) {
+      console.error('[v0] AppointmentsApi.create: appointment id missing from response', {
+        response,
+      })
+    }
+
+    return appointment
   }
 
   /**

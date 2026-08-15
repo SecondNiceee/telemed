@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Star, MessageSquare } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFeedbackStore } from '@/stores/feedback-store'
@@ -172,7 +172,7 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
   const canLeaveReview = !!user
 
   return (
-    <Card className="mb-2 overflow-hidden py-0">
+    <Card className="mb-2 gap-0 overflow-hidden py-0">
       {/* Фирменная линия — как в шапке врача и баннере консультации */}
       <span
         aria-hidden="true"
@@ -220,10 +220,6 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
           </div>
         ) : feedbacks.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-5 text-center">
-            <MessageSquare
-              className="mx-auto mb-2 h-5 w-5 text-teal/60"
-              aria-hidden="true"
-            />
             <p className="text-sm text-muted-foreground">
               Пока нет отзывов — станьте первым, кто поделится опытом
             </p>
