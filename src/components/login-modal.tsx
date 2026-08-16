@@ -15,7 +15,7 @@ import {
 import { useUserStore } from "@/stores/user-store"
 import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
-import { Loader2, MailCheck } from "lucide-react"
+import { ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { formatPhoneInput, normalizePhone } from "@/utils/phone"
 
 type Tab = "login" | "register"
@@ -49,10 +49,12 @@ const LoginForm = memo(function LoginForm({
   submitting,
   error,
   onSubmit,
+  onForgot,
 }: {
   submitting: boolean
   error: string
   onSubmit: (email: string, password: string) => void
+  onForgot: () => void
 }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -99,6 +101,72 @@ const LoginForm = memo(function LoginForm({
         ) : (
           "Войти"
         )}
+      </Button>
+      <button
+        type="button"
+        onClick={onForgot}
+        disabled={submitting}
+        className="mx-auto text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-primary hover:underline disabled:opacity-50"
+      >
+        Забыли пароль?
+      </button>
+    </form>
+  )
+})
+
+const ForgotForm = memo(function ForgotForm({
+  submitting,
+  error,
+  initialEmail,
+  onSubmit,
+  onBack,
+}: {
+  submitting: boolean
+  error: string
+  initialEmail: string
+  onSubmit: (email: string) => void
+  onBack: () => void
+}) {
+  const [email, setEmail] = useState(initialEmail)
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSubmit(email)
+      }}
+      className="flex flex-col gap-4 pt-1"
+    >
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Укажите email, на который зарегистрирован аккаунт. Мы отправим ссылку для создания нового
+        пароля.
+      </p>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="forgot-email">Электронная почта</Label>
+        <Input
+          id="forgot-email"
+          type="email"
+          placeholder="example@mail.ru"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          autoComplete="email"
+        />
+      </div>
+      {error && <p className="text-sm text-destructive text-center">{error}</p>}
+      <Button type="submit" className="w-full" disabled={submitting}>
+        {submitting ? (
+          <>
+            <Loader2 className="animate-spin" />
+            <span>Отправляем...</span>
+          </>
+        ) : (
+          "Отправить ссылку"
+        )}
+      </Button>
+      <Button type="button" variant="ghost" className="w-full" onClick={onBack} disabled={submitting}>
+        <ArrowLeft className="size-4" />
+        Назад ко входу
       </Button>
     </form>
   )
@@ -240,10 +308,20 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
   const [regEmail, setRegEmail] = useState("")
   const [verifyChecking, setVerifyChecking] = useState(false)
 
+  /** Шаг восстановления пароля показывается поверх вкладок */
+  const [forgotMode, setForgotMode] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotError, setForgotError] = useState("")
+  /** Секунды до повторной отправки письма (UI-кулдаун) */
+  const [cooldown, setCooldown] = useState(0)
+
   /** Ремонтирует формы, сбрасывая их внутренний state, при закрытии модалки */
   const [formKey, setFormKey] = useState(0)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** Таймер кулдауна кнопки «Отправить снова» */
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   /** Креды для автологина после подтверждения почты — в ref, чтобы не ререндерить */
   const credentialsRef = useRef<{ email: string; password: string } | null>(null)
   /** submitting в ref — чтобы обработчики Dialog не пересоздавались на каждый submit */
@@ -261,6 +339,27 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     }
   }
 
+  const stopCooldown = () => {
+    if (cooldownRef.current) {
+      clearInterval(cooldownRef.current)
+      cooldownRef.current = null
+    }
+  }
+
+  const startCooldown = () => {
+    stopCooldown()
+    setCooldown(60)
+    cooldownRef.current = setInterval(() => {
+      setCooldown((seconds) => {
+        if (seconds <= 1) {
+          stopCooldown()
+          return 0
+        }
+        return seconds - 1
+      })
+    }, 1000)
+  }
+
   const handleReset = () => {
     setLoginError("")
     setRegError("")
@@ -269,9 +368,15 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     setSubmittingSafe(false)
     setVerifyChecking(false)
     setTab("login")
+    setForgotMode(false)
+    setForgotSent(false)
+    setForgotEmail("")
+    setForgotError("")
+    setCooldown(0)
     credentialsRef.current = null
     setFormKey((key) => key + 1)
     stopPolling()
+    stopCooldown()
   }
 
   const handleOpenChange = (value: boolean) => {
@@ -353,6 +458,47 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     }
   }, [])
 
+  const handleForgot = useCallback(async (email: string) => {
+    setForgotError("")
+    setSubmittingSafe(true)
+    try {
+      // Payload всегда отвечает 200, даже если email не зарегистрирован,
+      // поэтому показываем один и тот же экран в любом случае.
+      await AuthApi.forgotPassword(email)
+      setForgotEmail(email)
+      setForgotSent(true)
+      startCooldown()
+    } catch (err) {
+      setForgotError(getErrorMessage(err))
+    } finally {
+      setSubmittingSafe(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleForgotResend = async () => {
+    if (cooldown > 0 || !forgotEmail) return
+    await handleForgot(forgotEmail)
+  }
+
+  const openForgot = useCallback(() => {
+    setLoginError("")
+    setForgotError("")
+    setForgotSent(false)
+    setForgotMode(true)
+  }, [])
+
+  const backToLogin = useCallback(() => {
+    setForgotMode(false)
+    setForgotSent(false)
+    setForgotError("")
+    setCooldown(0)
+    stopCooldown()
+  }, [])
+
+  /** Гасим таймер кулдауна при размонтировании */
+  useEffect(() => stopCooldown, [])
+
   const handleConfirmCheck = async () => {
     setVerifyChecking(true)
     await attemptAutoLogin()
@@ -382,13 +528,21 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
               className="w-12 h-12 rounded-lg object-contain"
             />
             <DialogTitle className="text-xl text-center">
-              {tab === "login" ? "Вход в аккаунт" : "Регистрация"}
+              {forgotMode
+                ? "Восстановление пароля"
+                : tab === "login"
+                  ? "Вход в аккаунт"
+                  : "Регистрация"}
             </DialogTitle>
           </div>
         </DialogHeader>
 
-        {/* Tabs */}
-        <div className="flex rounded-lg overflow-hidden border border-border text-sm font-medium">
+        {/* Tabs — скрыты на шаге восстановления пароля */}
+        <div
+          className={`flex rounded-lg overflow-hidden border border-border text-sm font-medium ${
+            forgotMode ? "hidden" : ""
+          }`}
+        >
           <button
             type="button"
             onClick={() => { setTab("login"); setLoginError("") }}
@@ -413,16 +567,63 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
           </button>
         </div>
 
-        {tab === "login" && (
+        {forgotMode &&
+          (forgotSent ? (
+            <div className="flex flex-col items-center gap-4 py-6 text-center">
+              <MailCheck className="w-12 h-12 text-primary" />
+              <p className="font-medium text-lg">Письмо отправлено!</p>
+              <p className="text-sm text-muted-foreground">
+                Мы отправили ссылку для смены пароля на{" "}
+                <span className="font-medium text-foreground">{forgotEmail}</span>. Перейдите по
+                ней, чтобы создать новый пароль.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Ссылка действительна 1 час. Если письма нет — проверьте папку «Спам».
+              </p>
+              {forgotError && <p className="text-sm text-destructive">{forgotError}</p>}
+              <Button
+                className="w-full"
+                onClick={handleForgotResend}
+                disabled={submitting || cooldown > 0}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    <span>Отправляем...</span>
+                  </>
+                ) : cooldown > 0 ? (
+                  `Отправить снова через ${cooldown} сек`
+                ) : (
+                  "Отправить снова"
+                )}
+              </Button>
+              <Button variant="outline" className="w-full" onClick={backToLogin}>
+                <ArrowLeft className="size-4" />
+                Назад ко входу
+              </Button>
+            </div>
+          ) : (
+            <ForgotForm
+              key={`forgot-${formKey}`}
+              submitting={submitting}
+              error={forgotError}
+              initialEmail={forgotEmail}
+              onSubmit={handleForgot}
+              onBack={backToLogin}
+            />
+          ))}
+
+        {!forgotMode && tab === "login" && (
           <LoginForm
             key={`login-${formKey}`}
             submitting={submitting}
             error={loginError}
             onSubmit={handleLogin}
+            onForgot={openForgot}
           />
         )}
 
-        {tab === "register" && (
+        {!forgotMode && tab === "register" && (
           <>
             {regSuccess ? (
               <div className="flex flex-col items-center gap-4 py-6 text-center">

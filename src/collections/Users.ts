@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 import { getCallerFromRequest } from './helpers/auth'
 import { normalizePhone, PHONE_STORAGE_REGEX } from '@/utils/phone'
+import { buildResetPasswordEmail } from '@/utils/buildResetPasswordEmail'
 
 /**
  * Поля, которые нельзя менять через публичный REST API.
@@ -62,6 +63,21 @@ export const Users: CollectionConfig = {
 </html>`
       },
       generateEmailSubject: () => 'Подтвердите ваш email — smartcardio',
+    },
+    // Восстановление пароля: письмо со ссылкой на /reset-password?token=...
+    forgotPassword: {
+      expiration: 1000 * 60 * 60, // 1 час
+      generateEmailSubject: () => 'Восстановление пароля — smartcardio',
+      generateEmailHTML: ({ token, user } = {}) => {
+        const siteUrl = process.env.SERVER_URL || 'http://localhost:3000'
+        const typedUser = user as { email: string; name?: string } | undefined
+
+        return buildResetPasswordEmail({
+          email: typedUser?.email ?? '',
+          name: typedUser?.name,
+          resetUrl: `${siteUrl}/reset-password?token=${token}`,
+        })
+      },
     },
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
