@@ -95,4 +95,34 @@ export class AuthApi {
       method: 'POST',
     })
   }
+
+  /**
+   * Запрос письма для восстановления пароля.
+   * Payload всегда отвечает 200 — существование email не раскрывается.
+   */
+  static async forgotPassword(email: string): Promise<{ message: string }> {
+    return apiFetch<{ message: string }>('/api/users/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  /**
+   * Установка нового пароля по токену из письма.
+   * Payload сам ставит auth-cookie в ответе, поэтому credentials: 'include'
+   * обязателен — иначе автологин не сработает.
+   */
+  static async resetPassword(
+    token: string,
+    password: string,
+  ): Promise<{ message: string; user: User; token?: string }> {
+    return apiFetch<{ message: string; user: User; token?: string }>(
+      '/api/users/reset-password',
+      {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify({ token, password }),
+      },
+    )
+  }
 }
