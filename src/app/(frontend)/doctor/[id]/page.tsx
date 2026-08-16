@@ -15,7 +15,7 @@ import {
   type ApiDoctor,
 } from "@/lib/api/index";
 import { Media } from "@/payload-types";
-import { getFreshDoctorSchedule } from "@/lib/server/appointment-holds";
+import { getFreshDoctorSchedule, releaseExpiredHolds } from "@/lib/server/appointment-holds";
 import { DoctorPageClient } from "./doctor-page-client";
 
 export const dynamic = 'force-dynamic';
@@ -75,8 +75,16 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
     );
   }
 
-  // Просроченные брони освобождает фоновый sweeper (см. instrumentation.ts),
-  // поэтому здесь sweep не запускаем — рендер страницы за это не отвечает.
+  // Штатно просроченные брони освобождает фоновый sweeper (стартует из onInit
+  // в src/payload.config.ts), но он ходит раз в минуту — до его прохода слот
+  // выглядел занятым, хотя пациент так и не оплатил.
+  //
+  // Поэтому перед чтением расписания делаем адресный проход по этому врачу:
+  // он опирается на индекс (doctor, status, paymentExpiresAt), поэтому при
+  // отсутствии просрочек стоит около нуля, а троттл скоупа doctor (10 секунд)
+  // не даёт пачке заходов на страницу превратиться в пачку sweep'ов.
+  await releaseExpiredHolds({ doctorId: doctor.id });
+
   //
   // Расписание читаем напрямую из БД всегда. Раньше здесь стояло
   // `releasedCount > 0 ? свежее : doctor.schedule`, но из-за троттла sweep'а

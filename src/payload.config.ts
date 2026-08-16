@@ -63,4 +63,44 @@ export default buildConfig({
   }),
   sharp,
   plugins: [],
+
+  /**
+   * Запуск фонового освобождения просроченных броней.
+   *
+   * onInit вызывается один раз на процесс — при первой инициализации Payload
+   * (`getPayload({ config })`), то есть на долгоживущем сервере (`next start`
+   * под pm2/systemd/docker) ровно один раз. Это единственное место, откуда
+   * sweeper реально стартует: страницы `/lk` и `/doctor/[id]` sweep намеренно
+   * не делают (см. комментарии в `src/lib/server/appointment-holds.ts`), поэтому
+   * без этого хука неоплаченная бронь навсегда оставалась в `pending_payment`,
+   * а слот не возвращался в расписание врача.
+   *
+   * Почему не instrumentation.ts (как предполагали комментарии в коде):
+   * Next компилирует instrumentation ещё и для edge-рантайма, где `payload`
+   * (из-за node:crypto) не резолвится — сборка падает с
+   * «Module not found: Can't resolve 'crypto'» даже при динамическом импорте
+   * под проверкой NEXT_RUNTIME.
+   */
+  onInit: async () => {
+    // Во время production-сборки Payload тоже инициализируется (пререндер
+    // страниц) — фоновый таймер там не нужен.
+    if (process.env.NEXT_PHASE === 'phase-production-build') return
+
+    // Аварийный выключатель на случай отладки на VPS.
+    if (process.env.DISABLE_HOLDS_SWEEPER === 'true') return
+
+    try {
+      // Динамический импорт: appointment-holds сам импортирует этот конфиг,
+      // статический импорт дал бы цикл на этапе загрузки модуля.
+      const { startExpiredHoldsSweeper } = await import('./lib/server/appointment-holds')
+      const stop = startExpiredHoldsSweeper()
+
+      console.log('[holds-sweeper] started')
+
+      process.once('SIGTERM', stop)
+      process.once('SIGINT', stop)
+    } catch (err) {
+      console.error('[holds-sweeper] failed to start:', err)
+    }
+  },
 })
