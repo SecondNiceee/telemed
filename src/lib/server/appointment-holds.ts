@@ -117,6 +117,11 @@ export async function restoreDoctorSlot({
   await restoreDoctorSlots({ payload, doctorId, slots: [{ date, time }], req })
 }
 
+/** Платёж по этой брони уже оплачен и деньги ещё не возвращены. */
+function hasSettledPayment(appointment: { payment?: { status?: string | null } | null }): boolean {
+  return appointment.payment?.status === 'succeeded'
+}
+
 /**
  * Отменить неоплаченную бронь и вернуть слот врачу.
  * Возвращает false, если запись уже не в статусе «Ожидает оплаты».
@@ -135,6 +140,18 @@ export async function releaseHold({
   })
 
   if (!appointment || appointment.status !== 'pending_payment') return false
+
+  // Деньги за эту бронь уже получены, но исход ещё не доведён до конца
+  // (идёт возврат или подтверждение). Отменять её здесь нельзя: пациент
+  // остался бы без записи и без возврата. Доводит процесс до конца
+  // `applyPaymentOutcome` в lib/server/appointment-payments.ts — он сам
+  // отменит бронь после успешного возврата (статус станет 'refunded').
+  if (hasSettledPayment(appointment as { payment?: { status?: string | null } | null })) {
+    console.warn('[v0][holds] бронь оплачена — отмену выполняет платёжный слой', {
+      appointmentId,
+    })
+    return false
+  }
 
   // Отмена брони и возврат слота — одна транзакция.
   //
@@ -233,14 +250,26 @@ async function runSweep({
     pagination: false,
     limit: maxBatch,
     // Тянем ровно то, что нужно для восстановления слота, — без повторного
-    // findByID на каждую бронь.
-    select: { doctor: true, date: true, time: true },
+    // findByID на каждую бронь. `payment` нужен, чтобы не отменить бронь,
+    // деньги за которую уже получены.
+    select: { doctor: true, date: true, time: true, payment: true },
     depth: 0,
     overrideAccess: true,
   })
 
   // pagination: false в некоторых адаптерах игнорирует limit — страхуемся.
-  const batch = expired.docs.slice(0, maxBatch)
+  //
+  // Оплаченные брони отфильтровываем в памяти, а не в `where`: условие
+  // `payment.status != 'succeeded'` в SQL отбросило бы ещё и все записи с
+  // NULL (то есть вообще без попытки оплаты) — то есть подавляющее большинство.
+  const batch = expired.docs
+    .filter((appointment) => {
+      const paymentStatus = (appointment as { payment?: { status?: string | null } | null }).payment
+        ?.status
+      return paymentStatus !== 'succeeded'
+    })
+    .slice(0, maxBatch)
+
   if (batch.length === 0) return 0
 
   // Один UPDATE ... WHERE id IN (...) вместо N апдейтов. Повторная проверка
