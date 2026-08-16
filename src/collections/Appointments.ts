@@ -452,6 +452,96 @@ export const Appointments: CollectionConfig = {
       },
     },
     {
+      /**
+       * Платёж в ЮKassa.
+       *
+       * Клиент и врач эти поля не пишут: их нет ни в одном whitelist'е
+       * `appointment-booking-guard`, поэтому любые присланные значения
+       * вырезаются (create) или откатываются к текущим (update). Заполняет их
+       * только серверный код в `lib/server/appointment-payments.ts`.
+       */
+      name: 'payment',
+      type: 'group',
+      label: 'Платёж',
+      admin: {
+        description:
+          'Состояние оплаты в ЮKassa. Заполняется автоматически при создании платежа и при получении уведомления.',
+      },
+      fields: [
+        {
+          name: 'provider',
+          type: 'text',
+          label: 'Провайдер',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'paymentId',
+          type: 'text',
+          label: 'ID платежа',
+          // Уведомление ЮKassa приходит с id платежа, а не записи: без индекса
+          // каждый вебхук делал бы Seq Scan по всей таблице записей.
+          index: true,
+          admin: { readOnly: true },
+        },
+        {
+          name: 'status',
+          type: 'select',
+          label: 'Статус платежа',
+          options: [
+            { label: 'Ожидает оплаты', value: 'pending' },
+            { label: 'Ожидает подтверждения', value: 'waiting_for_capture' },
+            { label: 'Оплачен', value: 'succeeded' },
+            { label: 'Отменён', value: 'canceled' },
+            { label: 'Возвращён', value: 'refunded' },
+          ],
+          admin: { readOnly: true },
+        },
+        {
+          name: 'amount',
+          type: 'number',
+          label: 'Сумма платежа (руб.)',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'method',
+          type: 'text',
+          label: 'Способ оплаты',
+          admin: { readOnly: true },
+        },
+        {
+          // Номер попытки: входит в Idempotence-Key, чтобы после отменённого
+          // платежа можно было создать новый, а двойной клик — нет.
+          name: 'attempts',
+          type: 'number',
+          label: 'Попыток оплаты',
+          defaultValue: 0,
+          admin: { readOnly: true },
+        },
+        {
+          name: 'refundId',
+          type: 'text',
+          label: 'ID возврата',
+          admin: {
+            readOnly: true,
+            description:
+              'Заполняется, если оплата пришла после истечения брони и деньги вернули автоматически.',
+          },
+        },
+        {
+          name: 'refundedAt',
+          type: 'date',
+          label: 'Возврат выполнен',
+          admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'checkedAt',
+          type: 'date',
+          label: 'Последняя сверка с ЮKassa',
+          admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+        },
+      ],
+    },
+    {
       name: 'connectionType',
       type: 'select',
       required: false,
