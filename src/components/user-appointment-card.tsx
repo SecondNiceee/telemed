@@ -30,9 +30,24 @@ interface UserAppointmentCardProps {
 
 export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
   const doc = getDoctorFromAppointment(appointment)
+
+  // Бронь истекла, но status ещё 'pending_payment': sweep отменяет её не мгновенно
+  // (фоновый проход — раз в минуту, адресный — не чаще раза в 10 секунд).
+  // Без этой проверки кабинет показывал активную кнопку «Оплатить» для брони,
+  // слот которой уже вернулся к врачу, — клик вёл на /appointment/[id]/payment,
+  // и та страница просто редиректила назад.
+  const isExpiredHold =
+    appointment.status === "pending_payment" &&
+    !!appointment.paymentExpiresAt &&
+    new Date(appointment.paymentExpiresAt).getTime() <= Date.now()
+
+  // Истёкшую бронь показываем как отменённую: sweep её всё равно отменит,
+  // а «Ожидает оплаты» здесь ввело бы пациента в заблуждение.
+  const displayStatus = isExpiredHold ? "cancelled" : appointment.status
+
   // Неоплаченная бронь: чата ещё нет, единственное действие — оплатить.
-  const isPendingPayment = appointment.status === "pending_payment"
-  const rail = STATUS_RAIL[appointment.status] ?? "var(--border)"
+  const isPendingPayment = appointment.status === "pending_payment" && !isExpiredHold
+  const rail = STATUS_RAIL[displayStatus] ?? "var(--border)"
 
   return (
     <article className="group relative overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_oklch(0_0_0_/_0.07),0_10px_28px_-18px_oklch(0.2079_0.0399_265.8_/_0.20)] transition-shadow duration-300 hover:shadow-[0_0_0_1px_oklch(0.6273_0.1067_201.3_/_0.30),0_16px_36px_-18px_oklch(0.2079_0.0399_265.8_/_0.26)]">
@@ -77,10 +92,10 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
             <span
               className={cn(
                 "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                getStatusColor(appointment.status),
+                getStatusColor(displayStatus),
               )}
             >
-              {getStatusLabel(appointment.status)}
+              {isExpiredHold ? "Бронь истекла" : getStatusLabel(displayStatus)}
             </span>
           </div>
 
@@ -94,7 +109,7 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
           ) : (
             doc && (
               <div className="flex items-center gap-2">
-                {appointment.status !== "cancelled" && (
+                {displayStatus !== "cancelled" && (
                   <Link
                     href={`/lk/chat?appointment=${appointment.id}`}
                     className="inline-flex items-center rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"

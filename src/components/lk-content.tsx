@@ -81,7 +81,15 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
   
   // Filter appointments
   // Неоплаченные брони: их нужно оплатить, иначе слот вернётся врачу.
-  const pendingPaymentAppointments = appointments.filter((a) => a.status === "pending_payment")
+  //
+  // Истёкшие сюда не попадают: sweep отменяет их не мгновенно (фоновый проход —
+  // раз в минуту), а блок «Ожидает оплаты» с кнопкой оплаты для брони, слот
+  // которой уже вернулся врачу, только путает — оплатить её всё равно нельзя.
+  const pendingPaymentAppointments = appointments.filter(
+    (a) =>
+      a.status === "pending_payment" &&
+      (!a.paymentExpiresAt || new Date(a.paymentExpiresAt).getTime() > Date.now()),
+  )
   const upcomingAppointments = appointments.filter((a) => a.status === "confirmed")
   const activeAppointments = appointments.filter((a) => a.status === "in_progress")
   const completedAppointments = appointments.filter((a) => a.status === "completed")

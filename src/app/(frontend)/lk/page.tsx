@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { headers } from "next/headers"
 import { AuthApi, AppointmentsApi } from "@/lib/api/index"
 import type { ApiAppointment } from "@/lib/api/types"
+import { releaseExpiredHolds } from "@/lib/server/appointment-holds"
 
 export const dynamic = "force-dynamic"
 
@@ -23,9 +24,18 @@ export default async function LkPage() {
       redirect("/")
     }
     
-    // Просроченные брони отменяет фоновый sweeper (см. instrumentation.ts),
-    // поэтому здесь sweep не запускаем. Истёкшую бронь, которая ещё не попала
-    // под фоновый проход, клиент и так показывает по таймеру paymentExpiresAt.
+    // Штатно просроченные брони отменяет фоновый sweeper (стартует из onInit
+    // в src/payload.config.ts), но он ходит раз в минуту. В промежутке между
+    // истечением брони и его проходом кабинет показывал активную кнопку
+    // «Оплатить»: UserAppointmentCard смотрит только на status и ничего
+    // не знает про paymentExpiresAt.
+    //
+    // Поэтому перед чтением записей делаем адресный проход по этому
+    // пользователю. Он опирается на индекс (user, status, paymentExpiresAt),
+    // так что при отсутствии просрочек стоит около нуля, а свой троттл
+    // (10 секунд на скоуп user) не даёт пачке перезагрузок страницы
+    // превратиться в пачку sweep'ов.
+    await releaseExpiredHolds({ userId: user.id })
 
     // Fetch appointments on server - explicitly filter by user ID
     appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie, userId: user.id })
