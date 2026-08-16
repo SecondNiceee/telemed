@@ -147,6 +147,50 @@ function toLocalStatus(payment: YooKassaPayment): AppointmentPaymentStatus {
   return payment.status
 }
 
+/** Рубли в копейки: сравнивать суммы можно только целыми. */
+function toKopecks(rubles: number): number {
+  return Math.round(rubles * 100)
+}
+
+/**
+ * Совпадает ли платёж со стоимостью консультации.
+ *
+ * Платежи создаём только мы, поэтому расхождение — это либо баг (цена врача
+ * изменилась между созданием платежа и оплатой), либо чужой платёж, который
+ * притянуло к записи. В обоих случаях подтверждать запись нельзя: возвращаем
+ * текст расхождения для лога и уходим в возврат.
+ */
+function findAmountMismatch(
+  appointment: AppointmentLike,
+  payment: YooKassaPayment,
+): string | null {
+  const currency = payment.amount?.currency
+
+  if (currency !== 'RUB') {
+    return `валюта платежа ${currency ?? 'не указана'}, ожидали RUB`
+  }
+
+  const expected = toKopecks(Number(appointment.price ?? 0))
+  const actual = toKopecks(parseYooKassaAmount(payment.amount))
+
+  if (!Number.isFinite(expected) || expected <= 0) {
+    return 'у консультации не указана стоимость'
+  }
+
+  if (expected !== actual) {
+    return `ожидали ${expected / 100} ₽, оплачено ${actual / 100} ₽`
+  }
+
+  return null
+}
+
+/** Деньги по платежу уже полностью возвращены? */
+function isFullyRefunded(payment: YooKassaPayment): boolean {
+  const refunded = toKopecks(parseYooKassaAmount(payment.refunded_amount))
+  if (refunded <= 0) return false
+  return refunded >= toKopecks(parseYooKassaAmount(payment.amount))
+}
+
 /** Описание платежа: видно и пациенту в ЮKassa, и нам в их кабинете. */
 function buildDescription(appointment: AppointmentLike): string {
   const doctor = appointment.doctorName || 'врач'
@@ -452,7 +496,33 @@ export async function applyPaymentOutcome({
   // Слот уже потерян: бронь истекла или была отменена, пока шла оплата.
   // Деньги возвращаем автоматически.
   if (appointment.status === 'cancelled' || !isHoldActive(appointment)) {
-    return refundLatePayment({ payload, appointment, payment, snapshot: common })
+    return refundLatePayment({
+      payload,
+      appointment,
+      payment,
+      snapshot: common,
+      description: 'Время консультации было занято до поступления оплаты',
+    })
+  }
+
+  // Пришла не та сумма (или не та валюта) — подтверждать запись нельзя:
+  // деньги возвращаем, слот отдаём обратно в расписание.
+  const mismatch = findAmountMismatch(appointment, payment)
+
+  if (mismatch) {
+    console.error('[v0][payments] сумма платежа не совпала со стоимостью консультации', {
+      appointmentId: appointment.id,
+      paymentId: payment.id,
+      mismatch,
+    })
+
+    return refundLatePayment({
+      payload,
+      appointment,
+      payment,
+      snapshot: common,
+      description: 'Сумма платежа не соответствует стоимости консультации',
+    })
   }
 
   // --- Бронь ещё жива: подтверждаем запись.
@@ -494,7 +564,13 @@ export async function applyPaymentOutcome({
       return { appointmentStatus: 'confirmed', paymentStatus: 'succeeded', refunded: false }
     }
 
-    return refundLatePayment({ payload, appointment: fresh, payment, snapshot: common })
+    return refundLatePayment({
+      payload,
+      appointment: fresh,
+      payment,
+      snapshot: common,
+      description: 'Время консультации было занято до поступления оплаты',
+    })
   }
 
   console.log('[v0][payments] запись подтверждена оплатой', {
@@ -524,14 +600,31 @@ async function refundLatePayment({
   appointment,
   payment,
   snapshot,
+  description,
 }: {
   payload: PayloadInstance
   appointment: AppointmentLike
   payment: YooKassaPayment
   snapshot: Partial<AppointmentPaymentState>
+  /** Причина возврата: видна пациенту в выписке и нам в кабинете ЮKassa. */
+  description: string
 }): Promise<SyncResult> {
-  // Уже возвращали — второй раз не нужно.
-  if (appointment.payment?.refundId) {
+  // Уже возвращали — второй раз не нужно. Проверяем и наш след (refundId), и
+  // факт из ЮKassa: возврат мог пройти, а запись о нём — не сохраниться.
+  if (appointment.payment?.refundId || isFullyRefunded(payment)) {
+    await savePayment({
+      payload,
+      appointment,
+      patch: { ...snapshot, status: 'refunded', checkedAt: new Date().toISOString() },
+    })
+
+    // Возврат прошёл, а бронь могла остаться висеть (падение после refund) —
+    // добиваем: слот возвращаем врачу.
+    if (appointment.status === 'pending_payment') {
+      await releaseHold({ payload, appointmentId: appointment.id })
+      return { appointmentStatus: 'cancelled', paymentStatus: 'refunded', refunded: true }
+    }
+
     return { appointmentStatus: appointment.status, paymentStatus: 'refunded', refunded: true }
   }
 
@@ -539,17 +632,18 @@ async function refundLatePayment({
 
   const amount = parseYooKassaAmount(payment.amount)
 
-  console.warn('[v0][payments] оплата пришла после потери слота — возвращаем деньги', {
+  console.warn('[v0][payments] возвращаем деньги по оплаченной записи', {
     appointmentId: appointment.id,
     paymentId: payment.id,
     amount,
+    reason: description,
   })
 
   const refund = await createRefund({
     paymentId: payment.id,
     amount,
     idempotenceKey: buildIdempotenceKey('appointment-refund', payment.id),
-    description: 'Время консультации было занято до поступления оплаты',
+    description,
   })
 
   await savePayment({
@@ -572,11 +666,42 @@ async function refundLatePayment({
 }
 
 /**
+ * Оплачен платёж, который записи уже не принадлежит.
+ *
+ * Так выглядит запоздавшее уведомление по отменённой попытке: в записи лежит
+ * id другого (более свежего) платежа, и применять к ней этот исход нельзя —
+ * иначе мы затрём актуальное состояние, а деньги останутся у нас.
+ * Состояние записи не трогаем вообще, только возвращаем деньги.
+ */
+async function refundOrphanPayment(payment: YooKassaPayment): Promise<void> {
+  if (payment.status !== 'succeeded' || isFullyRefunded(payment)) return
+
+  console.warn('[v0][payments] оплата по неактуальной попытке — возвращаем деньги', {
+    paymentId: payment.id,
+    appointmentId: payment.metadata?.appointmentId,
+    amount: parseYooKassaAmount(payment.amount),
+  })
+
+  await createRefund({
+    paymentId: payment.id,
+    amount: parseYooKassaAmount(payment.amount),
+    // Ключ привязан к платежу, поэтому повторное уведомление не вернёт дважды.
+    idempotenceKey: buildIdempotenceKey('appointment-refund', payment.id),
+    description: 'Оплата поступила по устаревшей попытке бронирования',
+  })
+}
+
+/**
  * Разобрать уведомление ЮKassa по id платежа.
  *
  * Запись ищется по `payment.paymentId` (есть индекс), а `metadata.appointmentId`
  * используется как резерв: если уведомление пришло раньше, чем мы успели
  * сохранить id платежа, по метаданным запись всё равно находится.
+ *
+ * Резерв применяется только когда в записи ещё нет id платежа или он совпадает
+ * с пришедшим. Если там лежит другой платёж — это запоздавшее уведомление по
+ * отменённой попытке: исход к записи не применяем, а деньги (если пришли)
+ * возвращаем.
  */
 export async function handlePaymentNotification({
   paymentId,
@@ -600,8 +725,28 @@ export async function handlePaymentNotification({
 
   if (!appointment && metadataAppointmentId !== undefined && metadataAppointmentId !== null) {
     const fallbackId = Number(metadataAppointmentId)
+
     if (Number.isFinite(fallbackId) && fallbackId > 0) {
-      appointment = await loadAppointment(payload, fallbackId)
+      const candidate = await loadAppointment(payload, fallbackId)
+      const storedPaymentId = candidate?.payment?.paymentId
+
+      if (candidate && (!storedPaymentId || storedPaymentId === paymentId)) {
+        appointment = candidate
+      } else if (candidate) {
+        // В записи другой платёж: этот к ней не относится.
+        // Статусу из тела уведомления не доверяем — читаем платёж напрямую.
+        const orphan = await getPayment(paymentId)
+
+        console.warn('[v0][payments] уведомление по неактуальной попытке оплаты', {
+          paymentId,
+          appointmentId: candidate.id,
+          storedPaymentId,
+          status: orphan.status,
+        })
+
+        await refundOrphanPayment(orphan)
+        return { handled: true }
+      }
     }
   }
 
