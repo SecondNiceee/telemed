@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { getUserFromCookies } from '@/lib/server/route-auth'
-import { releaseHold } from '@/lib/server/appointment-holds'
+import { PaymentFlowError, startAppointmentPayment } from '@/lib/server/appointment-payments'
 
 /**
- * Оплата консультации.
+ * Начать оплату консультации в ЮKassa.
  *
- * Пока это заглушка платёжного провайдера: успешный вызов просто переводит
- * запись из «Ожидает оплаты» в «Подтверждена». Слот к этому моменту уже
- * забронирован (удалён из расписания при создании записи).
+ * Роут НЕ подтверждает запись — он только создаёт платёж и отдаёт ссылку, по
+ * которой пациента нужно увести на страницу оплаты. Подтверждение делает
+ * только фактическое поступление денег: обработчик уведомлений
+ * (`/api/payments/yookassa/notification`) или сверка при возврате пациента
+ * (`/api/appointments/[id]/payment-status`).
+ *
+ * Ответы:
+ *  - 200 `{ confirmationUrl }` — уводим пользователя на ЮKassa;
+ *  - 200 `{ status: 'confirmed' }` — платёж уже прошёл (двойной клик);
+ *  - 410 `{ expired: true }` — бронь истекла, слот освобождён.
  */
 export async function POST(
   request: NextRequest,
@@ -30,12 +37,9 @@ export async function POST(
 
     const payload = await getPayload({ config })
 
-    const appointment = await payload.findByID({
-      collection: 'appointments',
-      id: appointmentId,
-      overrideAccess: true,
-      depth: 0,
-    })
+    const appointment = await payload
+      .findByID({ collection: 'appointments', id: appointmentId, overrideAccess: true, depth: 0 })
+      .catch(() => null)
 
     if (!appointment) {
       return NextResponse.json({ message: 'Запись не найдена' }, { status: 404 })
@@ -48,41 +52,35 @@ export async function POST(
       return NextResponse.json({ message: 'Это не ваша запись' }, { status: 403 })
     }
 
-    if (appointment.status === 'confirmed') {
-      // Идемпотентность: повторный клик по «Оплатить» не считается ошибкой.
-      return NextResponse.json(appointment)
+    // Куда ЮKassa вернёт пациента после оплаты. Возврат — это НЕ подтверждение:
+    // страница по этому адресу сама сверяет платёж с ЮKassa.
+    const origin = process.env.SERVER_URL?.trim() || new URL(request.url).origin
+    const returnUrl = `${origin.replace(/\/$/, '')}/appointment/${appointmentId}/payment?return=1`
+
+    const result = await startAppointmentPayment({ payload, appointmentId, returnUrl })
+
+    if (result.kind === 'already_paid') {
+      return NextResponse.json({ status: 'confirmed' })
     }
 
-    if (appointment.status !== 'pending_payment') {
-      return NextResponse.json(
-        { message: 'Эту запись нельзя оплатить' },
-        { status: 409 },
-      )
-    }
-
-    // Бронь истекла — освобождаем слот и просим записаться заново.
-    const expiresAt = appointment.paymentExpiresAt
-    if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
-      await releaseHold({ payload, appointmentId })
+    if (result.kind === 'expired') {
       return NextResponse.json(
         { message: 'Время на оплату истекло, слот снова свободен', expired: true },
         { status: 410 },
       )
     }
 
-    const updated = await payload.update({
-      collection: 'appointments',
-      id: appointmentId,
-      data: {
-        status: 'confirmed',
-        paidAt: new Date().toISOString(),
-      },
-      overrideAccess: true,
+    return NextResponse.json({
+      status: 'pending',
+      confirmationUrl: result.confirmationUrl,
+      paymentId: result.paymentId,
     })
-
-    return NextResponse.json(updated)
   } catch (err) {
-    console.error('Error paying for appointment:', err)
-    return NextResponse.json({ message: 'Не удалось выполнить оплату' }, { status: 500 })
+    if (err instanceof PaymentFlowError) {
+      return NextResponse.json({ message: err.message, code: err.code }, { status: err.status })
+    }
+
+    console.error('Error starting appointment payment:', err)
+    return NextResponse.json({ message: 'Не удалось начать оплату' }, { status: 500 })
   }
 }

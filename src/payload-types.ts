@@ -395,6 +395,23 @@ export interface Appointment {
    */
   paidAt?: string | null;
   /**
+   * Состояние оплаты в ЮKassa. Заполняется автоматически при создании платежа и при получении уведомления.
+   */
+  payment?: {
+    provider?: string | null;
+    paymentId?: string | null;
+    status?: ('pending' | 'waiting_for_capture' | 'succeeded' | 'canceled' | 'refunded') | null;
+    amount?: number | null;
+    method?: string | null;
+    attempts?: number | null;
+    /**
+     * Заполняется, если оплата пришла после истечения брони и деньги вернули автоматически.
+     */
+    refundId?: string | null;
+    refundedAt?: string | null;
+    checkedAt?: string | null;
+  };
+  /**
    * Предпочтительный способ связи пациента
    */
   connectionType?: ('chat' | 'audio' | 'video') | null;
@@ -773,6 +790,19 @@ export interface AppointmentsSelect<T extends boolean = true> {
   status?: T;
   paymentExpiresAt?: T;
   paidAt?: T;
+  payment?:
+    | T
+    | {
+        provider?: T;
+        paymentId?: T;
+        status?: T;
+        amount?: T;
+        method?: T;
+        attempts?: T;
+        refundId?: T;
+        refundedAt?: T;
+        checkedAt?: T;
+      };
   connectionType?: T;
   chatBlocked?: T;
   recording?: T;

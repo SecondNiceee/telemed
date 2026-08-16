@@ -22,6 +22,22 @@ export interface CreateAppointmentPayload {
   connectionType?: 'chat' | 'audio' | 'video'
 }
 
+/** Ответ `POST /api/appointments/[id]/pay`. */
+export interface StartPaymentResponse {
+  status: 'pending' | 'confirmed'
+  /** Куда вести пациента для оплаты. Отсутствует, если платёж уже прошёл. */
+  confirmationUrl?: string
+  paymentId?: string
+}
+
+/** Ответ `GET /api/appointments/[id]/payment-status`. */
+export interface PaymentStatusResponse {
+  appointmentStatus: 'pending_payment' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  paymentStatus: 'pending' | 'waiting_for_capture' | 'succeeded' | 'canceled' | 'refunded' | null
+  /** Деньги вернули: оплата пришла, когда слот уже был отдан. */
+  refunded: boolean
+}
+
 export class AppointmentsApi {
   /**
    * Create a new appointment (requires payload-token cookie)
@@ -62,13 +78,30 @@ export class AppointmentsApi {
   }
 
   /**
-   * Pay for a pending appointment — moves it to "confirmed".
+   * Начать оплату записи в ЮKassa.
+   *
+   * Роут НЕ подтверждает запись: он создаёт платёж и возвращает
+   * `confirmationUrl`, по которому пациента нужно увести на страницу оплаты.
+   * `status: 'confirmed'` без ссылки означает, что платёж уже прошёл (например,
+   * повторный клик после успешной оплаты).
    */
-  static async pay(appointmentId: number): Promise<ApiAppointment> {
-    return apiFetch<ApiAppointment>(`/api/appointments/${appointmentId}/pay`, {
+  static async pay(appointmentId: number): Promise<StartPaymentResponse> {
+    return apiFetch<StartPaymentResponse>(`/api/appointments/${appointmentId}/pay`, {
       method: 'POST',
       credentials: 'include',
     })
+  }
+
+  /**
+   * Статус оплаты со сверкой в ЮKassa.
+   * Используется при возврате пациента с платёжной страницы: возврат сам по
+   * себе ничего не подтверждает, поэтому сервер перечитывает платёж.
+   */
+  static async paymentStatus(appointmentId: number): Promise<PaymentStatusResponse> {
+    return apiFetch<PaymentStatusResponse>(
+      `/api/appointments/${appointmentId}/payment-status`,
+      { credentials: 'include', cache: 'no-store' },
+    )
   }
 
   /**
