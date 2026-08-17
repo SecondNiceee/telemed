@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { AdminPanel } from '@/components/admin/admin-panel'
 import { getAdminFromCookieHeader, hasAnyUser } from '@/lib/auth/adminSession'
-import type { AdminCategory, AdminOrganisation } from '@/components/admin/types'
+import type { AdminOrganisation } from '@/components/admin/types'
 
 export const metadata = {
   title: 'Панель управления | smartcardio',
@@ -19,7 +19,6 @@ export default async function AdminPage() {
   let admin: Awaited<ReturnType<typeof getAdminFromCookieHeader>> = null
   // Данные грузим на сервере, чтобы панель открывалась уже заполненной.
   let organisations: AdminOrganisation[] = []
-  let categories: AdminCategory[] = []
 
   try {
     // Пустая база => показываем экран первичной настройки, вход не нужен.
@@ -43,15 +42,6 @@ export default async function AdminPage() {
         email: doc.email,
         createdAt: doc.createdAt,
       }))
-
-      const categoryResult = await payload.find({
-        collection: 'doctor-categories',
-        limit: 200,
-        sort: 'name',
-        depth: 1,
-        overrideAccess: true,
-      })
-      categories = categoryResult.docs as AdminCategory[]
     }
   } catch (err) {
     // Чаще всего это отсутствующие PAYLOAD_SECRET / DATABASE_URL — показываем
@@ -66,7 +56,6 @@ export default async function AdminPage() {
         admin ? { id: admin.id, name: admin.name ?? null, email: admin.email } : null
       }
       initialOrganisations={organisations}
-      initialCategories={categories}
     />
   )
 }
