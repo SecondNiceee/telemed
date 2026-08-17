@@ -1,19 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import { Stethoscope, UserPlus, LogOut, Building2, Home } from "lucide-react"
+import { Stethoscope, UserPlus, Building2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { memo } from "react"
-import { useOrgStore } from "@/stores/org-store"
 
 interface OrgPageHeaderProps {
   userName: string
 }
 
 export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHeaderProps) {
-  const logout = useOrgStore((s) => s.logout)
-  const loading = useOrgStore((s) => s.loading)
-
   return (
     <div className="mb-8">
       {/* Title block */}
@@ -31,17 +27,11 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
             </h1>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 shrink-0"
-          onClick={() => {
-            logout();
-          }}
-          disabled={loading}
-        >
-          <LogOut className="w-4 h-4" />
-          <span className="hidden sm:inline">Выйти</span>
+        <Button asChild variant="outline" size="sm" className="gap-2 shrink-0">
+          <Link href="/">
+            <Home className="w-4 h-4" />
+            <span className="hidden sm:inline">Вернуться на сайт</span>
+          </Link>
         </Button>
       </div>
 
@@ -57,12 +47,6 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
           <Link href="/lk-org/doctor-create">
             <UserPlus className="w-4 h-4" />
             Добавить врача
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="gap-2">
-          <Link href="/">
-            <Home className="w-4 h-4" />
-            Вернуться на сайт
           </Link>
         </Button>
       </div>
