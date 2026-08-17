@@ -85,7 +85,11 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       <main className="relative z-10 flex-1">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
-            <BackButton fallbackHref="/appointment" className="mb-4" />
+            <BackButton
+              fallbackHref="/appointment"
+              className="mb-4"
+              skipPaths={["/doctor"]}
+            />
 
             <div className="space-y-3">
               <SectionBadge tone="teal">Специалисты</SectionBadge>
