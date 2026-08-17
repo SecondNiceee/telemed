@@ -45,28 +45,8 @@ export function DoctorLoginForm() {
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center px-4 pb-12">
         <div className="w-full max-w-md">
-          {/* Logo & Title */}
+          {/* Title */}
           <div className="flex flex-col items-center mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-border/60 shadow-lg shadow-primary/10">
-                <img
-                  src="/images/logo.jpg"
-                  alt="Smartcardio"
-                  width={56}
-                  height={56}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="flex flex-col leading-none gap-1">
-                <span className="text-2xl font-bold tracking-tight text-foreground">
-                  Smartcardio
-                </span>
-                <span className="text-xs font-semibold tracking-wide uppercase text-primary/70">
-                  Видеоконсультация с врачом
-                </span>
-              </div>
-            </div>
-
             <div className="flex items-center gap-2 text-primary mb-2">
               <Stethoscope className="w-5 h-5" />
               <span className="text-sm font-medium uppercase tracking-wide">
