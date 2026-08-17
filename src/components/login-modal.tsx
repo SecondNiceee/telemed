@@ -183,7 +183,7 @@ const RegisterForm = memo(function RegisterForm({
 }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
+  const [phone, setPhone] = useState("+7")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   /** Ошибки клиентской валидации — отдельно от серверных, которые приходят пропом */

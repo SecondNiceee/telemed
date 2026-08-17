@@ -28,6 +28,7 @@ import {
 import { AdminCreateOrgDialog } from "./admin-create-org-dialog"
 import { AdminCredentialsDialog } from "./admin-credentials-dialog"
 import { AdminSeedDialog } from "./admin-seed-dialog"
+import { AdminCategories } from "./admin-categories"
 import type { AdminOrganisation, AdminUser, IssuedCredentials } from "./types"
 
 /** Дата создания организации в коротком русском формате. */
@@ -40,12 +41,14 @@ function formatDate(value: string) {
 interface AdminOrganisationsProps {
   admin: AdminUser
   initialOrganisations: AdminOrganisation[]
+  initialCategories: import("./types").AdminCategory[]
   onSignedOut: () => void
 }
 
 export function AdminOrganisations({
   admin,
   initialOrganisations,
+  initialCategories,
   onSignedOut,
 }: AdminOrganisationsProps) {
   const router = useRouter()
@@ -258,6 +261,8 @@ export function AdminOrganisations({
             </ul>
           )}
         </div>
+
+        <AdminCategories initialCategories={initialCategories} />
       </div>
 
       <AdminCreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleCreated} />

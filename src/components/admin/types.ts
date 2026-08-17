@@ -1,3 +1,7 @@
+import type { ApiCategory } from '@/lib/api/types'
+
+export type AdminCategory = ApiCategory
+
 export interface AdminOrganisation {
   id: number | string
   name: string
