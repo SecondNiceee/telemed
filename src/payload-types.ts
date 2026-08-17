@@ -298,6 +298,7 @@ export interface Doctor {
 export interface Organisation {
   id: number;
   name: string;
+  supportPhone?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -726,6 +727,7 @@ export interface DoctorsSelect<T extends boolean = true> {
  */
 export interface OrganisationsSelect<T extends boolean = true> {
   name?: T;
+  supportPhone?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;

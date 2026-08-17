@@ -34,6 +34,7 @@ export interface ApiOrganisation {
   id: number
   name: string
   email: string
+  supportPhone?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -96,6 +97,7 @@ export interface ApiAppointment {
   doctorName?: string | null
   userName?: string | null
   specialty?: string | null
+  organisationSupportPhone?: string | null
   date: string // YYYY-MM-DD
   time: string // HH:MM
   price?: number | null

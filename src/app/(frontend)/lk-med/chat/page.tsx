@@ -4,6 +4,7 @@ import { getBaseUrl } from "@/lib/api/fetch"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 import type { ApiDoctor, ApiAppointment, PayloadListResponse } from "@/lib/api/types"
 import { DoctorChatWrapper } from "@/components/chat/doctor-chat-wrapper"
+import { withOrganisationSupportPhones } from "@/lib/api/organisations.server"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 
@@ -60,8 +61,10 @@ export default async function LkMedChatPage({
   }
 
   // Filter to only confirmed/in_progress/completed appointments (active chats)
-  const activeAppointments = appointments.filter(
-    (a) => a.status === "confirmed" || a.status === "in_progress" || a.status === "completed"
+  const activeAppointments = await withOrganisationSupportPhones(
+    appointments.filter(
+      (a) => a.status === "confirmed" || a.status === "in_progress" || a.status === "completed"
+    ),
   )
 
   return (

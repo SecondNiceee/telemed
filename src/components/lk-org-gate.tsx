@@ -12,7 +12,7 @@ import type { ApiDoctor } from "@/lib/api/types"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
 
 interface LkOrgGateProps {
-  initialOrg: { id: number; name?: string; email: string } | null
+  initialOrg: { id: number; name?: string; email: string; supportPhone?: string | null } | null
   initialDoctors?: ApiDoctor[]
   initialStats?: OrgStats
   children?: React.ReactNode
@@ -121,6 +121,7 @@ export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }
       userName={org.name || org.email}
       initialDoctors={initialDoctors ?? []}
       orgId={org.id}
+      initialSupportPhone={org.supportPhone ?? ""}
       stats={initialStats ?? { total: 0, upcoming: 0, past: 0, active: 0 }}
     />
   )

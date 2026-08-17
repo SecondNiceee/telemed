@@ -21,11 +21,12 @@ export default async function LkOrgPage() {
   const requestHeaders = await headers()
   const cookie = requestHeaders.get("cookie") ?? ""
 
-  const org = await getSessionFromCookie<{ id: number; name?: string; email: string }>(
-    requestHeaders,
-    'organisations-token',
-    'organisations',
-  )
+  const org = await getSessionFromCookie<{
+    id: number
+    name?: string
+    email: string
+    supportPhone?: string | null
+  }>(requestHeaders, 'organisations-token', 'organisations')
 
   // If org is authenticated on server, pre-fetch doctors and appointments
   const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : []

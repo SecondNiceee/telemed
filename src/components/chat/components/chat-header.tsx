@@ -127,7 +127,20 @@ export function ChatHeader({
           </Button>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className="font-semibold text-foreground truncate">{otherPartyName}</h2>
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <h2 className="truncate font-semibold text-foreground">{otherPartyName}</h2>
+            {currentSenderType === 'user' && appointment.organisationSupportPhone && (
+              <a
+                href={`tel:${appointment.organisationSupportPhone.replace(/[^+\d]/g, '')}`}
+                className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                aria-label={`Позвонить в техническую поддержку: ${appointment.organisationSupportPhone}`}
+              >
+                <Phone className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">Техподдержка:</span>
+                <span>{appointment.organisationSupportPhone}</span>
+              </a>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>{appointment.date}, {appointment.time}</span>
             <span className="text-muted-foreground/50">|</span>

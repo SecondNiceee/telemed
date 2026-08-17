@@ -1,6 +1,19 @@
 import type { CollectionConfig, PayloadRequest } from 'payload'
 import { getCallerFromRequest } from './helpers/auth'
 
+const ORGANISATION_SUPPORT_PHONE_CACHE_TAG = 'organisation-support-phones'
+
+const revalidateOrganisationSupportPhones = async () => {
+  try {
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(ORGANISATION_SUPPORT_PHONE_CACHE_TAG)
+  } catch (error) {
+    console.warn(
+      '[organisations] Support phone cache revalidation skipped:',
+      error instanceof Error ? error.message : error,
+    )
+  }
+}
 
 /**
  * Populate req.user from the organisations cookie (organisations-token) without a DB query.
@@ -27,6 +40,16 @@ export const Organisations: CollectionConfig = {
           data._verified = true
         }
         return data
+      },
+    ],
+    afterChange: [
+      async () => {
+        await revalidateOrganisationSupportPhones()
+      },
+    ],
+    afterDelete: [
+      async () => {
+        await revalidateOrganisationSupportPhones()
       },
     ],
   },
@@ -57,6 +80,11 @@ export const Organisations: CollectionConfig = {
       type: 'text',
       label: 'Название организации',
       required: true,
+    },
+    {
+      name: 'supportPhone',
+      type: 'text',
+      label: 'Телефон поддержки',
     },
   ],
 }

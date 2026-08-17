@@ -3,6 +3,7 @@ import { AuthApi } from "@/lib/api/auth"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, Mail } from "lucide-react"
 import Link from "next/link"
+import { VerifiedHomeAction } from "./verified-home-action"
 
 interface VerifyEmailPageProps {
   searchParams: Promise<{ token?: string }> | { token?: string }
@@ -81,9 +82,7 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
             {/* action */}
             {isSuccess ? (
               <div className="flex flex-col gap-2 w-full">
-                <Button asChild className="w-full">
-                  <Link href="/">На главную</Link>
-                </Button>
+                <VerifiedHomeAction />
               </div>
             ) : (
               <div className="flex flex-col gap-2 w-full">
