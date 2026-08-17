@@ -58,5 +58,10 @@ export const Organisations: CollectionConfig = {
       label: 'Название организации',
       required: true,
     },
+    {
+      name: 'supportPhone',
+      type: 'text',
+      label: 'Телефон поддержки',
+    },
   ],
 }

@@ -4,8 +4,14 @@ export interface ApiOrganisation {
   id: number
   name: string
   email: string
+  supportPhone?: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface OrgUpdateResponse {
+  doc: ApiOrganisation
+  message: string
 }
 
 interface OrgLoginResponse {
@@ -38,6 +44,18 @@ export class OrgAuthApi {
     } catch {
       return null
     }
+  }
+
+  static async update(
+    id: number | string,
+    data: Partial<Pick<ApiOrganisation, 'name' | 'supportPhone'>>,
+  ): Promise<ApiOrganisation> {
+    const res = await apiFetch<OrgUpdateResponse>(`/api/organisations/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    })
+    return res.doc
   }
 
   static async logout(): Promise<void> {
