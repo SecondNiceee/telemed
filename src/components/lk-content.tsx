@@ -60,10 +60,12 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
   }, [storeUser, user, setUser])
 
   // Always sync server-loaded appointments to store on initial load
-  // This ensures fresh SSR data is used even if store was populated by booking
+  // This ensures fresh SSR data is used even if store was populated by booking.
+  // Записи с сервера уже отфильтрованы по user.id — помечаем владельца, чтобы
+  // остальные экраны не приняли их за данные другого аккаунта.
   useEffect(() => {
     if (serverAppointments.length > 0) {
-      setAppointments(serverAppointments)
+      setAppointments(serverAppointments, user?.id ?? null)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -178,7 +180,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             </h2>
           </div>
 
-          {/* Фильтры: пилюли с подсветкой активного бренд-цветом */}
+          {/* Фильтры: пилюли с подсветкой активного бренд-ц��етом */}
           <div
             role="tablist"
             aria-label="Фильтр записей"

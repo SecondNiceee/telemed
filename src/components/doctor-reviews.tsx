@@ -122,7 +122,7 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
   // Load appointments when user is available
   useEffect(() => {
     if (user) {
-      fetchAppointments()
+      fetchAppointments(user.id)
     }
   }, [user, fetchAppointments])
 
@@ -221,7 +221,7 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
         ) : feedbacks.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-teal/30 bg-teal/[0.04] px-4 py-5 text-center">
             <p className="text-sm text-muted-foreground">
-              Пока нет отзывов — станьте первым, кто поделится опытом
+              Пока нет отзывов — станьте первым, кт�� поделится опытом
             </p>
           </div>
         ) : (
