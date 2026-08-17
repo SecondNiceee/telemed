@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { getBaseUrl } from "@/lib/api/fetch"
 import type { ApiAppointment, PayloadListResponse } from "@/lib/api/types"
 import { ChatPage } from "@/components/chat/chat-page"
+import { withOrganisationSupportPhones } from "@/lib/api/organisations.server"
 import type { User } from "@/payload-types"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -63,8 +64,10 @@ export default async function LkChatPage({
   }
 
   // Filter to only active appointments (confirmed, in_progress, completed)
-  const activeAppointments = appointments.filter(
-    (a) => a.status === "confirmed" || a.status === "in_progress" || a.status === "completed"
+  const activeAppointments = await withOrganisationSupportPhones(
+    appointments.filter(
+      (a) => a.status === "confirmed" || a.status === "in_progress" || a.status === "completed"
+    ),
   )
 
   return (
