@@ -66,6 +66,9 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({ loading: true })
     try {
       const result = await AuthApi.login(email, password)
+      // Стор записей — синглтон на вкладку: без сброса в нём остаются
+      // консультации предыдущего аккаунта (баннер «Консультация через …»).
+      useUserAppointmentStore.getState().reset()
       set({ user: result.user, fetched: true })
       return result.user
     } finally {

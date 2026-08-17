@@ -12,13 +12,19 @@ interface UserAppointmentState {
   loading: boolean
   fetched: boolean
   creating: boolean
+  /**
+   * Владелец закэшированных записей. Стор — синглтон на вкладку, поэтому без
+   * этого ключа данные предыдущего аккаунта оставались бы на экране после
+   * входа под другим пользователем (стор живёт до перезагрузки страницы).
+   */
+  userId: number | null
 
   /** Set appointments from server (for SSR hydration) */
-  setAppointments: (appointments: ApiAppointment[]) => void
-  /** Fetch current user appointments */
-  fetchAppointments: () => Promise<void>
+  setAppointments: (appointments: ApiAppointment[], userId?: number | null) => void
+  /** Fetch appointments of the given user (skips if already cached for them) */
+  fetchAppointments: (userId: number) => Promise<void>
   /** Force refetch */
-  refetchAppointments: () => Promise<void>
+  refetchAppointments: (userId: number) => Promise<void>
   /** Create a new appointment with full doctor info */
   createAppointment: (data: CreateAppointmentWithDoctorPayload) => Promise<ApiAppointment>
   /** Reset store */
@@ -30,38 +36,51 @@ const initialState = {
   loading: false,
   fetched: false,
   creating: false,
+  userId: null as number | null,
 }
 
 export const useUserAppointmentStore = create<UserAppointmentState>((set, get) => ({
   ...initialState,
 
-  setAppointments: (appointments) => {
-    set({ appointments, fetched: true, loading: false })
+  setAppointments: (appointments, userId) => {
+    set({
+      appointments,
+      fetched: true,
+      loading: false,
+      ...(userId === undefined ? {} : { userId }),
+    })
   },
 
-  fetchAppointments: async () => {
-    if (get().fetched) return
+  fetchAppointments: async (userId) => {
+    const state = get()
+    // Кэш валиден только для того же пользователя.
+    if (state.fetched && state.userId === userId) return
 
-    set({ loading: true })
+    set({ loading: true, userId, appointments: state.userId === userId ? state.appointments : [] })
     try {
-      const appointments = await AppointmentsApi.fetchMyAppointments()
+      const appointments = await AppointmentsApi.fetchMyAppointments(userId)
+      // Пока шёл запрос, пользователь мог поменяться — тогда ответ уже неактуален.
+      if (get().userId !== userId) return
       set({ appointments, fetched: true })
     } catch {
+      if (get().userId !== userId) return
       set({ appointments: [], fetched: true })
     } finally {
-      set({ loading: false })
+      if (get().userId === userId) set({ loading: false })
     }
   },
 
-  refetchAppointments: async () => {
-    set({ loading: true, fetched: false })
+  refetchAppointments: async (userId) => {
+    set({ loading: true, fetched: false, userId })
     try {
-      const appointments = await AppointmentsApi.fetchMyAppointments()
+      const appointments = await AppointmentsApi.fetchMyAppointments(userId)
+      if (get().userId !== userId) return
       set({ appointments, fetched: true })
     } catch {
+      if (get().userId !== userId) return
       set({ appointments: [], fetched: true })
     } finally {
-      set({ loading: false })
+      if (get().userId === userId) set({ loading: false })
     }
   },
 

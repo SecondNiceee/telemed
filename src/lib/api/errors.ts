@@ -9,6 +9,26 @@ const ERROR_MESSAGES_BY_NAME: Record<string, string> = {
   NetworkError: 'Ошибка соединения. Проверьте интернет и попробуйте снова.',
 }
 
+/**
+ * Payload отдаёт часть ошибок аутентификации без поля `name` — только английский
+ * текст в `errors[0].message`. Переводим такие сообщения по подстроке.
+ */
+const ERROR_MESSAGES_BY_TEXT: { match: string; message: string }[] = [
+  {
+    match: 'email or password provided is incorrect',
+    message: 'Неверная почта или пароль.',
+  },
+  {
+    match: 'invalid login credentials',
+    message: 'Неверная почта или пароль.',
+  },
+]
+
+function translateMessage(raw: string): string | undefined {
+  const normalized = raw.toLowerCase()
+  return ERROR_MESSAGES_BY_TEXT.find(({ match }) => normalized.includes(match))?.message
+}
+
 export class ApiError extends Error {
   status: number
   /** Полное тело ответа сервера — например { retryAfter: 42 } */
@@ -24,12 +44,14 @@ export class ApiError extends Error {
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    const byText = error.message ? translateMessage(error.message) : undefined
+    if (byText) return byText
     const byName = ERROR_MESSAGES_BY_NAME[error.name]
     if (byName) return byName
     return error.message || 'Произошла неизвестная ошибка.'
   }
   if (error instanceof Error) {
-    return error.message
+    return translateMessage(error.message) ?? error.message
   }
   return 'Произошла неизвестная ошибка.'
 }

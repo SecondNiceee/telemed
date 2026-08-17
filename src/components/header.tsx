@@ -23,17 +23,28 @@ export function Header() {
   const pathname = usePathname();
 
   const { user, loading: userLoading, fetched: userFetched, logout: logoutUser } = useUserStore();
-  const { appointments, fetched: apptFetched, fetchAppointments } = useUserAppointmentStore();
+  const {
+    appointments,
+    fetched: apptFetched,
+    userId: apptUserId,
+    fetchAppointments,
+  } = useUserAppointmentStore();
 
   // Fetch appointments when user is logged in and appointments haven't been fetched yet
   useEffect(() => {
-    if (user && !apptFetched) {
-      fetchAppointments();
+    if (user) {
+      fetchAppointments(user.id);
     }
-  }, [user, apptFetched, fetchAppointments]);
+  }, [user, fetchAppointments]);
 
-  const upcomingAppointment =
-    user && apptFetched ? getUpcomingAppointment(appointments) : null;
+  // Записи в сторе валидны только если они принадлежат текущему пользователю:
+  // стор — синглтон, а после входа под другим аккаунтом там ещё лежат данные
+  // предыдущего, и баннер показывал чужую консультацию.
+  const appointmentsBelongToUser = !!user && apptFetched && apptUserId === user.id;
+
+  const upcomingAppointment = appointmentsBelongToUser
+    ? getUpcomingAppointment(appointments)
+    : null;
 
   // Show banner only on homepage (/) for logged-in users with upcoming appointments
   const showBanner = !!upcomingAppointment && pathname === "/";

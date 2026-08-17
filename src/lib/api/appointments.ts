@@ -127,11 +127,17 @@ export class AppointmentsApi {
 
   /**
    * Fetch appointments for the current user (client-side)
+   *
+   * `userId` обязателен — так же, как в `fetchDoctorAppointments`. Полагаться
+   * только на access control коллекции нельзя: он собирает условия по ВСЕМ
+   * токенам в браузере и объединяет их через OR (а для админского токена
+   * возвращает `true`), поэтому без явного фильтра пациент мог увидеть записи
+   * другого аккаунта — например по оставшейся сессии врача/организации.
    */
-  static async fetchMyAppointments(): Promise<ApiAppointment[]> {
+  static async fetchMyAppointments(userId: number): Promise<ApiAppointment[]> {
     const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
-      '/api/appointments?limit=100&depth=1&sort=-date',
-      { credentials: 'include' },
+      `/api/appointments?where[user][equals]=${userId}&limit=100&depth=1&sort=-date`,
+      { credentials: 'include', cache: 'no-store' },
     )
     return data.docs
   }

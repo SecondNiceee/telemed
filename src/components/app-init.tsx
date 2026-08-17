@@ -22,7 +22,7 @@ export function AppInit() {
   // Загружаем консультации после того как пользователь загружен
   useEffect(() => {
     if (fetched && user) {
-      fetchAppointments();
+      fetchAppointments(user.id);
     }
   }, [fetched, user, fetchAppointments]);
 
