@@ -9,10 +9,10 @@ interface DoctorAppointmentState {
 
   /** Set appointments from server (for SSR hydration) */
   setAppointments: (appointments: ApiAppointment[]) => void
-  /** Fetch current doctor appointments */
-  fetchAppointments: () => Promise<void>
+  /** Fetch current doctor appointments (doctorId фильтрует выборку по врачу) */
+  fetchAppointments: (doctorId: number) => Promise<void>
   /** Force refetch */
-  refetchAppointments: () => Promise<void>
+  refetchAppointments: (doctorId: number) => Promise<void>
   /** Update appointment status */
   updateAppointmentStatus: (appointmentId: number, status: ApiAppointment['status']) => void
   /** Reset store */
@@ -32,12 +32,14 @@ export const useDoctorAppointmentStore = create<DoctorAppointmentState>((set, ge
     set({ appointments, fetched: true, loading: false })
   },
 
-  fetchAppointments: async () => {
+  fetchAppointments: async (doctorId) => {
     if (get().fetched) return
 
     set({ loading: true })
     try {
-      const appointments = await AppointmentsApi.fetchMyAppointments()
+      // Кабинет врача: выборка по doctor, а не fetchMyAppointments (тот
+      // рассчитан на пациента и без фильтра по врачу тянет чужие записи).
+      const appointments = await AppointmentsApi.fetchDoctorAppointments(doctorId)
       set({ appointments, fetched: true })
     } catch {
       set({ appointments: [], fetched: true })
@@ -46,10 +48,10 @@ export const useDoctorAppointmentStore = create<DoctorAppointmentState>((set, ge
     }
   },
 
-  refetchAppointments: async () => {
+  refetchAppointments: async (doctorId) => {
     set({ loading: true, fetched: false })
     try {
-      const appointments = await AppointmentsApi.fetchMyAppointments()
+      const appointments = await AppointmentsApi.fetchDoctorAppointments(doctorId)
       set({ appointments, fetched: true })
     } catch {
       set({ appointments: [], fetched: true })

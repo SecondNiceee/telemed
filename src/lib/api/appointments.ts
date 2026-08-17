@@ -163,12 +163,19 @@ export class AppointmentsApi {
   /**
    * Fetch appointments for the current doctor (client-side)
    * Uses doctors-token cookie for auth
+   *
+   * `doctorId` обязателен и фильтрует выборку так же, как серверный
+   * `fetchDoctorAppointmentsServer`. Полагаться только на access control
+   * коллекции нельзя: он строит условия по ВСЕМ токенам в браузере и
+   * объединяет их через OR, а для админского `users`-токена вообще
+   * возвращает `true` — без явного фильтра врач с такой сессией увидел бы
+   * записи всех врачей.
    */
-  static async fetchDoctorAppointments(): Promise<ApiAppointment[]> {
+  static async fetchDoctorAppointments(doctorId: number): Promise<ApiAppointment[]> {
     const data = await apiFetch<PayloadListResponse<ApiAppointment>>(
       // Неоплаченные брони врачу не показываем — это ещё не запись.
-      '/api/appointments?where[status][not_equals]=pending_payment&limit=100&depth=1&sort=-date',
-      { credentials: 'include' },
+      `/api/appointments?where[doctor][equals]=${doctorId}&where[status][not_equals]=pending_payment&limit=100&depth=1&sort=-date`,
+      { credentials: 'include', cache: 'no-store' },
     )
     return data.docs
   }
