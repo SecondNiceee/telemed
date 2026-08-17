@@ -31,6 +31,36 @@ import {
 import type { ApiCategory, ApiMedia } from "@/lib/api/types"
 
 // Map of icon names to Lucide components
+export const CATEGORY_ICON_OPTIONS = [
+  { value: "stethoscope", label: "Стетоскоп" },
+  { value: "heart", label: "Сердце" },
+  { value: "heart-pulse", label: "Пульс" },
+  { value: "brain", label: "Мозг" },
+  { value: "eye", label: "Глаз" },
+  { value: "ear", label: "Ухо" },
+  { value: "bone", label: "Кость" },
+  { value: "baby", label: "Педиатрия" },
+  { value: "smile", label: "Улыбка" },
+  { value: "activity", label: "Активность" },
+  { value: "thermometer", label: "Термометр" },
+  { value: "shield", label: "Защита" },
+  { value: "syringe", label: "Шприц" },
+  { value: "pill", label: "Таблетка" },
+  { value: "microscope", label: "Микроскоп" },
+  { value: "dna", label: "ДНК" },
+  { value: "flask-conical", label: "Лаборатория" },
+  { value: "radiation", label: "Радиология" },
+  { value: "scissors", label: "Хирургия" },
+  { value: "bandage", label: "Повязка" },
+  { value: "cross", label: "Медицина" },
+  { value: "hand-heart", label: "Забота" },
+  { value: "wind", label: "Дыхание" },
+  { value: "person-standing", label: "Человек" },
+  { value: "user-round", label: "Пациент" },
+  { value: "bed", label: "Стационар" },
+  { value: "clipboard-list", label: "Карта" },
+] as const
+
 const ICON_MAP: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
   heart: Heart,

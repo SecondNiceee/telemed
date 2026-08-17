@@ -9,7 +9,7 @@ export interface CreateCategoryPayload {
   slug: string
   description?: string
   icon?: string
-  iconImage?: number
+  iconImage?: number | null
 }
 
 /**
