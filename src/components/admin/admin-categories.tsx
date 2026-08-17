@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ImagePlus, Pencil, Plus, Search, Stethoscope, Trash2, X } from "lucide-react"
+import { ImagePlus, Layers3, Pencil, Plus, Search, Stethoscope, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
