@@ -1,6 +1,7 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { Footer } from "@/components/footer"
+import { BackgroundDecor } from "@/components/background-decor"
 import { LkMedContent } from "@/components/lk-med-content"
 import { serverApiFetch, AppointmentsApi } from "@/lib/api/index"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
@@ -50,7 +51,14 @@ export default async function LkMedPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <LkMedContent initialDoctor={doctor} initialAppointments={appointments} />
+      {/* Сквозной декор как на главной, но без линий ЭКГ (ecg={false}):
+          в кабинете идёт плотный список консультаций, линии мешали бы чтению.
+          Остаются точечная сетка и водяные знаки логотипа. */}
+      <BackgroundDecor id="lk-med" position="fixed" ecg={false} />
+      {/* Декор — fixed-элемент со своим z, поэтому контент поднимаем над ним. */}
+      <div className="relative z-10 flex flex-1 flex-col">
+        <LkMedContent initialDoctor={doctor} initialAppointments={appointments} />
+      </div>
       <Footer />
     </div>
   )

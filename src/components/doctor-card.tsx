@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Timer, User } from "lucide-react";
@@ -8,6 +9,7 @@ import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
 import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
+import { toOptimizableMediaSrc } from "@/lib/utils/media";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;
@@ -18,6 +20,9 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
   const router = useRouter();
   // null, если у врача нет ни одного слота — тогда длительность не показываем.
   const consultationDuration = getConsultationDurationLabel(doctor);
+  // Абсолютный URL из Payload приводим к пути: /_next/image не принимает
+  // сторонний origin без записи в images.remotePatterns.
+  const photoUrl = toOptimizableMediaSrc((doctor?.photo as Media)?.url);
 
   return (
     <div onClick={() => router.push(`/doctor/${doctor.id}`)} className="block">
@@ -26,11 +31,16 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
           <div className="flex flex-col sm:flex-row sm:items-stretch">
             {/* Квадрат: фото уже обрезано 1:1 в админке, поэтому кадр не искажается */}
             <div className="relative w-full sm:w-48 aspect-square flex-shrink-0">
-              {(doctor?.photo as Media)?.url ? (
-                <img
-                  src={(doctor?.photo as Media)?.url ?? "/placeholder.svg"}
+              {photoUrl ? (
+                /* fill + sizes: на sm+ кадр ровно 192px, на мобильном тянется
+                   на всю ширину карточки — оптимизатор подберёт размер под
+                   вьюпорт вместо оригинала из админки. */
+                <Image
+                  src={photoUrl}
                   alt={doctor.name || "Врач"}
-                  className="w-full h-full object-cover absolute inset-0"
+                  fill
+                  sizes="(min-width: 640px) 192px, 100vw"
+                  className="object-cover"
                 />
               ) : (
                 <div className="w-full h-full absolute inset-0 bg-muted flex items-center justify-center">

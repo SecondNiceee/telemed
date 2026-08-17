@@ -1,12 +1,14 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { memo, useCallback } from "react"
 import { Clock, ChevronRight, User, Edit2, Trash2, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { Media } from "@/payload-types"
+import { toOptimizableMediaSrc } from "@/lib/utils/media"
 
 interface OrgDoctorCardProps {
   doctor: ApiDoctor
@@ -18,6 +20,9 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
   onDeleteRequest,
 }: OrgDoctorCardProps) {
   const specialty = DoctorsApi.getSpecialty(doctor)
+  // Абсолютный URL из Payload приводим к пути: /_next/image не принимает
+  // сторонний origin без записи в images.remotePatterns.
+  const photoUrl = toOptimizableMediaSrc((doctor.photo as Media)?.url)
 
   const handleDelete = useCallback(() => {
     onDeleteRequest(doctor)
@@ -30,12 +35,17 @@ export const OrgDoctorCard = memo(function OrgDoctorCard({
           href={`/lk-org/doctor/${doctor.id}`}
           className="flex-1 h-full flex items-center gap-4 min-w-0"
         >
-          <div className="w-20 aspect-square ml-4 my-4 rounded-xl overflow-hidden bg-muted shrink-0">
-            {doctor.photo ? (
-              <img
-                src={(doctor.photo as Media).url ?? "/placeholder.svg"}
+          <div className="relative w-20 aspect-square ml-4 my-4 rounded-xl overflow-hidden bg-muted shrink-0">
+            {photoUrl ? (
+              /* Аватар всегда 80px, поэтому фиксированный sizes: оптимизатор
+                 отдаёт миниатюру вместо оригинала — в списке врачей таких
+                 картинок много. */
+              <Image
+                src={photoUrl}
                 alt={doctor.name || "Врач"}
-                className="w-full h-full object-cover"
+                fill
+                sizes="80px"
+                className="object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">

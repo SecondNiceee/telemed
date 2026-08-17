@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import { DoctorReviews } from "@/components/doctor-reviews";
 import { DoctorBookingSection } from "@/components/doctor-booking-section";
 import type { DoctorScheduleDate } from "@/lib/api/types";
 import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
+import { toOptimizableMediaSrc } from "@/lib/utils/media";
 
 interface DoctorPageClientProps {
   doctor: {
@@ -61,6 +63,9 @@ export function DoctorPageClient({
   schedule,
 }: DoctorPageClientProps) {
   const firstCategorySlug = categories[0]?.slug;
+  // Payload может отдать абсолютный URL (задан serverURL) — приводим к пути,
+  // иначе /_next/image отклонит внешний origin.
+  const optimizedPhotoUrl = toOptimizableMediaSrc(photoUrl);
   // null, если врач не выставил ни одного слота — длительность тогда неизвестна.
   const consultationDuration = getConsultationDurationLabel({
     slotDuration: doctor.slotDuration,
@@ -196,12 +201,19 @@ export function DoctorPageClient({
           {/* Портрет в «рамке снимка»: бирюзовые уголки — единственный акцентный
               элемент шапки, всё остальное держим тихим. */}
           <div className="relative h-28 w-28 shrink-0 sm:h-40 sm:w-40">
-            <div className="h-full w-full overflow-hidden rounded-2xl bg-teal-soft">
-              {photoUrl ? (
-                <img
-                  src={photoUrl}
+            <div className="relative h-full w-full overflow-hidden rounded-2xl bg-teal-soft">
+              {optimizedPhotoUrl ? (
+                /* fill + sizes: реальный размер портрета 112px (моб.) и 160px
+                   (sm+), поэтому оптимизатор отдаёт лёгкий кадр вместо
+                   полноразмерного оригинала из админки. priority — портрет
+                   находится в первом экране и участвует в LCP. */
+                <Image
+                  src={optimizedPhotoUrl}
                   alt={doctor.name || "Врач"}
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="(min-width: 640px) 160px, 112px"
+                  className="object-cover"
+                  priority
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
