@@ -462,8 +462,8 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     setForgotError("")
     setSubmittingSafe(true)
     try {
-      // Payload всегда отвечает 200, даже если email не зарегистрирован,
-      // поэтому показываем один и тот же экран в любом случае.
+      // Роут /api/auth/forgot-password отвечает 404 для незарегистрированной
+      // почты — сообщение из ошибки покажется в форме через setForgotError.
       await AuthApi.forgotPassword(email)
       setForgotEmail(email)
       setForgotSent(true)

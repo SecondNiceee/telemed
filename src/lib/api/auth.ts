@@ -98,10 +98,13 @@ export class AuthApi {
 
   /**
    * Запрос письма для восстановления пароля.
-   * Payload всегда отвечает 200 — существование email не раскрывается.
+   *
+   * Идём через свой роут, а не нативный /api/users/forgot-password: тот всегда
+   * отвечает 200, поэтому для незарегистрированной почты пользователь бесконечно
+   * ждал письмо. Наш роут в этом случае возвращает 404 с понятным сообщением.
    */
   static async forgotPassword(email: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>('/api/users/forgot-password', {
+    return apiFetch<{ message: string }>('/api/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     })
