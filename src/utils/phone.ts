@@ -62,7 +62,7 @@ export function formatPhoneInput(raw: string): string {
 
   digits = digits.slice(0, 10)
 
-  if (digits.length === 0) return ''
+  if (digits.length === 0) return '+7'
 
   let result = `+7 (${digits.slice(0, 3)}`
   if (digits.length > 3) result += `) ${digits.slice(3, 6)}`
