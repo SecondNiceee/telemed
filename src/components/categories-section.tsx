@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { ApiCategory, getErrorMessage } from "../lib/api/index";
-import { fetchCategoriesLocal } from "../lib/api/categories.server";
+import { fetchCategoriesWithDoctorsLocal } from "../lib/api/categories.server";
 import { CategoriesGrid } from "@/components/categories-grid";
 import { SearchBar } from "@/components/search-bar";
 import { SectionBadge } from "@/components/section-badge";
@@ -10,7 +10,7 @@ export async function CategoriesSection() {
   let error: string | null = null;
 
   try {
-    categories = await fetchCategoriesLocal();
+    categories = await fetchCategoriesWithDoctorsLocal();
   } catch (err) {
     error = getErrorMessage(err);
   }
