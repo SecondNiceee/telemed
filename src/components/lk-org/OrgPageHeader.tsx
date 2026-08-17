@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Stethoscope, UserPlus, Building2, Home } from "lucide-react"
+import { UserPlus, Building2, Home } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { memo } from "react"
 
@@ -37,12 +37,6 @@ export const OrgPageHeader = memo(function OrgPageHeader({ userName }: OrgPageHe
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" className="gap-2">
-          <Link href="/lk-org/categories">
-            <Stethoscope className="w-4 h-4" />
-            Специальности
-          </Link>
-        </Button>
         <Button asChild className="gap-2">
           <Link href="/lk-org/doctor-create">
             <UserPlus className="w-4 h-4" />

@@ -25,24 +25,10 @@ const revalidateCategories = async () => {
   }
 }
 
-const accessChecker = ({ req } : {req : PayloadRequest  }) => {
-  const organizationCaller = getCallerFromRequest(req, 'organisations');
-  const usersCaller = getCallerFromRequest(req, "users");
-  if (organizationCaller?.collection === "organisations") return true ;
-  if (usersCaller?.role  === "admin") return true;
-
-  console.error('[doctor-categories] access DENIED', {
-    organisationCaller: organizationCaller?.collection ?? null,
-    userRole: usersCaller?.role ?? null,
-    hasCookieHeader: Boolean(req?.headers?.get?.('cookie')),
-  })
-  return false
+const adminOnly = ({ req }: { req: PayloadRequest }) => {
+  const usersCaller = getCallerFromRequest(req, 'users')
+  return usersCaller?.role === 'admin'
 }
-
-/**
- * Populate req.user from the organisations cookie (organisations-token) without a DB query.
- * JWT already contains id, email, collection -- enough for all access checks.
- */
 
 
 export const DoctorCategories: CollectionConfig = {
@@ -54,9 +40,9 @@ export const DoctorCategories: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create:  accessChecker,
-    update: accessChecker,
-    delete: accessChecker
+    create: adminOnly,
+    update: adminOnly,
+    delete: adminOnly
   },
   hooks: {
     afterChange: [

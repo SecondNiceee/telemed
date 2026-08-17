@@ -194,12 +194,9 @@ export class CategoriesApi {
     return doc
   }
 
-  /**
-   * Create a new category (from organisation)
-   * Uses the special organisations endpoint that handles auth via organisations-token
-   */
+  /** Create a category from the authenticated admin panel. */
   static async create(data: CreateCategoryPayload): Promise<ApiCategory> {
-    return apiFetch<ApiCategory>('/api/organisations/categories/create', {
+    return apiFetch<ApiCategory>('/api/admin/categories', {
       method: 'POST',
       credentials: 'include',
       body: JSON.stringify(data),
@@ -210,7 +207,7 @@ export class CategoriesApi {
    * Update a category by ID (from organisation)
    */
   static async update(id: number, data: Partial<CreateCategoryPayload>): Promise<ApiCategory> {
-    return apiFetch<ApiCategory>(`/api/organisations/categories/${id}`, {
+    return apiFetch<ApiCategory>(`/api/admin/categories/${id}`, {
       method: 'PATCH',
       credentials: 'include',
       body: JSON.stringify(data),
@@ -221,7 +218,7 @@ export class CategoriesApi {
    * Delete a category by ID (from organisation)
    */
   static async delete(id: number): Promise<void> {
-    await apiFetch<{ success: boolean }>(`/api/organisations/categories/${id}`, {
+    await apiFetch<{ success: boolean }>(`/api/admin/categories/${id}`, {
       method: 'DELETE',
       credentials: 'include',
     })
@@ -231,7 +228,7 @@ export class CategoriesApi {
    * Fetch category by ID for organisation (includes auth check)
    */
   static async fetchByIdForOrg(id: number): Promise<ApiCategory> {
-    return apiFetch<ApiCategory>(`/api/organisations/categories/${id}`, {
+    return apiFetch<ApiCategory>(`/api/admin/categories/${id}`, {
       credentials: 'include',
     })
   }
