@@ -275,8 +275,11 @@ function getStatusColor(status: ApiAppointment["status"]) {
 
 export function DoctorDashboardContent({
   userName,
+  doctorId,
 }: {
   userName: string
+  /** Нужен для фильтра выборки: иначе в дашборд попадают записи чужих врачей. */
+  doctorId: number
 }) {
   const {
     appointments,
@@ -286,8 +289,8 @@ export function DoctorDashboardContent({
   } = useDoctorAppointmentStore()
 
   useEffect(() => {
-    fetchAppointments()
-  }, [fetchAppointments])
+    fetchAppointments(doctorId)
+  }, [fetchAppointments, doctorId])
 
   const [tab, setTab] = useState<ConsultationTab>("active")
   const [selection, setSelection] = useState<DateSelection>({
@@ -430,7 +433,7 @@ export function DoctorDashboardContent({
                 </h3>
                 <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
                   {tab === "active"
-                    ? "Когда пациенты запишутся на консультацию, они появятся здесь"
+                    ? "Когда пациент�� запишутся на консультацию, они появятся здесь"
                     : "Завершенные консультации будут отображаться в этом разделе"}
                 </p>
               </div>

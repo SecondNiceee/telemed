@@ -54,13 +54,17 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
     try {
-      const fresh = await AppointmentsApi.fetchDoctorAppointments()
+      // Передаём id врача: без него выборка не фильтруется по врачу и в
+      // кабинет попадают записи чужих врачей (первичная SSR-загрузка
+      // фильтрует по doctorId, поэтому расхождение видно только после
+      // нажатия «Обновить»).
+      const fresh = await AppointmentsApi.fetchDoctorAppointments(doctor.id)
       setAppointments(fresh)
       setCurrentPage(1)
     } finally {
       setIsRefreshing(false)
     }
-  }, [setAppointments])
+  }, [doctor.id, setAppointments])
 
   // Reset page when filter changes
   useEffect(() => {
