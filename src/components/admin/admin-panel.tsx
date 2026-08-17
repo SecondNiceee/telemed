@@ -5,21 +5,19 @@ import { useRouter } from "next/navigation"
 import { AdminSetupForm } from "./admin-setup-form"
 import { AdminLoginForm } from "./admin-login-form"
 import { AdminOrganisations } from "./admin-organisations"
-import type { AdminCategory, AdminOrganisation, AdminUser } from "./types"
+import type { AdminOrganisation, AdminUser } from "./types"
 
 interface AdminPanelProps {
   /** В базе нет ни одного пользователя — первым делом создаём администратора. */
   needsSetup: boolean
   initialAdmin: AdminUser | null
   initialOrganisations: AdminOrganisation[]
-  initialCategories: AdminCategory[]
 }
 
 export function AdminPanel({
   needsSetup,
   initialAdmin,
   initialOrganisations,
-  initialCategories,
 }: AdminPanelProps) {
   const router = useRouter()
   const [admin, setAdmin] = useState<AdminUser | null>(initialAdmin)
@@ -61,7 +59,6 @@ export function AdminPanel({
     <AdminOrganisations
       admin={admin}
       initialOrganisations={initialOrganisations}
-      initialCategories={initialCategories}
       onSignedOut={() => {
         setAdmin(null)
         router.refresh()

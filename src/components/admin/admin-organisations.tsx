@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import {
@@ -11,6 +12,7 @@ import {
   LogOut,
   Plus,
   Search,
+  Stethoscope,
   Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -28,7 +30,6 @@ import {
 import { AdminCreateOrgDialog } from "./admin-create-org-dialog"
 import { AdminCredentialsDialog } from "./admin-credentials-dialog"
 import { AdminSeedDialog } from "./admin-seed-dialog"
-import { AdminCategories } from "./admin-categories"
 import type { AdminOrganisation, AdminUser, IssuedCredentials } from "./types"
 
 /** Дата создания организации в коротком русском формате. */
@@ -41,14 +42,12 @@ function formatDate(value: string) {
 interface AdminOrganisationsProps {
   admin: AdminUser
   initialOrganisations: AdminOrganisation[]
-  initialCategories: import("./types").AdminCategory[]
   onSignedOut: () => void
 }
 
 export function AdminOrganisations({
   admin,
   initialOrganisations,
-  initialCategories,
   onSignedOut,
 }: AdminOrganisationsProps) {
   const router = useRouter()
@@ -182,6 +181,12 @@ export function AdminOrganisations({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href="/admin/categories">
+                <Stethoscope className="size-4" />
+                Категории
+              </Link>
+            </Button>
             <Button variant="outline" onClick={() => setSeedOpen(true)}>
               <Database className="size-4" />
               Создать тестовые данные
@@ -261,8 +266,6 @@ export function AdminOrganisations({
             </ul>
           )}
         </div>
-
-        <AdminCategories initialCategories={initialCategories} />
       </div>
 
       <AdminCreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={handleCreated} />
