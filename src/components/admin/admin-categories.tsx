@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Pencil, Plus, Search, Stethoscope, Trash2 } from "lucide-react"
+import { ImagePlus, Pencil, Plus, Search, Stethoscope, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,17 +24,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CategoryIcon } from "@/lib/utils/categoryIcon"
+import { CategoriesApi } from "@/lib/api/categories"
+import {
+  CATEGORY_ICON_OPTIONS,
+  CategoryIcon,
+  getCategoryIconImageUrl,
+  getLucideIcon,
+} from "@/lib/utils/categoryIcon"
 import type { ApiCategory } from "@/lib/api/types"
+import { cn } from "@/lib/utils"
 
 interface CategoryDraft {
   name: string
   slug: string
   description: string
   icon: string
+  iconImage: number | null
+  imageUrl: string | null
 }
 
-const emptyDraft: CategoryDraft = { name: "", slug: "", description: "", icon: "" }
+const emptyDraft: CategoryDraft = {
+  name: "",
+  slug: "",
+  description: "",
+  icon: "stethoscope",
+  iconImage: null,
+  imageUrl: null,
+}
 
 function makeSlug(value: string) {
   return value
@@ -51,6 +67,7 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
   const [editing, setEditing] = useState<ApiCategory | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiCategory | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>(emptyDraft)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -68,19 +85,48 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
 
   const openCreate = () => {
     setEditing(null)
+    setSelectedFile(null)
     setDraft(emptyDraft)
     setDialogOpen(true)
   }
 
   const openEdit = (category: ApiCategory) => {
     setEditing(category)
+    setSelectedFile(null)
     setDraft({
       name: category.name,
       slug: category.slug,
       description: category.description || "",
-      icon: category.icon || "",
+      icon: category.icon || "stethoscope",
+      iconImage: typeof category.iconImage === "number" ? category.iconImage : category.iconImage?.id || null,
+      imageUrl: getCategoryIconImageUrl(category),
     })
     setDialogOpen(true)
+  }
+
+  const selectImage = (file: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Выберите изображение в формате PNG, SVG, JPG или WEBP")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Размер изображения не должен превышать 5 МБ")
+      return
+    }
+
+    setSelectedFile(file)
+    setDraft((current) => ({
+      ...current,
+      icon: "",
+      iconImage: null,
+      imageUrl: URL.createObjectURL(file),
+    }))
+  }
+
+  const selectLucideIcon = (icon: string) => {
+    setSelectedFile(null)
+    setDraft((current) => ({ ...current, icon, iconImage: null, imageUrl: null }))
   }
 
   const save = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -93,13 +139,25 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
 
     setSaving(true)
     try {
+      let iconImage = draft.iconImage
+      if (selectedFile) {
+        const media = await CategoriesApi.uploadMedia(selectedFile)
+        iconImage = media.id
+      }
+
       const response = await fetch(
         editing ? `/api/admin/categories/${editing.id}` : "/api/admin/categories",
         {
           method: editing ? "PATCH" : "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...draft, slug }),
+          body: JSON.stringify({
+            name: draft.name,
+            slug,
+            description: draft.description,
+            icon: iconImage ? "" : draft.icon,
+            iconImage,
+          }),
         },
       )
       const data = await response.json()
@@ -210,7 +268,7 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !saving && setDialogOpen(open)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Редактировать специальность" : "Новая специальность"}</DialogTitle>
             <DialogDescription>
@@ -249,15 +307,77 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
                 className="min-h-20 w-full resize-y rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="admin-category-icon">Иконка Lucide</Label>
+            <fieldset className="flex flex-col gap-3">
+              <legend className="text-sm font-medium text-foreground">Иконка специальности</legend>
+              <div className="grid max-h-48 grid-cols-6 gap-2 overflow-y-auto rounded-lg border border-border p-3 sm:grid-cols-9">
+                {CATEGORY_ICON_OPTIONS.map((option) => {
+                  const Icon = getLucideIcon(option.value)
+                  const selected = !draft.imageUrl && draft.icon === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => selectLucideIcon(option.value)}
+                      aria-label={option.label}
+                      aria-pressed={selected}
+                      title={option.label}
+                      className={cn(
+                        "flex aspect-square items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                      )}
+                    >
+                      <Icon className="size-5" aria-hidden="true" />
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs text-muted-foreground">или своё изображение</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              {draft.imageUrl ? (
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted p-2">
+                      <img src={draft.imageUrl} alt="Предпросмотр иконки" className="size-full object-contain" />
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {selectedFile?.name || "Загруженная иконка"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => selectLucideIcon("stethoscope")}
+                  >
+                    <X />
+                    <span className="sr-only">Удалить изображение</span>
+                  </Button>
+                </div>
+              ) : (
+                <Label
+                  htmlFor="admin-category-image"
+                  className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <ImagePlus className="size-5" aria-hidden="true" />
+                  Загрузить PNG, SVG, JPG или WEBP
+                </Label>
+              )}
               <Input
-                id="admin-category-icon"
-                value={draft.icon}
-                onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}
-                placeholder="stethoscope, heart, brain"
+                id="admin-category-image"
+                type="file"
+                accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                onChange={(event) => selectImage(event.target.files?.[0] || null)}
+                className="sr-only"
               />
-            </div>
+              <p className="text-xs text-muted-foreground">Максимальный размер файла — 5 МБ.</p>
+            </fieldset>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>Отмена</Button>
               <Button type="submit" disabled={saving}>{saving ? "Сохранение..." : "Сохранить"}</Button>
