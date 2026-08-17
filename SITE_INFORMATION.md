@@ -1,355 +1,379 @@
-# Структура проекта Телемедицина
+# Структура проекта smartcardio (Телемедицина)
 
 ## Обзор системы
 
-Платформа телемедицины с тремя типами пользователей:
-- **Пациенты (Users)** - записываются на консультации, общаются с врачами
-- **Врачи (Doctors)** - проводят консультации, видеозвонки
-- **Организации (Organisations)** - управляют врачами и просматривают статистику
+Платформа телемедицины на Next.js 15 (App Router) + Payload CMS 3 + PostgreSQL.
+
+**Четыре типа пользователей:**
+
+| Роль | Коллекция | Кабинет | Что делает |
+|------|-----------|---------|------------|
+| Пациент | `Users` (role: `user`) | `/lk` | Записывается на консультации, оплачивает, общается с врачом, оставляет отзывы |
+| Врач | `Doctors` | `/lk-med` | Проводит консультации, звонки, ведёт чат |
+| Организация | `Organisations` | `/lk-org` | Создаёт врачей, ведёт расписание, смотрит консультации и статистику |
+| Админ | `Users` (role: `admin`) | `/admin` | Создаёт организации, первичная настройка, сидинг |
+
+**Стек:**
+- Next.js 15.4 / React 19, Tailwind CSS 4, shadcn-подобные UI-компоненты (`src/components/ui`)
+- Payload CMS 3.76 + `@payloadcms/db-postgres`
+- Zustand для клиентского состояния (`src/stores`)
+- Socket.IO для чата и сигналинга звонков (отдельный процесс)
+- MediaSoup (SFU) + PeerJS (P2P) для видеозвонков — переключаются флагом
+- ЮKassa для оплаты консультаций
+- Nodemailer (`@payloadcms/email-nodemailer`) для писем
 
 ---
 
-## Коллекции Payload CMS
+## Процессы приложения
 
-| Коллекция | Файл | Описание |
-|-----------|------|----------|
-| `Users` | `src/collections/Users.ts` | Пациенты (email, password, role) |
-| `Doctors` | `src/collections/Doctors.ts` | Врачи (ФИО, специализация, расписание, organisation) |
-| `Organisations` | `src/collections/Organisations.ts` | Организации (name, email) |
-| `Appointments` | `src/collections/Appointments.ts` | Консультации (user, doctor, date, time, status, connectionType) |
-| `Messages` | `src/collections/Messages.ts` | Сообщения чата (appointment, sender, content, isSystemMessage) |
-| `CallRecordings` | `src/collections/CallRecordings.ts` | Записи видеозвонков (appointment, doctor, video, duration) |
-| `DoctorCategories` | `src/collections/DoctorCategories.ts` | Категории врачей |
-| `Media` | `src/collections/Media.ts` | Медиа-файлы (изображения, видео) |
+Проект запускается как несколько отдельных процессов:
 
----
+| Скрипт | Файл | Порт (по умолчанию) | Назначение |
+|--------|------|---------------------|------------|
+| `pnpm dev` / `pnpm start` | Next.js | 3000 | Веб-приложение + Payload + API-роуты |
+| `pnpm socket` | `src/server.ts` → `src/lib/socket/server.ts` | `SOCKET_PORT` | Socket.IO: чат, сигналинг, статусы |
+| `pnpm mediasoup` | `src/mediasoup-server.ts` | `MEDIASOUP_PORT` | SFU-сервер видеозвонков + запись через FFmpeg |
+| `pnpm peer` | `src/peer-server.ts` | `PEER_PORT` (3002) | PeerJS-сервер (legacy/fallback режим P2P) |
 
-## Личные кабинеты
-
-### 1. Личный кабинет пациента (`/lk`)
-
-**Страницы:**
-| Путь | Файл | Описание |
-|------|------|----------|
-| `/lk` | `src/app/(frontend)/lk/page.tsx` | Главная ЛК пациента |
-| `/lk/chat` | `src/app/(frontend)/lk/chat/page.tsx` | Чат с врачами |
-
-**Компоненты:**
-- `LkGate` (`src/components/lk-gate.tsx`) - проверка авторизации
-- `LkContent` (`src/components/lk-content.tsx`) - контент ЛК
-- `ChatPage` (`src/components/chat/chat-page.tsx`) - страница чата
-- `ChatSidebar` (`src/components/chat/chat-sidebar.tsx`) - список чатов
-- `ChatWindow` (`src/components/chat/chat-window.tsx`) - окно чата
+Прочие скрипты: `generate:types`, `generate:importmap`, `migrate*`, `seed`, `nginx:setup`, `test:int` (vitest), `test:e2e` (playwright).
 
 ---
 
-### 2. Личный кабинет врача (`/lk-med`)
+## Коллекции и глобалы Payload
 
-**Страницы:**
-| Путь | Файл | Описание |
-|------|------|----------|
-| `/lk-med` | `src/app/(frontend)/lk-med/page.tsx` | Главная ЛК врача |
-| `/lk-med/login` | `src/app/(frontend)/lk-med/login/page.tsx` | Авторизация врача |
-| `/lk-med/chat` | `src/app/(frontend)/lk-med/chat/page.tsx` | Чат врача с пациентами |
+| Коллекция | Файл | Ключевые поля |
+|-----------|------|---------------|
+| `users` | `src/collections/Users.ts` | auth, `phone`, `name`, `role` (`user` / `admin`) |
+| `doctors` | `src/collections/Doctors.ts` | auth, `name`, `organisation`, `categories`, `experience`, `degree`, `price`, `photo` + `photoOriginal`/`photoCrop`, `bio`, `education[]`, `services[]`, `slotDuration`, `schedule[]` (даты → слоты) |
+| `organisations` | `src/collections/Organisations.ts` | auth, `name` |
+| `doctor-categories` | `src/collections/DoctorCategories.ts` | `name`, `slug`, `description`, `icon`, `iconImage` |
+| `appointments` | `src/collections/Appointments.ts` | `doctor`, `user`, `doctorName`, `userName`, `specialty`, `date`, `time`, `price`, `status`, `paymentExpiresAt`, `paidAt`, `payment` (группа ЮKassa), `connectionType`, `chatBlocked`, `recording`, `activeCall` (группа) |
+| `messages` | `src/collections/Messages.ts` | `appointment`, `sender`, `isSystemMessage`, `text`, `attachment`, `read` |
+| `call-recordings` | `src/collections/CallRecordings.ts` | `appointment`, `doctor`, `recordingType`, `video`, `durationSeconds`, `recordedAt` |
+| `feedbacks` | `src/collections/Feedbacks.ts` | `user`, `doctor`, `appointment`, `rating`, `text` |
+| `media` | `src/collections/Media.ts` | `alt` + upload (изображения, видео) |
 
-**Компоненты:**
-- `LkMedGate` (`src/components/lk-med-gate.tsx`) - проверка авторизации врача
-- `LkMedContent` (`src/components/lk-med-content.tsx`) - контент ЛК врача
-- `DoctorChatWrapper` (`src/components/chat/doctor-chat-wrapper.tsx`) - обертка чата врача
+**Глобал:** `site-settings` (`src/globals/SiteSettings.ts`) — `heroTitle`, `heroSubtitle`, `faq[]` (question/answer).
 
----
+**Хелперы коллекций:** `src/collections/helpers/` (в т.ч. `auth.ts` → `getCallerFromRequest`), `src/utils/buildAppointmentAccessFilter.ts`.
 
-### 3. Личный кабинет организации (`/lk-org`)
-
-**Страницы:**
-| Путь | Файл | Описание |
-|------|------|----------|
-| `/lk-org` | `src/app/(frontend)/lk-org/page.tsx` | Главная - список врачей + статистика |
-| `/lk-org/doctor-create` | `src/app/(frontend)/lk-org/doctor-create/page.tsx` | Создание врача |
-| `/lk-org/doctor-edit/[id]` | `src/app/(frontend)/lk-org/doctor-edit/[id]/page.tsx` | Редактирование врача |
-| `/lk-org/doctor-schedule/[id]` | `src/app/(frontend)/lk-org/doctor-schedule/[id]/page.tsx` | Расписание врача |
-| `/lk-org/doctor/[id]` | `src/app/(frontend)/lk-org/doctor/[id]/page.tsx` | Dashboard врача (консультации) |
-| `/lk-org/doctor/[id]/consultation/[appointmentId]` | `src/app/(frontend)/lk-org/doctor/[id]/consultation/[appointmentId]/page.tsx` | Детали консультации (чат + записи) |
-| `/lk-org/categories` | `src/app/(frontend)/lk-org/categories/page.tsx` | Категории врачей |
-| `/lk-org/categories/create` | `src/app/(frontend)/lk-org/categories/create/page.tsx` | Создание категории |
-
-**Компоненты главной страницы:**
-- `LkOrgGate` (`src/components/lk-org-gate.tsx`) - проверка авторизации организации
-- `LkOrgContent` (`src/components/lk-org-content.tsx`) - контент с карточками врачей и статистикой
-- `OrgPageHeader` (`src/components/lk-org/OrgPageHeader.tsx`) - заголовок страницы
-- `DoctorsListHeader` (`src/components/lk-org/DoctorsListHeader.tsx`) - заголовок списка врачей
-- `OrgDoctorCard` (`src/components/lk-org/OrgDoctorCard.tsx`) - карточка врача (ссылка на `/lk-org/doctor/[id]`)
-- `EmptyDoctorsList` (`src/components/lk-org/EmptyDoctorsList.tsx`) - пустой список
-- `DeleteDoctorDialog` (`src/components/lk-org/DeleteDoctorDialog.tsx`) - диалог удаления
-
-**Компоненты расписания:**
-- `ScheduleCalendar` (`src/components/lk-org/schedule/ScheduleCalendar.tsx`) - календарь расписания
-- `SlotEditor` (`src/components/lk-org/schedule/SlotEditor.tsx`) - редактор слотов
-- `AddSlotInput` (`src/components/lk-org/schedule/AddSlotInput.tsx`) - добавление слота
-- `ClockPicker` (`src/components/lk-org/schedule/ClockPicker.tsx`) - выбор времени
-- `SlotDurationSelector` (`src/components/lk-org/schedule/SlotDurationSelector.tsx`) - длительность слота
-- `ScheduleSummary` (`src/components/lk-org/schedule/ScheduleSummary.tsx`) - сводка расписания
-- `SaveScheduleBar` (`src/components/lk-org/schedule/SaveScheduleBar.tsx`) - панель сохранения
-- `WeekPatternDialog` (`src/components/lk-org/schedule/WeekPatternDialog.tsx`) - шаблон недели
-
-**Компоненты консультации:**
-- `OrgConsultationView` (`src/components/lk-org/consultation/OrgConsultationView.tsx`) - просмотр консультации с табами:
-  - **Чат** - история сообщений (`MessageBubble`)
-  - **Записи звонков** - список записей с видео-ссылками
+**Миграции:** `src/migrations/` — уникальность слота (`appointments_slot_unique`) и поля оплаты (`appointments_payment_fields`).
 
 ---
 
-## Система видеозвонков
+## Роутинг
 
-**Провайдер:**
-- `VideoCallProvider` (`src/components/video-call/video-call-provider.tsx`) - главный контекст видеозвонка
+### Публичная часть
 
-**Представления (Views):**
-| Компонент | Файл | Описание |
-|-----------|------|----------|
-| `CallingView` | `src/components/video-call/views/calling-view.tsx` | Исходящий звонок |
-| `IncomingCallView` | `src/components/video-call/views/incoming-call-view.tsx` | Входящий звонок |
-| `ConnectingView` | `src/components/video-call/views/connecting-view.tsx` | Подключение |
-| `ConnectedView` | `src/components/video-call/views/connected-view.tsx` | Активный звонок |
-| `MinimizedView` | `src/components/video-call/views/minimized-view.tsx` | Свернутый звонок |
+| Путь | Описание |
+|------|----------|
+| `/` | Главная: hero, категории, преимущества, ЭКГ-блоки, отзывы, FAQ |
+| `/appointment` | Запись на приём: выбор специальности |
+| `/category/[id]` | Врачи внутри категории (с пагинацией) |
+| `/doctor/[id]` | Страница врача: инфо, отзывы, выбор слота, бронирование |
+| `/appointment/[id]/payment` | Оплата консультации (ЮKassa) с таймером брони |
+| `/verify-email` | Подтверждение email |
+| `/reset-password` | Сброс пароля |
 
-**UI-компоненты:**
-| Компонент | Файл | Описание |
-|-----------|------|----------|
-| `VideoCallOverlay` | `src/components/video-call/video-call-overlay.tsx` | Оверлей звонка |
-| `LocalVideo` | `src/components/video-call/components/local-video.tsx` | Локальное видео |
-| `RemoteVideo` | `src/components/video-call/components/remote-video.tsx` | Удаленное видео |
-| `CallControls` | `src/components/video-call/components/call-controls.tsx` | Управление звонком |
-| `DoctorControls` | `src/components/video-call/components/doctor-controls.tsx` | Доп. контролы врача |
-| `CallTimer` | `src/components/video-call/components/call-timer.tsx` | Таймер звонка |
-| `ConnectionQuality` | `src/components/video-call/components/connection-quality.tsx` | Качество связи |
-| `EndCallDialog` | `src/components/video-call/components/end-call-dialog.tsx` | Диалог завершения |
+### Кабинет пациента
 
-**Хуки:**
-| Хук | Файл | Описание |
-|-----|------|----------|
-| `useMediaStream` | `src/components/video-call/hooks/use-media-stream.ts` | Управление медиа-потоком |
-| `useCallTimer` | `src/components/video-call/hooks/use-call-timer.ts` | Таймер звонка |
-| `useConnectionQuality` | `src/components/video-call/hooks/use-connection-quality.ts` | Мониторинг качества |
-| `useCallRecording` | `src/components/video-call/hooks/use-call-recording.ts` | Запись звонка |
+| Путь | Описание |
+|------|----------|
+| `/lk` | Главная ЛК: записи, баннер брони, приглашение оставить отзыв |
+| `/lk/chat` | Чат с врачами (`?appointment={id}`) |
 
-**Логика записи звонков (Chunks):**
+### Кабинет врача
 
-Запись использует **периодическую отправку chunks** для надежности. Если врач закроет вкладку, потеряются только последние 30 секунд.
+| Путь | Описание |
+|------|----------|
+| `/lk-med` | Главная ЛК врача |
+| `/lk-med/login` | Авторизация врача |
+| `/lk-med/chat` | Чат с пациентами, звонки, завершение консультации |
+| `/doctor-dashboard` | Дашборд врача (проверка `doctors-token`) |
 
-1. Врач начинает звонок → `VideoCallProvider` активирует `useCallRecording`
-2. При подключении (`status === 'connected'`) начинается запись (только для врача)
-3. **Каждые 30 секунд** chunks отправляются на `/api/recording-chunks`
-4. При завершении звонка → `/api/recording-chunks/finalize` склеивает chunks
-5. Создается `Media` (видео-файл) и `CallRecording` (запись в БД)
+### Кабинет организации
 
-**API записи:**
-| Endpoint | Метод | Описание |
-|----------|-------|----------|
-| `/api/recording-chunks` | POST | Прием chunk видео |
-| `/api/recording-chunks/finalize` | POST | Склейка и создание записи |
+| Путь | Описание |
+|------|----------|
+| `/lk-org` | Список врачей + статистика |
+| `/lk-org/consultations` | Все консультации врачей организации (`?sort=`), экспорт в XLSX |
+| `/lk-org/consultation?id={appointmentId}` | Просмотр консультации: чат + записи звонков |
+| `/lk-org/doctor/[id]` | Дашборд конкретного врача |
+| `/lk-org/doctor-create` | Создание врача |
+| `/lk-org/doctor-edit/[id]` | Редактирование врача |
+| `/lk-org/doctor-schedule/[id]` | Расписание врача |
+| `/lk-org/categories` | Категории врачей |
+| `/lk-org/categories/create` | Создание категории |
+| `/lk-org/categories/[id]/edit` | Редактирование категории |
 
-**Логи:** Все логи с префиксом `[Recording]` в консоли браузера врача.
+### Админ
 
-**Подробнее:** см. `ABOUT_VIDEO.md` → раздел "Система записи звонков (Chunks)"
+| Путь | Описание |
+|------|----------|
+| `/admin` | Собственная панель: первичная настройка (если БД пустая), логин, CRUD организаций, сидинг |
+| `/cms` | Полная админка Payload (резервный инструмент, `routes.admin: '/cms'`) |
 
 ---
 
-## Система чата
+## API-роуты
 
-**Компоненты:**
-| Компонент | Файл | Описание |
-|-----------|------|----------|
-| `ChatPage` | `src/components/chat/chat-page.tsx` | Страница чата |
-| `ChatSidebar` | `src/components/chat/chat-sidebar.tsx` | Боковая панель со списком чатов |
-| `ChatWindow` | `src/components/chat/chat-window.tsx` | Окно чата |
-| `ChatHeader` | `src/components/chat/components/chat-header.tsx` | Заголовок чата (смена типа связи) |
-| `ChatInput` | `src/components/chat/components/chat-input.tsx` | Ввод сообщения |
-| `ChatMessages` | `src/components/chat/components/chat-messages.tsx` | Список сообщений |
-| `MessageBubble` | `src/components/chat/message-bubble.tsx` | Пузырек сообщения (включая системные) |
-| `ConsultationDialogs` | `src/components/chat/components/consultation-dialogs.tsx` | Диалоги консультации |
-| `DragDropOverlay` | `src/components/chat/components/drag-drop-overlay.tsx` | Drag & drop файлов |
-| `VideoSaveSidebar` | `src/components/chat/components/video-save-sidebar.tsx` | Сайдбар сохранения видео |
-| `DoctorChatWrapper` | `src/components/chat/doctor-chat-wrapper.tsx` | Обертка чата врача |
+### Аутентификация
 
-**Типы сообщений:**
-- **Обычные** - сообщения от пациента или врача (пузырек слева/справа)
-- **Системные** (`isSystemMessage: true`) - уведомления по центру с горизонтальными линиями
+| Endpoint | Описание |
+|----------|----------|
+| `POST /api/auth/register` | Регистрация пациента |
+| `POST /api/users/logout` | Выход пациента |
+| `POST /api/doctors/login` · `logout` · `GET /api/doctors/me` | Сессия врача |
+| `POST /api/organisations/login` · `logout` · `GET /api/organisations/me` | Сессия организации |
+| `POST /api/admin/login` | Вход админа |
+| `POST /api/admin/setup` | Первичное создание админа (только на пустой базе) |
 
-**Предпочтительный тип связи (`connectionType`):**
-- Устанавливается пациентом при записи на консультацию (`/doctor/[id]/booking`)
-- Можно изменить в чате пациента (`/lk/chat?appointment={id}`) через dropdown в хедере
-- При изменении создаётся системное сообщение для информирования врача
-- Варианты: `chat` (Чат), `audio` (Аудио), `video` (Видео)
+### Админ / организации
+
+| Endpoint | Описание |
+|----------|----------|
+| `GET/POST /api/admin/organisations` | Список / создание организаций |
+| `PATCH/DELETE /api/admin/organisations/[id]` | Изменение / удаление |
+| `PATCH /api/admin/organisations/[id]/password` | Смена пароля организации |
+| `POST /api/admin/seed` | Сидинг демо-данных |
+| `POST /api/organisations/categories/create` · `/[id]` | CRUD категорий врачей |
+
+### Консультации и оплата
+
+| Endpoint | Описание |
+|----------|----------|
+| `POST /api/appointments/[id]/pay` | Создание платежа в ЮKassa, выдача `confirmation_url` |
+| `GET /api/appointments/[id]/payment-status` | Синхронизация статуса платежа |
+| `POST /api/appointments/[id]/release` | Освобождение брони (отказ от оплаты) |
+| `POST /api/appointments/[id]/complete` | Завершение консультации |
+| `POST /api/payments/yookassa/notification` | Webhook ЮKassa (проверка IP по `yookassa-ips`) |
+
+### Записи звонков и прочее
+
+| Endpoint | Описание |
+|----------|----------|
+| `POST /api/recording-chunks` | Прием chunk видео (PeerJS-режим) |
+| `POST /api/recording-chunks/finalize` | Склейка chunks → `Media` + `CallRecording` |
+| `POST /api/mediasoup-recording/finalize` | Финализация записи MediaSoup |
+| `POST /api/mediasoup-recording/finalize-server` | Серверная финализация (вызов от mediasoup-процесса) |
+| `POST /api/revalidate` | Ревалидация кэша (`REVALIDATION_SECRET`) |
 
 ---
 
-## API клиенты
+## Аутентификация и доступ
+
+**Cookies (JWT, HttpOnly, SameSite=Lax, 7 дней):**
+
+| Cookie | Коллекция | Кто |
+|--------|-----------|-----|
+| `payload-token` | `users` | Пациенты и админы |
+| `doctors-token` | `doctors` | Врачи |
+| `organisations-token` | `organisations` | Организации |
+
+**Хелперы:**
+- `src/lib/auth-cookies.ts` — `buildSetCookie`, `buildClearCookie`, `signCollectionToken`, `extractCookie`
+- `src/lib/auth/getSessionFromCookie.ts` — сессия по произвольной cookie/коллекции
+- `src/lib/auth/adminSession.ts` — `getAdminFromCookieHeader` (с `jwt.verify`), `hasAnyUser`
+- `src/lib/server/route-auth.ts` — `getUserFromCookies` и подобное для route handlers
+- `src/lib/server/payload-jwt-secret.ts` — секрет для подписи/проверки токенов
+
+**Access control:** правила в поле `access` каждой коллекции. Организация видит данные своих врачей, врач — только свои консультации, пациент — только свои данные.
+
+---
+
+## Оплата консультации (ЮKassa)
+
+**Модель брони:** после выбора слота создаётся `Appointment` со статусом `pending_payment` и `paymentExpiresAt = now + 15 мин` (`src/lib/constants/payment.ts`). Слот занят, но не подтверждён.
+
+**Поток:**
+```
+1. Пациент выбирает слот на /doctor/[id]
+   └── Appointment (status: pending_payment, paymentExpiresAt)
+   └── Уникальный индекс слота не даёт двойной брони
+
+2. Редирект на /appointment/[id]/payment
+   └── Таймер брони (formatPaymentCountdown)
+   └── POST /api/appointments/[id]/pay → ЮKassa → confirmation_url
+
+3. Пациент платит на стороне ЮKassa
+   └── Webhook POST /api/payments/yookassa/notification
+   └── Либо возврат на страницу → GET /payment-status (синхронизация)
+
+4. Оплата succeeded
+   └── status: confirmed, paidAt, payment.* заполняются сервером
+
+5. Оплата не пройдена / истёк срок
+   └── releaseHold() возвращает слот в расписание
+   └── Фоновый sweeper (onInit в payload.config.ts) чистит просроченные брони
+```
+
+**Файлы:**
+
+| Файл | Назначение |
+|------|------------|
+| `src/lib/server/yookassa.ts` | Низкоуровневый клиент API v3 (авторизация, идемпотентность, ошибки) |
+| `src/lib/server/appointment-payments.ts` | Бизнес-логика: создание платежа, `syncAppointmentPayment` |
+| `src/lib/server/appointment-holds.ts` | Броня слота, `releaseHold`, `startExpiredHoldsSweeper` |
+| `src/lib/constants/payment.ts` | Окно оплаты, таймер, дедлайн |
+| `src/lib/constants/yookassa-ips.ts` + `src/lib/server/ip-range.ts` | Валидация IP webhook'а |
+| `src/components/appointment-countdown-banner.tsx` | Баннер «оплатите бронь» в ЛК |
+
+**Важно:** поля группы `payment` не входят ни в один whitelist `appointment-booking-guard`, поэтому клиент и врач их не пишут — только серверный код.
+
+---
+
+## Видеозвонки
+
+Два транспорта, переключение через `NEXT_PUBLIC_USE_MEDIASOUP`:
+
+| Режим | Провайдер | Хук соединения |
+|-------|-----------|----------------|
+| MediaSoup (SFU, основной) | `video-call-provider-mediasoup.tsx` | `use-mediasoup-connection.ts` |
+| PeerJS (P2P, legacy) | `video-call-provider.tsx` | `use-peer-connection.ts` |
+
+Выбор делает `video-call-provider-wrapper.tsx`.
+
+**Представления (`src/components/video-call/views/`):** `CallingView`, `IncomingCallView`, `ConnectingView`, `ConnectedView`, `MinimizedView`, `SavingView`.
+
+**UI (`src/components/video-call/components/`):** `LocalVideo`, `RemoteVideo`, `CallControls`, `DoctorControls`, `CallTimer`, `ConnectionQuality`, `EndCallDialog`. Оверлей — `video-call-overlay.tsx`.
+
+**Хуки (`src/components/video-call/hooks/`):** `use-media-stream`, `use-call-timer`, `use-connection-quality`, `use-call-recording`, `use-turn-test`.
+
+**Серверная часть MediaSoup (`src/lib/mediasoup/`):** `worker-manager.ts` (пул воркеров), `room.ts` (комнаты, producers/consumers), `recorder.ts` (запись через FFmpeg), `config.ts`, `client-types.ts`.
+
+**Конфиг клиента:** `src/lib/video-call/config.ts` — ICE/TURN (Metered), таймауты звонка, media constraints, пороги таймера.
+
+### Запись звонков
+
+**MediaSoup-режим:** поток пишется на сервере (FFmpeg, `RECORDING_OUTPUT_DIR`), затем `POST /api/mediasoup-recording/finalize(-server)` создаёт `Media` + `CallRecording`.
+
+**PeerJS-режим (chunks):** `useCallRecording` каждые ~30 сек отправляет chunk в `POST /api/recording-chunks`; при завершении `finalize` склеивает их. Так при закрытии вкладки теряются только последние 30 секунд.
+
+Логи записи — с префиксом `[Recording]`.
+
+---
+
+## Чат (Socket.IO)
+
+**Сервер:** `src/server.ts` → `src/lib/socket/server.ts`.
+
+| Часть | Файлы |
+|-------|-------|
+| Хендлеры | `handlers/`: `joinRoom`, `leaveRoom`, `sendMessage`, `markRead`, `typing`, `stopTyping`, `call`, `consultation`, `disconnect` |
+| Middleware | `middleware/authMiddleware.ts` (проверка токена из cookie) |
+| Стор | `stores/activeCallsStore.ts` |
+| Утилиты | `verifyToken`, `verifyAppointmentAccess`, `validateMessageText`, `isValidAppointmentId`, `isValidSenderType`, `isRateLimited`, `getCookieValue` |
+| Rate limit | `config/rate-limit.config.ts` |
+
+**Клиент:** `src/components/socket-provider.tsx`.
+
+**Компоненты чата (`src/components/chat/`):** `chat-page`, `chat-sidebar`, `chat-window`, `doctor-chat-wrapper`, `message-bubble`, `components/` (`chat-header`, `chat-input`, `chat-messages`, `consultation-dialogs`, `drag-drop-overlay`, `video-save-sidebar`), `hooks/` (`use-file-upload`, `use-typing`).
+
+**Типы сообщений:** обычные (пузырёк слева/справа) и системные (`isSystemMessage: true`) — по центру с линиями.
+
+**Предпочтительный тип связи (`connectionType`):** `chat` / `audio` / `video`. Выбирается при записи, меняется в чате пациента — при смене создаётся системное сообщение.
+
+### Завершение консультации и блокировка чата
+
+1. Врач нажимает «Завершить консультацию» → `AlertDialog` (`ConsultationDialogs`)
+2. `endConsultation(appointmentId)` через socket → статус `completed` → событие `consultation-ended` всем участникам
+3. Чат остаётся открытым; появляется кнопка «Запретить пациенту писать» (`chat-block` / `chat-unblock` → поле `chatBlocked`)
+4. Врач может писать всегда, независимо от блокировки
+
+Из видеозвонка: `endCall()` → `stopRecording()` → финализация записи → `AppointmentsApi.complete()` → статус `completed`.
+
+---
+
+## Отзывы
+
+Коллекция `feedbacks` (`user`, `doctor`, `appointment`, `rating`, `text`).
+
+| Файл | Назначение |
+|------|------------|
+| `src/lib/api/feedbacks.ts` | API отзывов |
+| `src/stores/feedback-store.ts` | Клиентское состояние |
+| `src/components/feedback-dialog.tsx` | Форма отзыва |
+| `src/components/feedback-prompt.tsx` | Приглашение оставить отзыв после консультации |
+| `src/components/doctor-reviews.tsx` | Отзывы на странице врача |
+| `src/components/reviews-section.tsx` | Блок отзывов на главной |
+
+---
+
+## API-клиенты (`src/lib/api/`)
 
 | Файл | Описание |
 |------|----------|
-| `src/lib/api/fetch.ts` | Базовые функции fetch (клиент + сервер) |
-| `src/lib/api/auth.ts` | Авторизация пациентов |
-| `src/lib/api/doctor-auth.ts` | Авторизация врачей |
-| `src/lib/api/org-auth.ts` | Авторизация организаций |
-| `src/lib/api/doctors.ts` | API врачей |
-| `src/lib/api/appointments.ts` | API консультаций |
-| `src/lib/api/messages.ts` | API сообщений |
-| `src/lib/api/call-recordings.ts` | API записей звонков |
-| `src/lib/api/categories.ts` | API категорий |
-| `src/lib/api/types.ts` | TypeScript типы |
+| `fetch.ts` | Базовые fetch-функции (клиент + сервер) |
+| `errors.ts` | Обработка ошибок API |
+| `auth.ts` · `doctor-auth.ts` · `org-auth.ts` | Авторизация пациентов / врачей / организаций |
+| `doctors.ts` | Врачи |
+| `appointments.ts` | Консультации (в т.ч. `complete`, `fetchByDoctorsServer`) |
+| `messages.ts` | Сообщения |
+| `call-recordings.ts` | Записи звонков |
+| `categories.ts` / `categories.server.ts` | Категории (клиент / локальный Payload) |
+| `site-settings.ts` / `site-settings.server.ts` | Настройки сайта |
+| `feedbacks.ts` | Отзывы |
+| `media-uploads.ts` | Загрузка файлов |
+| `actions.ts` | Server actions |
+| `types.ts` · `index.ts` | Типы и реэкспорты |
 
 ---
 
-## Админка Payload CMS
+## Прочие библиотеки и утилиты
 
-**Путь:** `/admin`
+| Файл | Назначение |
+|------|------------|
+| `src/lib/export-consultations.ts` | Экспорт консультаций в XLSX (`xlsx-js-style`) |
+| `src/lib/generate-password.ts` | Генерация паролей (создание врача/организации) |
+| `src/lib/media-dir.ts` | Путь к каталогу медиа (`MEDIA_DIR`) |
+| `src/lib/navigation-history.ts` | История навигации для кнопки «Назад» |
+| `src/lib/constants/nav-sections.ts` | Секции навигации |
+| `src/lib/utils/date.ts` · `consultation-duration.ts` · `categoryIcon.tsx` | Даты, длительность, иконки категорий |
+| `src/utils/phone.ts` | Нормализация телефона |
+| `src/utils/sendAppointmentEmail.ts` · `sendVerificationEmail.ts` · `buildResetPasswordEmail.ts` | Письма |
+| `src/lib/seed/mock-data.ts` · `mock-bulk-doctors.ts` | Демо-данные для сидинга |
 
-**Файлы:**
-- `src/app/(payload)/admin/[[...segments]]/page.tsx` - страница админки
-- `src/app/(payload)/admin/[[...segments]]/not-found.tsx` - 404
+**Zustand-сторы (`src/stores/`):** `user-store`, `doctor-store`, `org-store`, `categories-store`, `chat-store`, `call-store`, `feedback-store`, `user-appointments-store`, `doctor-appointments-store`.
 
-**Доступ:** Только пользователи с `role: 'admin'` в коллекции `Users`
-
-**Возможности:**
-- Управление всеми коллекциями (Users, Doctors, Appointments, Messages, CallRecordings, etc.)
-- Просмотр и редактирование данных
-- Загрузка медиа-файлов
+**Скрипты (`scripts/`):** `seed-all.ts`, `seed-data.config.ts`, `create-admin.ts`, `create-organisation.ts`, `create-doctors.ts`, `create-categories.ts`, `create-users.ts`, `setup-nginx.sh`, `test-turn-server.sh`, `gen-lockfile.js`.
 
 ---
 
 ## Статистика организации
 
-На главной странице `/lk-org` отображаются карточки статистики:
+На `/lk-org` показываются карточки:
 
-| Счетчик | Описание |
-|---------|----------|
-| **Всего консультаций** | Все консультации врачей организации (кроме отмененных) |
-| **Предстоящих** | Консультации со статусом `scheduled` и датой в будущем |
-| **Прошедших** | Консультации со статусом `completed` или датой в прошлом |
+| Счётчик | Логика |
+|---------|--------|
+| Всего консультаций | Все консультации врачей организации, кроме `cancelled` |
+| Предстоящих | `confirmed` + дата в будущем |
+| Прошедших | `completed` или дата в прошлом |
 
-**Реализация:**
-- Данные фетчатся на сервере в `page.tsx`
-- Используется `AppointmentsApi.fetchByDoctorsServer()` для получения всех консультаций врачей организации
-- Статистика передается в `LkOrgContent` через `initialStats`
+Данные фетчатся на сервере в `page.tsx` через `AppointmentsApi.fetchByDoctorsServer()` и передаются в `LkOrgContent` как `initialStats`.
 
 ---
 
-## Поток данных: Консультация → Запись
+## Переменные окружения
 
-```
-1. Пациент записывается на консультацию
-   └── Создается Appointment (status: 'scheduled')
+**Базовые:** `DATABASE_URL`, `PAYLOAD_SECRET`, `SERVER_URL`, `NEXTJS_URL`, `NODE_ENV`, `MEDIA_DIR`, `REVALIDATION_SECRET`, `DISABLE_HOLDS_SWEEPER`
 
-2. Врач начинает видеозвонок
-   └── VideoCallProvider → useCallRecording.startRecording(stream, appointmentId, doctorId)
-   └── Генерируется sessionId для этой записи
+**Почта:** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_FROM_NAME`
 
-3. Во время звонка (каждые 30 сек)
-   └── useCallRecording отправляет chunks
-   └── POST /api/recording-chunks
-   └── Chunks сохраняются в /tmp/recording-chunks/{sessionId}/
+**ЮKassa:** `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY`, `YOOKASSA_PAYMENT_MODE`, `YOOKASSA_PAYMENT_SUBJECT`, `YOOKASSA_SEND_RECEIPT`, `YOOKASSA_VAT_CODE`, `YOOKASSA_NOTIFICATION_IPS`, `YOOKASSA_TRUST_ALL_IPS`
 
-4. Звонок завершается
-   └── useCallRecording.stopRecording()
-   └── POST /api/recording-chunks/finalize
-   └── Сервер склеивает chunks → загружает в Media → создает CallRecording
+**Socket.IO:** `SOCKET_PORT`, `SOCKET_PATH`, `SOCKET_ALLOWED_ORIGINS`, `NEXT_PUBLIC_SOCKET_URL`, `NEXT_PUBLIC_SOCKET_PATH`
 
-5. Организация просматривает консультацию
-   └── /lk-org/doctor/[id]/consultation/[appointmentId]
-   └── OrgConsultationView (таб "Записи звонков")
-   └── Отображается список CallRecordings с видео-ссылками
-```
+**MediaSoup:** `NEXT_PUBLIC_USE_MEDIASOUP`, `NEXT_PUBLIC_MEDIASOUP_URL`, `NEXT_PUBLIC_MEDIASOUP_PATH`, `MEDIASOUP_PORT`, `MEDIASOUP_WEBRTC_PORT`, `MEDIASOUP_LISTEN_IP`, `MEDIASOUP_ANNOUNCED_IP`, `MEDIASOUP_RTC_MIN_PORT`, `MEDIASOUP_RTC_MAX_PORT`, `MEDIASOUP_NUM_WORKERS`, `MEDIASOUP_LOG_LEVEL`, `MEDIASOUP_CORS_ORIGINS`, `MEDIASOUP_SERVER_SECRET`, `FFMPEG_PATH`, `RECORDING_OUTPUT_DIR`
+
+**PeerJS (legacy):** `PEER_PORT`, `NEXT_PUBLIC_PEER_HOST`, `NEXT_PUBLIC_PEER_PORT`, `NEXT_PUBLIC_PEER_PATH`
 
 ---
 
-## Логика завершения консультации
+## Полезное при разработке
 
-### Из чата врача (`/lk-med/chat`)
-
-Когда врач нажимает **"Завершить консультацию"** в чате:
-
-1. **UI взаимодействие:**
-   - Показывается `AlertDialog` с подтверждением (`ConsultationDialogs`)
-
-2. **При подтверждении (`handleCompleteAppointment`):**
-   ```
-   ChatWindow → endConsultation(appointmentId) через socket
-   → Сервер обновляет status на 'completed'
-   → Эмитится 'consultation-ended' всем участникам
-   ```
-
-3. **Результат:**
-   - `localStatus` обновляется на `'completed'`
-   - Вызывается `onAppointmentCompleted?.(appointmentId)` для обновления списка чатов
-   - **Чат остается открытым** - пациент может продолжать писать
-   - Появляется кнопка "Запретить пациенту писать"
-
-### Блокировка/Разблокировка чата
-
-После завершения консультации врач может управлять доступом пациента к чату:
-
-1. **Кнопка "Запретить пациенту писать":**
-   - Отправляет `chat-block` событие через socket
-   - Устанавливает `chatBlocked = true` в БД
-   - Пациент видит "Врач окончательно завершил консультацию"
-   - Кнопка меняется на "Разрешить пациенту писать"
-
-2. **Кнопка "Разрешить пациенту писать":**
-   - Отправляет `chat-unblock` событие через socket
-   - Устанавливает `chatBlocked = false` в БД
-   - Пациент снова может писать
-   - Кнопка меняется обратно на "Запретить пациенту писать"
-
-**Важно:** Врач всегда может отправлять сообщения, независимо от статуса блокировки.
-
-### Из видеозвонка (кнопка "Завершить консультацию")
-
-Когда врач завершает звонок с записью:
-
-1. **Завершение звонка:**
-   - `VideoCallProvider.endCall()` останавливает соединение
-   - `useCallRecording.stopRecording()` останавливает запись
-
-2. **Сохранение записи:**
-   - Если использовались chunks: `finalizeRecording()` склеивает на сервере
-   - Fallback: загрузка всего blob через `/api/media`
-   - Создается `CallRecording` в БД
-
-3. **Завершение appointment:**
-   - `handleConsultationComplete(recordingBlob)` в `ChatWindow`
-   - `AppointmentsApi.complete(appointmentId)`
-   - Status меняется на `'completed'`
-   - Toast: "Консультация завершена"
-
-### Файлы логики завершения
-
-| Файл | Функция |
-|------|---------|
-| `src/components/chat/chat-window.tsx` | `handleCompleteAppointment()`, `handleConsultationComplete()` |
-| `src/components/chat/components/consultation-dialogs.tsx` | UI диалога подтверждения |
-| `src/components/chat/components/chat-header.tsx` | Кнопка "Завершить консультацию" |
-| `src/lib/api/appointments.ts` | `AppointmentsApi.complete()` |
-| `src/app/api/appointments/[id]/complete/route.ts` | API endpoint |
-| `src/components/video-call/hooks/use-call-recording.ts` | Сохранение записи |
-
----
-
-## Аутентификация
-
-**Токены (cookies):**
-| Cookie | Коллекция | Использование |
-|--------|-----------|---------------|
-| `payload-token` | Users | Пациенты |
-| `doctors-token` | Doctors | Врачи |
-| `organisations-token` | Organisations | Организации |
-
-**Проверка на сервере:**
-- `getSessionFromCookie()` (`src/lib/auth/getSessionFromCookie.ts`)
-- `getCallerFromRequest()` (`src/collections/helpers/auth.ts`)
-
-**Access Control:**
-- Каждая коллекция имеет свои правила доступа в поле `access`
-- Организации могут читать данные своих врачей
-- Врачи могут читать только свои консультации
-- Пациенты могут читать только свои данные
+- После изменения схемы коллекций: `pnpm generate:types`
+- После добавления кастомных компонентов в админку Payload: `pnpm generate:importmap`
+- Проверка типов: `pnpm exec tsc --noEmit`
+- Миграции: `pnpm migrate:create`, `pnpm migrate`, `pnpm migrate:status`
+- При работе через Local API с `user` всегда указывать `overrideAccess: false`
+- В хуках передавать `req` в вложенные операции, иначе они уйдут в отдельную транзакцию
