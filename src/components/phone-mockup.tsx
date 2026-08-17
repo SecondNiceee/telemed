@@ -37,8 +37,8 @@ export function PhoneMockup({
   src,
   poster,
   className,
-  doctorName = "Анна Петрова",
-  doctorSpeciality = "Кардиолог",
+  doctorName = "Екатерина Кульбачинская",
+  doctorSpeciality = "к.м.н., врач детский кардиолог",
 }: PhoneMockupProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [micOn, setMicOn] = useState(true);
