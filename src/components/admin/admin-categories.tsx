@@ -66,10 +66,12 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<ApiCategory | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ApiCategory | null>(null)
+  const [createAllOpen, setCreateAllOpen] = useState(false)
   const [draft, setDraft] = useState<CategoryDraft>(emptyDraft)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [creatingAll, setCreatingAll] = useState(false)
 
   useEffect(() => setCategories(initialCategories), [initialCategories])
 
@@ -178,6 +180,37 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
     }
   }
 
+  const createAll = async () => {
+    setCreatingAll(true)
+    try {
+      const response = await fetch("/api/admin/categories/create-all", {
+        method: "POST",
+        credentials: "include",
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.message || "Не удалось создать категории")
+
+      const createdCategories = Array.isArray(data.categories) ? data.categories : []
+      setCategories((current) => {
+        const byId = new Map(current.map((category) => [category.id, category]))
+        for (const category of createdCategories) byId.set(category.id, category)
+        return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, "ru"))
+      })
+      setCreateAllOpen(false)
+
+      if (data.created > 0) {
+        toast.success(`Создано специальностей: ${data.created}. Уже существовало: ${data.skipped}.`)
+      } else {
+        toast.success("Все специальности уже созданы")
+      }
+      if (data.failed > 0) toast.error(`Не удалось создать специальностей: ${data.failed}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось создать категории")
+    } finally {
+      setCreatingAll(false)
+    }
+  }
+
   const remove = async () => {
     if (!deleteTarget) return
     setDeleting(true)
@@ -209,10 +242,16 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
             Создавайте категории, которые организации смогут назначать врачам. Всего: {categories.length}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus data-icon="inline-start" />
-          Добавить специальность
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => setCreateAllOpen(true)}>
+            <Layers3 data-icon="inline-start" />
+            Создать все категории
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus data-icon="inline-start" />
+            Добавить специальность
+          </Button>
+        </div>
       </div>
 
       {categories.length > 1 && (
@@ -385,6 +424,23 @@ export function AdminCategories({ initialCategories }: { initialCategories: ApiC
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={createAllOpen} onOpenChange={(open) => !creatingAll && setCreateAllOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Вы уверены, что хотите создать все категории?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Будет добавлен полный справочник специальностей для российских поликлиник с краткими описаниями и иконками. Уже существующие категории будут пропущены.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={creatingAll}>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={createAll} disabled={creatingAll}>
+              {creatingAll ? "Создание..." : "Создать все категории"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !deleting && !open && setDeleteTarget(null)}>
         <AlertDialogContent>
