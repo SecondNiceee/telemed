@@ -121,7 +121,6 @@ export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }
       userName={org.name || org.email}
       initialDoctors={initialDoctors ?? []}
       orgId={org.id}
-      initialSupportPhone={org.supportPhone ?? ""}
       stats={initialStats ?? { total: 0, upcoming: 0, past: 0, active: 0 }}
     />
   )

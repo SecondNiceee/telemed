@@ -7,7 +7,6 @@ import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
 import type { OrgStats } from "@/app/(frontend)/lk-org/page"
 import { OrgPageHeader } from "@/components/lk-org/OrgPageHeader"
-import { OrgSupportPhone } from "@/components/lk-org/OrgSupportPhone"
 import { DoctorsListHeader } from "@/components/lk-org/DoctorsListHeader"
 import { EmptyDoctorsList } from "@/components/lk-org/EmptyDoctorsList"
 import { OrgDoctorCard } from "@/components/lk-org/OrgDoctorCard"
@@ -19,13 +18,12 @@ interface LkOrgContentProps {
   userName: string
   initialDoctors: ApiDoctor[]
   orgId: number
-  initialSupportPhone: string
   stats: OrgStats
 }
 
 const DOCTORS_PER_PAGE = 10
 
-export function LkOrgContent({ userName, initialDoctors, orgId, initialSupportPhone, stats }: LkOrgContentProps) {
+export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgContentProps) {
   const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   
@@ -97,8 +95,6 @@ export function LkOrgContent({ userName, initialDoctors, orgId, initialSupportPh
     <div className="flex-1">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <OrgPageHeader userName={userName} />
-
-        <OrgSupportPhone orgId={orgId} initialSupportPhone={initialSupportPhone} />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 mb-8">
