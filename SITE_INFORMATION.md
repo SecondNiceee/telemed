@@ -95,7 +95,8 @@
 
 | Путь | Описание |
 |------|----------|
-| `/lk-org` | Список врачей + статистика |
+| `/lk-org` | Список врачей + статистика, переход к настройкам организации |
+| `/lk-org/settings` | Настройки организации: редактирование телефона поддержки |
 | `/lk-org/consultations` | Все консультации врачей организации (`?sort=`), экспорт в XLSX |
 | `/lk-org/consultation?id={appointmentId}` | Просмотр консультации: чат + записи звонков |
 | `/lk-org/doctor/[id]` | Дашборд конкретного врача |
@@ -267,7 +268,7 @@
 
 **Клиент:** `src/components/socket-provider.tsx`.
 
-**Компоненты чата (`src/components/chat/`):** `chat-page`, `chat-sidebar`, `chat-window`, `doctor-chat-wrapper`, `message-bubble`, `components/` (`chat-header`, `chat-input`, `chat-messages`, `consultation-dialogs`, `drag-drop-overlay`, `video-save-sidebar`), `hooks/` (`use-file-upload`, `use-typing`).
+**��омпоненты чата (`src/components/chat/`):** `chat-page`, `chat-sidebar`, `chat-window`, `doctor-chat-wrapper`, `message-bubble`, `components/` (`chat-header`, `chat-input`, `chat-messages`, `consultation-dialogs`, `drag-drop-overlay`, `video-save-sidebar`), `hooks/` (`use-file-upload`, `use-typing`).
 
 **Типы сообщений:** обычные (пузырёк слева/справа) и системные (`isSystemMessage: true`) — по центру с линиями.
 
