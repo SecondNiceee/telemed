@@ -64,16 +64,16 @@ function ReviewCard({ feedback }: { feedback: ApiFeedback }) {
     <article className="flex gap-3 py-4">
       <span
         aria-hidden="true"
-        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal/10 text-xs font-semibold text-teal ring-1 ring-teal/20"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal/10 text-xs font-semibold leading-none text-teal ring-1 ring-teal/20"
       >
         {initialsOf(userName) || '—'}
       </span>
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <p className="truncate font-medium text-foreground">{userName}</p>
-          <StarRating rating={feedback.rating} className="translate-y-0.5" />
-          <p className="text-xs text-muted-foreground">{formatDate(feedback.createdAt)}</p>
+        <div className="flex min-h-9 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className="truncate font-medium leading-none text-foreground">{userName}</p>
+          <StarRating rating={feedback.rating} />
+          <p className="text-xs leading-none text-muted-foreground">{formatDate(feedback.createdAt)}</p>
         </div>
         {feedback.text && (
           <p className="mt-1.5 border-l-2 border-teal/25 pl-3 text-sm leading-relaxed text-muted-foreground">
@@ -190,11 +190,11 @@ export function DoctorReviews({ doctorId, doctorName }: DoctorReviewsProps) {
             </h2>
             {feedbacks.length > 0 && (
               <span className="inline-flex items-center gap-2 rounded-full bg-teal/10 px-2.5 py-1">
-                <span className="text-sm font-semibold tabular-nums text-teal">
+                <span className="text-sm font-semibold leading-none tabular-nums text-teal">
                   {averageRating.toFixed(1)}
                 </span>
                 <StarRating rating={Math.round(averageRating)} />
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <span className="text-xs leading-none text-muted-foreground tabular-nums">
                   {feedbacks.length}
                 </span>
               </span>
