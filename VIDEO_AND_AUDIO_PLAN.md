@@ -147,7 +147,7 @@ kebab-case) — при переносе клиента и сервера име�
 | `connectTransport` | `{ roomId, peerId, transportId, dtlsParameters }` | `void` | DTLS-хендшейк. |
 | `restartIce` | `{ roomId, peerId, transportId }` | `iceParameters` | ICE-restart после обрыва/VPN. Ошибка `transport-gone` → клиент делает rebuild. |
 | `produce` | `{ roomId, peerId, transportId, kind, rtpParameters, appData }` | `{ producerId }` | Опубликовать дорожку. `appData.source: 'media'\|'screen'`. |
-| `consume` | `{ roomId, peerId, producerId, rtpCapabilities }` | `{ consumerId, producerId, kind, rtpParameters, producerPaused, appData }` | Подписаться (консьюмер создаётся `paused`). |
+| `consume` | `{ roomId, peerId, producerId, rtpCapabilities }` | `{ consumerId, producerId, kind, rtpParameters, producerPaused, appData }` | Подписаться (консьюмер созд��ётся `paused`). |
 | `resumeConsumer` | `{ roomId, peerId, consumerId }` | `void` | Возобновить консьюмер (+ сервер шлёт keyframe-ретраи). |
 | `closeConsumer` | `{ roomId, peerId, consumerId }` | `void` | Точечное восстановление приёма (черный кадр). |
 | `pauseConsumer` | `{ roomId, peerId, consumerId, paused }` | `void` | Локальная защита downlink: пауза/резюм одного консьюмера. |
@@ -190,8 +190,8 @@ kebab-case) — при переносе клиента и сервера име�
 ```
 src/mediasoup-server.ts                 [ADAPT] точка входа (worker + io + beacon + graceful shutdown)
 src/lib/mediasoup/
-├── config.ts                           [REUSE] worker/router/webRtcServer/recording — уже есть
-├── worker-manager.ts                   [REUSE] пул воркеров — уже есть
+├── config.ts                           [ADAPT] worker/router/recording. Перевести на port-range (rtcMinPort/rtcMaxPort) + listenIps как в replixo — БЕЗ webRtcServer
+├── worker-manager.ts                   [ADAPT] пул воркеров. Убрать создание WebRtcServer — воркеру задаётся rtcMinPort/rtcMaxPort, транспорты берут порт из диапазона
 ├── recorder.ts                         [REUSE] FFmpeg-запись → Payload — уже есть
 ├── Room.ts                             [ADAPT] класс комнаты из replixo (адаптация транспортов)
 ├── Peer.ts                             [COPY]  класс пира из replixo
@@ -214,15 +214,17 @@ src/lib/mediasoup/
 `addConsumer`, `resetMedia()` (закрывает транспорты, чистит все Map), `close()`.
 
 ### 4.3 `Room.ts` **[ADAPT]** — ключевой файл
-Перенести весь класс replixo, но **адаптировать создание транспорта под telemed webRtcServer**:
+Перенести весь класс replixo. **Транспорт создаём как в replixo — через port-range, БЕЗ WebRtcServer:**
 
-- **Router codecs**: заменить replixo `mediaCodecs` на `routerOptions.mediaCodecs` из telemed
-  `config.ts` (там VP8+VP9+H264). `Room.create(id, worker)` → `worker.createRouter(routerOptions)`.
-  > Внимание: под simulcast/`setConsumerPreferredLayers` достаточно VP8. Оставляем набор telemed.
-- **`createWebRtcTransport(peerId, direction)`**: использовать telemed `webRtcServerOptions`
-  (единый порт `MEDIASOUP_WEBRTC_PORT=13478`) вместо replixo per-transport listenIps + диапазон
-  40000–49999. То есть `router.createWebRtcTransport({ webRtcServer, ...webRtcTransportOptions, appData:{direction} })`.
-  > worker-manager telemed создаёт `webRtcServer` на воркере — получить его оттуда.
+- **Router codecs**: перенести replixo `mediaCodecs` (Opus + VP8 + H264) в telemed `config.ts`.
+  `Room.create(id, worker)` → `worker.createRouter({ mediaCodecs })`.
+  > VP8 + H264 достаточно для видео/screenshare/simulcast. Держим набор replixo как источник истины.
+- **`createWebRtcTransport(peerId, direction)`**: 1:1 как в replixo —
+  `router.createWebRtcTransport({ ...webRtcTransportOptions, appData: { direction } })`, где
+  `webRtcTransportOptions = { listenIps: [{ ip: '0.0.0.0', announcedIp: ANNOUNCED_IP }], enableUdp: true, enableTcp: true, preferUdp: true, initialAvailableOutgoingBitrate: 6_000_000, minimumAvailableOutgoingBitrate: 300_000, maxSctpMessageSize: 262144 }`.
+  Порт транспорта воркер выбирает динамически из диапазона `rtcMinPort=40000 … rtcMaxPort=49999`.
+  > **НЕ использовать** `webRtcServer` / единый порт telemed. Воркер конфигурируется с `rtcMinPort`/`rtcMaxPort`
+  > (см. §11.2), весь диапазон 40000–49999 открывается в firewall (§13).
 - **Сохранить из replixo (важные детали, которых нет в telemed):**
   - замена «одного транспорта на direction» — старый recv/send закрывается при повторном создании;
   - `transport.setMaxIncomingBitrate(8_000_000)`, для recv `setMaxOutgoingBitrate(8_000_000)`;
@@ -533,7 +535,7 @@ src/app/api/recording-chunks/**                    (chunk-запись PeerJS)
 | Путь socket.io | — | `NEXT_PUBLIC_MEDIASOUP_PATH` | Уже есть. |
 | Announced IP | `ANNOUNCED_IP` | `MEDIASOUP_ANNOUNCED_IP` | Публичный IP/домен сервера. |
 | Listen IP | (0.0.0.0) | `MEDIASOUP_LISTEN_IP` | Уже есть. |
-| WebRTC порт | (40000–49999) | `MEDIASOUP_WEBRTC_PORT` (13478) | Единый порт (WebRtcServer). |
+| WebRTC порты | `rtcMinPort=40000`, `rtcMaxPort=49999` (диапазон) | `MEDIASOUP_RTC_MIN_PORT` (40000), `MEDIASOUP_RTC_MAX_PORT` (49999) | **Как в replixo: диапазон портов на воркере, без WebRtcServer.** Весь диапазон открыть в firewall. Удалить `MEDIASOUP_WEBRTC_PORT`. |
 | STUN | `STUN_URL` | **[NEW]** `MEDIASOUP_STUN_URL` (опц.) | По умолчанию Google STUN. |
 | TURN | `TURN_URL`,`TURN_USERNAME`,`TURN_CREDENTIAL` | **[NEW]** `MEDIASOUP_TURN_URL/USERNAME/CREDENTIAL` | **Критично для мобильных за CGNAT.** telemed сейчас использует Metered — можно оставить его. |
 | Секрет сервера | `INTERNAL_HOOK_SECRET` | `MEDIASOUP_SERVER_SECRET` | Для finalize-записи и verify-participant. |
@@ -560,8 +562,9 @@ src/app/api/recording-chunks/**                    (chunk-запись PeerJS)
   }
   ```
 - Чат-сокет (`SOCKET_PORT`) — уже настроен.
-- **WebRTC-порт `MEDIASOUP_WEBRTC_PORT` (13478/udp + /tcp)** проксировать нельзя — открыть в firewall
-  напрямую: `sudo ufw allow 13478/udp && sudo ufw allow 13478/tcp`.
+- **WebRTC-диапазон портов `40000–49999` (udp + tcp)** проксировать нельзя — открыть в firewall
+  напрямую весь диапазон: `sudo ufw allow 40000:49999/udp && sudo ufw allow 40000:49999/tcp`.
+  Так же как в replixo. `announcedIp` должен указывать на публичный IP/домен сервера (`ANNOUNCED_IP`/`MEDIASOUP_ANNOUNCED_IP`).
 - beacon `POST /rooms/:id/leave` должен доходить до mediasoup (через тот же `/mediasoup/` location).
 
 ---
@@ -591,7 +594,7 @@ TURN. После изменения схемы: `pnpm generate:types`; посл�
    НЕ «исчезает» у второго (grace-окно 45s).
 4. **Закрытие вкладки**: закрыть вкладку → второй видит выход через ~6–10с (beacon/clean-close),
    а не через минуту.
-5. **Дубликат вкладки**: открыть комнату во второй вкладке того же профиля → старая получает `kicked`.
+5. **Дубликат вкладки**: ��ткрыть комнату во второй вкладке того же профиля → старая получает `kicked`.
 6. **Слабая сеть** (throttle): видео деградирует (слой↓) → при ухудшении пропадает, голос жив;
    при восстановлении видео возвращается (не «мигает»); баннер NetworkBanner показывается.
 7. **Запись**: врач жмёт «Запись» → `start-recording` → говорят 20с → «Стоп» → `finalize-server` →
@@ -619,8 +622,10 @@ TURN. После изменения схемы: `pnpm generate:types`; посл�
 1. **Ветка** от `main`, добавить env-переменные TURN/STUN/секрет.
 2. **Сервер — ядро**: перенести `helpers.ts`, `Peer.ts`, `room-registry.ts`, `lifecycle-handlers.ts`
    в `src/lib/mediasoup/signaling/`.
-3. **Сервер — Room**: перенести `Room.ts`, адаптировать транспорты под `webRtcServerOptions` telemed
-   + перенести блок `iceServers`/TURN в `config.ts`. Убрать whiteboard/presentation.
+3. **Сервер — Room + config**: перенести `Room.ts` с транспортами через port-range (как в replixo,
+   БЕЗ WebRtcServer); перенести в `config.ts` блоки `workerSettings` (rtcMinPort/rtcMaxPort),
+   `listenIps`, `webRtcTransportOptions`, `mediaCodecs`, `iceServers`/TURN. Переделать `worker-manager.ts`:
+   убрать `createWebRtcServer`, воркер создаётся c `rtcMinPort`/`rtcMaxPort`. Убрать whiteboard/presentation.
 4. **Сервер — media-handlers**: перенести, урезать ack `joinRoom`, добавить `role` и хуки записи.
 5. **Сервер — вход**: переписать `src/mediasoup-server.ts` (io + хендлеры + beacon + shutdown),
    `room-code.ts` под `appointment_<id>`, добавить проверку доступа (§4.10).
@@ -648,13 +653,13 @@ TURN. После изменения схемы: `pnpm generate:types`; посл�
 |---------|---|---------|
 | `server/src/helpers.ts` (socket/) | → | `src/lib/mediasoup/signaling/helpers.ts` |
 | `server/src/Peer.ts` | → | `src/lib/mediasoup/Peer.ts` |
-| `server/src/Room.ts` | → | `src/lib/mediasoup/Room.ts` (адаптация webRtcServer) |
+| `server/src/Room.ts` | → | `src/lib/mediasoup/Room.ts` (транспорты через port-range, без WebRtcServer) |
 | `server/src/socket/room-registry.ts` | → | `src/lib/mediasoup/signaling/room-registry.ts` |
 | `server/src/socket/media-handlers.ts` | → | `src/lib/mediasoup/signaling/media-handlers.ts` (+запись) |
 | `server/src/socket/lifecycle-handlers.ts` | → | `src/lib/mediasoup/signaling/lifecycle-handlers.ts` |
 | `server/src/socket.ts` + `index.ts` (частично) | → | `src/mediasoup-server.ts` |
 | `server/src/room-code.ts` | → | `src/lib/mediasoup/room-code.ts` (appointment_<id>) |
-| `server/src/config.ts` (ICE/TURN блок) | → | `src/lib/mediasoup/config.ts` (дополнить iceServers) |
+| `server/src/config.ts` (полностью: workerSettings port-range, listenIps, webRtcTransportOptions, mediaCodecs, iceServers/TURN) | → | `src/lib/mediasoup/config.ts` (заменить webRtcServer-режим на port-range replixo) |
 | `hooks/use-mediasoup.ts` | → | `src/hooks/use-mediasoup.ts` |
 | `hooks/mediasoup/*` | → | `src/hooks/mediasoup/*` |
 | `lib/mic-gate.ts` (+audio-unlock, media-constraints) | → | `src/lib/mediasoup-client/*` |
