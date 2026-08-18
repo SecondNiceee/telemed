@@ -11,7 +11,12 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
   return async (authSocket: AuthenticatedSocket, data: SendMessagePayload) => {
 
       // Самое главное - rate limiting!
-      if (isRateLimited(authSocket.id)) {
+      // Ключ по личности отправителя, а не по socket.id: несколько вкладок
+      // у одного пользователя не должны суммарно обходить лимит.
+      const rateLimitKey = authSocket.data.senderType && authSocket.data.senderId
+        ? `${authSocket.data.senderType}:${authSocket.data.senderId}`
+        : `socket:${authSocket.id}`
+      if (isRateLimited(rateLimitKey)) {
         authSocket.emit('error', { message: 'Слишком много запросов' })
         return
       }
@@ -63,6 +68,14 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       // Доступ
       let senderType = accessResult.accessType!
       let senderId = accessResult.accessId!
+
+      // Серверная защита блокировки чата: если врач заблокировал чат, пациент
+      // не может отправлять сообщения даже напрямую через сокет (в обход UI).
+      // Врач при этом писать может всегда.
+      if (senderType === 'user' && accessResult.appointment?.chatBlocked === true) {
+        authSocket.emit('error', { message: 'Чат заблокирован врачом' })
+        return
+      }
 
       // Ставим senderType
       if (preferredSenderType && accessResult.appointment) {
