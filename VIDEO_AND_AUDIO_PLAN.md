@@ -253,7 +253,7 @@ src/lib/mediasoup/
 Обязательно сохранить (это и есть «устойчивость» replixo):
 - `rooms: Map`, `peerSockets: Map` (ключ `roomId\0peerId`), `peerClients: Map` (nonce страницы);
 - **grace-окна**: `DISCONNECT_GRACE_MS = 45000` (обрыв сети/блокировка телефона),
-  `CLOSE_GRACE_MS = 6000` (beacon «закрываю вкладку»), `CLEAN_CLOSE_GRACE_MS = 10000`
+  `CLOSE_GRACE_MS = 6000` (beacon «закрываю вкла��ку»), `CLEAN_CLOSE_GRACE_MS = 10000`
   (чистый close без beacon);
 - `markClosing/isClosing`, `scheduleEviction`, `clearPendingDisconnect`, `deletePendingDisconnect`;
 - `evictPeer(io, roomId, peerId, expectedSocketId?)` — идемпотентно, шлёт `peerLeft`,
@@ -618,6 +618,8 @@ TURN. После изменения схемы: `pnpm generate:types`; посл�
 ---
 
 ## 15. Пошаговый чек-лист миграции (порядок работ)
+
+> Статус 2026-08-18: серверное ядро (шаги 2–6) реализовано. Добавлены port-range `40000–49999`, `Peer`/registry lifecycle, защищённый camelCase-сигналинг, room JWT endpoint, leave beacon, graceful shutdown и тесты JWT. Клиент пока использует legacy-события; его перевод начинается с шага 7.
 
 1. **Ветка** от `main`, добавить env-переменные TURN/STUN/секрет.
 2. **Сервер — ядро**: перенести `helpers.ts`, `Peer.ts`, `room-registry.ts`, `lifecycle-handlers.ts`

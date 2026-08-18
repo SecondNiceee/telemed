@@ -19,6 +19,8 @@ import { workerManager } from './lib/mediasoup/worker-manager'
 import { roomManager } from './lib/mediasoup/room'
 import { serverConfig } from './lib/mediasoup/config'
 import { recorder } from './lib/mediasoup/recorder'
+import { registerMediaSignaling } from './lib/mediasoup/handlers/signaling'
+import { verifyRoomToken } from './lib/mediasoup/room-token'
 
 // Socket data interface
 interface SocketData {
@@ -37,17 +39,48 @@ interface AuthenticatedSocket extends Socket {
 async function main() {
   console.log('[MediaSoup] Starting server...')
 
+  if (!process.env.MEDIASOUP_SERVER_SECRET || process.env.MEDIASOUP_SERVER_SECRET.length < 32) {
+    throw new Error('MEDIASOUP_SERVER_SECRET must be configured with at least 32 characters')
+  }
+  
   // Initialize MediaSoup workers
   await workerManager.initialize()
 
   // Create HTTP server
   const httpServer = createServer((req, res) => {
-    // Health check endpoint
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ status: 'ok', type: 'mediasoup' }))
       return
     }
+
+    const leaveMatch = req.method === 'POST' ? req.url?.match(/^\/rooms\/(appointment_\d+)\/leave$/) : null
+    if (leaveMatch) {
+      let rawBody = ''
+      req.setEncoding('utf8')
+      req.on('data', (chunk: string) => {
+        rawBody += chunk
+        if (rawBody.length > 16_384) req.destroy()
+      })
+      req.on('end', () => {
+        try {
+          const body = JSON.parse(rawBody) as { token?: string; peerId?: string }
+          if (!body.token || !body.peerId) throw new Error('token and peerId are required')
+          const roomId = leaveMatch[1]
+          const claims = verifyRoomToken(body.token, { roomId, peerId: body.peerId })
+          const room = roomManager.getRoom(roomId)
+          const removed = room ? roomManager.removePeer(room, claims.peerId) : false
+          if (removed) io.to(roomId).emit('peerLeft', { peerId: claims.peerId })
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true }))
+        } catch (error) {
+          res.writeHead(401, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unauthorized' }))
+        }
+      })
+      return
+    }
+
     res.writeHead(404)
     res.end()
   })
@@ -64,6 +97,7 @@ async function main() {
   // Socket connection handler
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket
+    registerMediaSignaling(io, socket as Parameters<typeof registerMediaSignaling>[1])
     console.log(`[MediaSoup] Client connected: ${socket.id}`)
 
     // ==========================================
@@ -74,17 +108,20 @@ async function main() {
      * Join a room (appointment)
      */
     socket.on('join-room', async (data: {
+      token: string
       roomId: string
       peerId: string
-      peerName: string
-      role: 'doctor' | 'patient'
+      peerName?: string
+      role?: 'doctor' | 'patient'
     }, callback: (response: { 
       success: boolean
       routerRtpCapabilities?: RtpCapabilities
       error?: string 
     }) => void) => {
       try {
-        const { roomId, peerId, peerName, role } = data
+        const { roomId, peerId } = data
+        const claims = verifyRoomToken(data.token, { roomId, peerId })
+        const { peerName, role } = claims
         console.log(`[MediaSoup] Peer ${peerId} (${role}) joining room ${roomId}`)
 
         // Store peer info in socket
@@ -570,7 +607,7 @@ async function main() {
         const appointmentId = session.appointmentId
         if (appointmentId) {
           const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
-          const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+          const serverSecret = process.env.MEDIASOUP_SERVER_SECRET
           
           const durationSeconds = session.startedAt 
             ? Math.round((Date.now() - session.startedAt.getTime()) / 1000)
@@ -733,7 +770,7 @@ async function main() {
                   
                   if (!isNaN(appointmentId)) {
                     const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
-                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET
                     
                     console.log(`[MediaSoup] Finalizing recording for appointment ${appointmentId}...`)
                     
@@ -785,7 +822,7 @@ async function main() {
                   
                   if (!isNaN(appointmentId)) {
                     const nextJsUrl = process.env.NEXTJS_URL || 'http://localhost:3000'
-                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+                    const serverSecret = process.env.MEDIASOUP_SERVER_SECRET
                     
                     const durationSeconds = session.startedAt 
                       ? Math.round((Date.now() - session.startedAt.getTime()) / 1000)

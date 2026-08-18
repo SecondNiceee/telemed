@@ -1,223 +1,92 @@
-/**
- * MediaSoup Room Manager
- * 
- * Manages rooms (video call sessions) and participants (peers).
- * Each room has its own Router for media routing.
- * 
- * SINGLE PORT MODE:
- * All transports are created via WebRtcServer, sharing a single port (40000).
- * No need to open thousands of UDP ports!
- */
-
-import type { 
-  Router, 
-  Producer, 
-  Consumer, 
-  Transport,
-  WebRtcTransport,
+import type {
+  MediaKind,
   PlainTransport,
+  Producer,
+  Router,
   RtpCapabilities,
   RtpParameters,
-  MediaKind,
-  WebRtcServer,
+  WebRtcTransport,
 } from 'mediasoup/types'
+import { plainTransportOptions, routerOptions, webRtcTransportOptions } from './config'
+import { Peer, type PeerRole } from './peer'
 import { workerManager } from './worker-manager'
-import { routerOptions, webRtcTransportOptions, plainTransportOptions } from './config'
 
-/**
- * Peer represents a participant in a room
- */
-export interface Peer {
-  id: string
-  name: string
-  role: 'doctor' | 'patient'
-  transports: Map<string, Transport>
-  producers: Map<string, Producer>
-  consumers: Map<string, Consumer>
-  rtpCapabilities?: RtpCapabilities
-}
-
-/**
- * Room represents a video call session (appointment)
- */
 export interface Room {
-  id: string // appointmentId
+  id: string
   router: Router
-  webRtcServer?: WebRtcServer // Shared WebRtcServer for single-port mode
-  workerIndex: number // Which worker this room is assigned to
   peers: Map<string, Peer>
   createdAt: Date
-  // For server-side recording
   recordingTransport?: PlainTransport
   recordingProducers?: Map<string, Producer>
 }
 
-class RoomManager {
-  private rooms: Map<string, Room> = new Map()
+export class RoomManager {
+  private readonly rooms = new Map<string, Room>()
+  private readonly pendingRooms = new Map<string, Promise<Room>>()
 
-  /**
-   * Create a new room for an appointment
-   * 
-   * Uses WebRtcServer for single-port mode (all transports share port 40000)
-   */
-  async createRoom(appointmentId: string): Promise<Room> {
-    // Check if room already exists
-    const existingRoom = this.rooms.get(appointmentId)
-    if (existingRoom) {
-      console.log(`[Room] Room ${appointmentId} already exists`)
-      return existingRoom
+  async createRoom(roomId: string): Promise<Room> {
+    const existing = this.rooms.get(roomId)
+    if (existing) return existing
+
+    const pending = this.pendingRooms.get(roomId)
+    if (pending) return pending
+
+    const creation = (async () => {
+      const router = await workerManager.getNextWorker().createRouter(routerOptions)
+      const room: Room = { id: roomId, router, peers: new Map(), createdAt: new Date() }
+      this.rooms.set(roomId, room)
+      console.log(`[Room] Created room ${roomId}`)
+      return room
+    })()
+
+    this.pendingRooms.set(roomId, creation)
+    try {
+      return await creation
+    } finally {
+      this.pendingRooms.delete(roomId)
     }
-
-    // Get worker WITH its WebRtcServer to ensure they match!
-    // This is critical - Router and WebRtcServer MUST be from the same worker
-    const { worker, webRtcServer, workerIndex } = workerManager.getNextWorkerWithServer()
-    const router = await worker.createRouter(routerOptions)
-    
-    const room: Room = {
-      id: appointmentId,
-      router,
-      webRtcServer,
-      workerIndex,
-      peers: new Map(),
-      createdAt: new Date(),
-    }
-
-    this.rooms.set(appointmentId, room)
-    
-    if (room.webRtcServer) {
-      console.log(`[Room] Created room ${appointmentId} on worker ${workerIndex} (single-port mode via WebRtcServer)`)
-    } else {
-      console.log(`[Room] Created room ${appointmentId} on worker ${workerIndex} (fallback: individual ports)`)
-    }
-
-    return room
   }
 
-  /**
-   * Get an existing room
-   */
-  getRoom(appointmentId: string): Room | undefined {
-    return this.rooms.get(appointmentId)
+  getRoom(roomId: string): Room | undefined {
+    return this.rooms.get(roomId)
   }
 
-  /**
-   * Get or create a room
-   */
-  async getOrCreateRoom(appointmentId: string): Promise<Room> {
-    const room = this.getRoom(appointmentId)
-    if (room) return room
-    return this.createRoom(appointmentId)
+  async getOrCreateRoom(roomId: string): Promise<Room> {
+    return this.rooms.get(roomId) ?? this.createRoom(roomId)
   }
 
-  /**
-   * Add a peer to a room
-   */
-  async addPeer(
-    room: Room, 
-    peerId: string, 
-    peerName: string, 
-    role: 'doctor' | 'patient'
-  ): Promise<Peer> {
-    // Check if peer already exists
-    const existingPeer = room.peers.get(peerId)
-    if (existingPeer) {
-      console.log(`[Room] Peer ${peerId} already in room ${room.id}`)
-      return existingPeer
-    }
+  async addPeer(room: Room, peerId: string, peerName: string, role: PeerRole): Promise<Peer> {
+    const existing = room.peers.get(peerId)
+    if (existing) return existing
 
-    const peer: Peer = {
-      id: peerId,
-      name: peerName,
-      role,
-      transports: new Map(),
-      producers: new Map(),
-      consumers: new Map(),
-    }
-
+    const peer = new Peer(peerId, peerName, role)
     room.peers.set(peerId, peer)
-    console.log(`[Room] Peer ${peerId} (${role}) joined room ${room.id}`)
-
     return peer
   }
 
-  /**
-   * Remove a peer from a room
-   */
-  removePeer(room: Room, peerId: string): void {
+  removePeer(room: Room, peerId: string): boolean {
     const peer = room.peers.get(peerId)
-    if (!peer) return
+    if (!peer) return false
 
-    // Close all transports (this also closes producers and consumers)
-    for (const transport of peer.transports.values()) {
-      transport.close()
-    }
-
+    peer.close()
     room.peers.delete(peerId)
-    console.log(`[Room] Peer ${peerId} left room ${room.id}`)
-
-    // If room is empty, close it after a delay
-    if (room.peers.size === 0) {
-      setTimeout(() => {
-        const currentRoom = this.rooms.get(room.id)
-        if (currentRoom && currentRoom.peers.size === 0) {
-          this.closeRoom(room.id)
-        }
-      }, 30000) // 30 seconds delay before closing empty room
-    }
+    if (room.peers.size === 0) this.closeRoom(room.id)
+    return true
   }
 
-  /**
-   * Create a WebRTC transport for a peer
-   * 
-   * SINGLE PORT MODE: Uses WebRtcServer so all transports share one port (40000)
-   * FALLBACK MODE: Uses individual ports from rtcMinPort-rtcMaxPort range
-   */
-  async createWebRtcTransport(
-    room: Room, 
-    peerId: string, 
-    direction: 'send' | 'recv'
-  ): Promise<{
-    id: string
-    iceParameters: WebRtcTransport['iceParameters']
-    iceCandidates: WebRtcTransport['iceCandidates']
-    dtlsParameters: WebRtcTransport['dtlsParameters']
-    sctpParameters?: WebRtcTransport['sctpParameters']
-  }> {
-    const peer = room.peers.get(peerId)
-    if (!peer) {
-      throw new Error(`Peer ${peerId} not found in room ${room.id}`)
+  async createWebRtcTransport(room: Room, peerId: string, direction: 'send' | 'recv') {
+    const peer = this.requirePeer(room, peerId)
+    const transport = await room.router.createWebRtcTransport(webRtcTransportOptions)
+    peer.addTransport(transport, direction)
+
+    const remove = () => {
+      peer.transports.delete(transport.id)
+      peer.transportDirections.delete(transport.id)
     }
-
-    let transport: WebRtcTransport
-
-    // Use WebRtcServer for single-port mode (preferred)
-    if (room.webRtcServer) {
-      const { listenInfos: _, listenIps: __, port: ___, ...optionsWithoutListen } = webRtcTransportOptions
-      transport = await room.router.createWebRtcTransport({
-        ...optionsWithoutListen,
-        webRtcServer: room.webRtcServer,
-      })
-      console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId} (single-port mode)`)
-    } else {
-      // Fallback: individual ports
-      transport = await room.router.createWebRtcTransport(webRtcTransportOptions)
-      console.log(`[Room] Created ${direction} transport ${transport.id} for peer ${peerId} (fallback mode)`)
-    }
-
-    // Store transport with direction suffix
-    const transportKey = `${transport.id}-${direction}`
-    peer.transports.set(transportKey, transport)
-
-    transport.on('dtlsstatechange', (dtlsState) => {
-      if (dtlsState === 'closed') {
-        transport.close()
-        peer.transports.delete(transportKey)
-      }
+    transport.on('dtlsstatechange', (state) => {
+      if (state === 'closed' || state === 'failed') transport.close()
     })
-
-    transport.on('@close', () => {
-      peer.transports.delete(transportKey)
-    })
+    transport.on('@close', remove)
 
     return {
       id: transport.id,
@@ -228,240 +97,119 @@ class RoomManager {
     }
   }
 
-  /**
-   * Connect a transport (complete DTLS handshake)
-   */
-  async connectTransport(
-    room: Room,
-    peerId: string,
-    transportId: string,
-    dtlsParameters: WebRtcTransport['dtlsParameters']
-  ): Promise<void> {
-    const peer = room.peers.get(peerId)
-    if (!peer) {
-      throw new Error(`Peer ${peerId} not found`)
-    }
-
-    // Find transport by ID (ignoring direction suffix)
-    let transport: Transport | undefined
-    for (const [key, t] of peer.transports) {
-      if (key.startsWith(transportId)) {
-        transport = t
-        break
-      }
-    }
-
-    if (!transport) {
-      throw new Error(`Transport ${transportId} not found`)
-    }
-
-    await (transport as WebRtcTransport).connect({ dtlsParameters })
-    console.log(`[Room] Connected transport ${transportId} for peer ${peerId}`)
+  async connectTransport(room: Room, peerId: string, transportId: string, dtlsParameters: WebRtcTransport['dtlsParameters']): Promise<void> {
+    const transport = this.requireTransport(room, peerId, transportId)
+    await transport.connect({ dtlsParameters })
   }
 
-  /**
-   * Create a producer (client starts sending media)
-   */
   async createProducer(
     room: Room,
     peerId: string,
     transportId: string,
     kind: MediaKind,
     rtpParameters: RtpParameters,
-    appData?: Record<string, unknown>
+    appData?: Record<string, unknown>,
   ): Promise<{ id: string }> {
-    const peer = room.peers.get(peerId)
-    if (!peer) {
-      throw new Error(`Peer ${peerId} not found`)
-    }
-
-    // Find send transport
-    let transport: Transport | undefined
-    for (const [key, t] of peer.transports) {
-      if (key.startsWith(transportId)) {
-        transport = t
-        break
-      }
-    }
-
-    if (!transport) {
-      throw new Error(`Transport ${transportId} not found`)
-    }
-
-    const producer = await (transport as WebRtcTransport).produce({
+    const peer = this.requirePeer(room, peerId)
+    const transport = this.requireTransport(room, peerId, transportId, 'send')
+    const producer = await transport.produce({
       kind,
       rtpParameters,
       appData: { ...appData, peerId, peerName: peer.name },
     })
-
     peer.producers.set(producer.id, producer)
-
-    producer.on('transportclose', () => {
-      peer.producers.delete(producer.id)
-    })
-
-    console.log(`[Room] Created ${kind} producer ${producer.id} for peer ${peerId}`)
-
-    // Notify other peers to consume this producer
-    this.notifyNewProducer(room, peerId, producer)
-
+    producer.on('transportclose', () => peer.producers.delete(producer.id))
     return { id: producer.id }
   }
 
-  /**
-   * Notify other peers about a new producer
-   */
-  private notifyNewProducer(room: Room, producerPeerId: string, producer: Producer): void {
-    // This will be handled by socket events - just log for now
-    console.log(`[Room] New producer ${producer.id} (${producer.kind}) from peer ${producerPeerId} in room ${room.id}`)
+  getProducers(room: Room, excludingPeerId?: string): Array<{ producerId: string; producerPeerId: string; kind: MediaKind }> {
+    const producers: Array<{ producerId: string; producerPeerId: string; kind: MediaKind }> = []
+    for (const [peerId, peer] of room.peers) {
+      if (peerId === excludingPeerId) continue
+      for (const producer of peer.producers.values()) {
+        producers.push({ producerId: producer.id, producerPeerId: peerId, kind: producer.kind })
+      }
+    }
+    return producers
   }
 
-  /**
-   * Create a consumer (client starts receiving media from another peer)
-   */
   async createConsumer(
     room: Room,
     consumerPeerId: string,
     producerPeerId: string,
     producerId: string,
-    rtpCapabilities: RtpCapabilities
-  ): Promise<{
-    id: string
-    producerId: string
-    kind: MediaKind
-    rtpParameters: RtpParameters
-    producerPaused: boolean
-  } | null> {
-    const consumerPeer = room.peers.get(consumerPeerId)
-    const producerPeer = room.peers.get(producerPeerId)
-
-    if (!consumerPeer || !producerPeer) {
-      throw new Error('Peer not found')
-    }
-
+    rtpCapabilities: RtpCapabilities,
+  ) {
+    const consumerPeer = this.requirePeer(room, consumerPeerId)
+    const producerPeer = this.requirePeer(room, producerPeerId)
     const producer = producerPeer.producers.get(producerId)
-    if (!producer) {
-      throw new Error(`Producer ${producerId} not found`)
-    }
+    if (!producer) throw new Error(`Producer ${producerId} not found`)
+    if (!room.router.canConsume({ producerId, rtpCapabilities })) return null
 
-    // Check if the consumer can consume this producer
-    if (!room.router.canConsume({ producerId: producer.id, rtpCapabilities })) {
-      console.warn(`[Room] Peer ${consumerPeerId} cannot consume producer ${producerId}`)
-      return null
-    }
+    const recvTransportEntry = [...consumerPeer.transportDirections.entries()].find(([, direction]) => direction === 'recv')
+    const recvTransport = recvTransportEntry ? consumerPeer.getTransport(recvTransportEntry[0], 'recv') : undefined
+    if (!recvTransport) throw new Error('Receive transport not found')
 
-    // Find receive transport
-    let recvTransport: WebRtcTransport | undefined
-    for (const [key, t] of consumerPeer.transports) {
-      if (key.includes('recv')) {
-        recvTransport = t as WebRtcTransport
-        break
-      }
-    }
-
-    if (!recvTransport) {
-      throw new Error('Receive transport not found')
-    }
-
-    const consumer = await recvTransport.consume({
-      producerId: producer.id,
-      rtpCapabilities,
-      paused: true, // Start paused, client will resume
-    })
-
+    const consumer = await recvTransport.consume({ producerId, rtpCapabilities, paused: true })
     consumerPeer.consumers.set(consumer.id, consumer)
-
-    consumer.on('transportclose', () => {
-      consumerPeer.consumers.delete(consumer.id)
-    })
-
-    consumer.on('producerclose', () => {
-      consumerPeer.consumers.delete(consumer.id)
-    })
-
-    console.log(`[Room] Created consumer ${consumer.id} for peer ${consumerPeerId} consuming ${producer.kind} from ${producerPeerId}`)
+    const remove = () => consumerPeer.consumers.delete(consumer.id)
+    consumer.on('transportclose', remove)
+    consumer.on('producerclose', remove)
 
     return {
       id: consumer.id,
-      producerId: producer.id,
+      producerId,
       kind: consumer.kind,
       rtpParameters: consumer.rtpParameters,
       producerPaused: consumer.producerPaused,
     }
   }
 
-  /**
-   * Resume a consumer
-   */
   async resumeConsumer(room: Room, peerId: string, consumerId: string): Promise<void> {
-    const peer = room.peers.get(peerId)
-    if (!peer) {
-      throw new Error(`Peer ${peerId} not found`)
-    }
-
-    const consumer = peer.consumers.get(consumerId)
-    if (!consumer) {
-      throw new Error(`Consumer ${consumerId} not found`)
-    }
-
+    const consumer = this.requirePeer(room, peerId).consumers.get(consumerId)
+    if (!consumer) throw new Error(`Consumer ${consumerId} not found`)
     await consumer.resume()
-    console.log(`[Room] Resumed consumer ${consumerId} for peer ${peerId}`)
   }
 
-  /**
-   * Close a room
-   */
-  closeRoom(appointmentId: string): void {
-    const room = this.rooms.get(appointmentId)
+  async setProducerPaused(room: Room, peerId: string, producerId: string, paused: boolean): Promise<void> {
+    const producer = this.requireOwnedProducer(room, peerId, producerId)
+    if (paused) await producer.pause()
+    else await producer.resume()
+  }
+
+  closeProducer(room: Room, peerId: string, producerId: string): void {
+    const producer = this.requireOwnedProducer(room, peerId, producerId)
+    producer.close()
+    this.requirePeer(room, peerId).producers.delete(producerId)
+  }
+
+  closeRoom(roomId: string): void {
+    const room = this.rooms.get(roomId)
     if (!room) return
-
-    // Close all peer transports
-    for (const peer of room.peers.values()) {
-      for (const transport of peer.transports.values()) {
-        transport.close()
-      }
-    }
-
-    // Close router
-    room.router.close()
-
-    this.rooms.delete(appointmentId)
-    console.log(`[Room] Closed room ${appointmentId}`)
+    for (const peer of room.peers.values()) peer.close()
+    room.peers.clear()
+    if (!room.router.closed) room.router.close()
+    this.rooms.delete(roomId)
   }
 
-  /**
-   * Get router RTP capabilities for a room
-   */
+  closeAllRooms(): void {
+    for (const roomId of [...this.rooms.keys()]) this.closeRoom(roomId)
+  }
+
   getRouterRtpCapabilities(room: Room): RtpCapabilities {
     return room.router.rtpCapabilities
   }
 
-  /**
-   * Get all rooms
-   */
   getAllRooms(): Map<string, Room> {
     return this.rooms
   }
 
-  /**
-   * Get room statistics
-   */
-  getRoomStats(appointmentId: string): {
-    peersCount: number
-    peers: Array<{
-      id: string
-      name: string
-      role: string
-      producersCount: number
-      consumersCount: number
-    }>
-  } | null {
-    const room = this.rooms.get(appointmentId)
+  getRoomStats(roomId: string) {
+    const room = this.rooms.get(roomId)
     if (!room) return null
-
     return {
       peersCount: room.peers.size,
-      peers: Array.from(room.peers.values()).map((peer) => ({
+      peers: [...room.peers.values()].map((peer) => ({
         id: peer.id,
         name: peer.name,
         role: peer.role,
@@ -470,7 +218,25 @@ class RoomManager {
       })),
     }
   }
+
+  private requirePeer(room: Room, peerId: string): Peer {
+    const peer = room.peers.get(peerId)
+    if (!peer || peer.isClosed) throw new Error(`Peer ${peerId} not found in room ${room.id}`)
+    return peer
+  }
+
+  private requireTransport(room: Room, peerId: string, transportId: string, direction?: 'send' | 'recv'): WebRtcTransport {
+    const transport = this.requirePeer(room, peerId).getTransport(transportId, direction)
+    if (!transport) throw new Error(`Transport ${transportId} not found`)
+    return transport as WebRtcTransport
+  }
+
+  private requireOwnedProducer(room: Room, peerId: string, producerId: string): Producer {
+    const producer = this.requirePeer(room, peerId).producers.get(producerId)
+    if (!producer) throw new Error(`Producer ${producerId} is not owned by peer ${peerId}`)
+    return producer
+  }
 }
 
-// Singleton instance
+export { plainTransportOptions }
 export const roomManager = new RoomManager()

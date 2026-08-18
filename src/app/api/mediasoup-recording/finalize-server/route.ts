@@ -8,7 +8,7 @@ import path from 'path'
 const RECORDINGS_DIR = process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings'
 
 // Shared secret for server-to-server calls
-const SERVER_SECRET = process.env.MEDIASOUP_SERVER_SECRET || 'mediasoup-internal-secret'
+const SERVER_SECRET = process.env.MEDIASOUP_SERVER_SECRET
 
 /**
  * POST /api/mediasoup-recording/finalize-server
@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[MediaSoupRecording/FinalizeServer] Request data:', { appointmentId, sessionId, durationSeconds, recordingType })
 
-    // Verify server secret
+    // Verify server secret. Never accept an absent secret on both sides.
+    if (!SERVER_SECRET || SERVER_SECRET.length < 32) {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     if (serverSecret !== SERVER_SECRET) {
       console.log('[MediaSoupRecording/FinalizeServer] Invalid server secret')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
