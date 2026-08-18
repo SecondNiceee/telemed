@@ -104,7 +104,9 @@ export const Users: CollectionConfig = {
       type: 'text',
       label: 'Телефон',
       required: true,
-      index: true,
+      // unique создаёт уникальный индекс в БД — гарантия на уровне хранилища,
+      // что один номер не будет привязан к двум аккаунтам (index при unique избыточен).
+      unique: true,
       saveToJWT: true,
       admin: {
         description: 'Формат: +7XXXXXXXXXX',

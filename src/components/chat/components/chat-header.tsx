@@ -54,10 +54,7 @@ export function ChatHeader({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal" />
-            </span>
+            <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-teal" />
             <span className="text-base font-semibold text-foreground">
               Консультация начнется через{' '}
               <span className="font-bold font-mono tabular-nums">{formatCountdown(countdownParts)}</span>
@@ -201,7 +198,6 @@ export function ChatHeader({
             onClick={onStartConsultation}
             disabled={!isConnected}
           >
-            <Video className="w-4 h-4" />
             <span className="hidden sm:inline">Начать консультацию</span>
           </Button>
         )}
