@@ -363,8 +363,88 @@ export async function releaseExpiredHolds({
   return sweep
 }
 
+/** Подсчитать суммарное число слотов в расписании (для дешёвого сравнения «изменилось/нет»). */
+function countSlots(schedule: DoctorScheduleDate[]): number {
+  return schedule.reduce((total, day) => total + (day.slots?.length ?? 0), 0)
+}
+
+/**
+ * Максимум врачей, чьё расписание чистим за один проход.
+ *
+ * Прошедшие свободные слоты не требуют срочной уборки (они везде отфильтрованы
+ * при чтении через filterFutureSchedule), поэтому разбираем их спокойными
+ * пачками, не нагружая БД разом.
+ */
+const PRUNE_MAX_BATCH = 200
+
+/**
+ * Физически удалить из расписания врачей прошедшие свободные слоты.
+ *
+ * Зачем это нужно, хотя слоты и так скрыты фильтром при чтении: без уборки JSON
+ * `doctors.schedule` бесконечно копит «мёртвые» прошедшие слоты, по которым уже
+ * никто не запишется. На appointments это НЕ влияет — занятый слот удаляется из
+ * schedule ещё в момент записи, так что здесь остаются только незанятые времена.
+ *
+ * Идёт пачками: за проход берём до PRUNE_MAX_BATCH врачей, у которых вообще есть
+ * расписание, и переписываем строку только если что-то реально изменилось.
+ *
+ * @returns количество врачей, чьё расписание было почищено
+ */
+async function pruneDoctorsPastSlots(): Promise<number> {
+  const payload = await getPayloadInstance()
+
+  const doctors = await payload.find({
+    collection: 'doctors',
+    where: {
+      // Есть хотя бы один день в расписании — иначе чистить нечего.
+      'schedule.date': { exists: true },
+    },
+    pagination: false,
+    limit: PRUNE_MAX_BATCH,
+    select: { schedule: true },
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  const now = new Date()
+  let pruned = 0
+
+  for (const doctor of doctors.docs) {
+    const schedule = (doctor.schedule || []) as DoctorScheduleDate[]
+    const filtered = filterFutureSchedule(schedule, now)
+
+    // Ничего не удалилось — не трогаем строку (меньше записей = меньше нагрузки).
+    if (countSlots(filtered) === countSlots(schedule) && filtered.length === schedule.length) {
+      continue
+    }
+
+    try {
+      await payload.update({
+        collection: 'doctors',
+        id: doctor.id,
+        data: { schedule: filtered },
+        depth: 0,
+        overrideAccess: true,
+      })
+      pruned += 1
+    } catch (err) {
+      console.error('Failed to prune past slots for doctor', doctor.id, err)
+    }
+  }
+
+  return pruned
+}
+
 /** Как часто фоновый sweeper проверяет просроченные брони. */
 const BACKGROUND_SWEEP_INTERVAL_MS = 60_000
+
+/**
+ * Как часто чистим прошедшие свободные слоты.
+ *
+ * Реже, чем разбор броней: срочности нет (слоты и так скрыты при чтении),
+ * а проход идёт по всем врачам, а не по индексу просроченных броней.
+ */
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000
 
 /** Максимум проходов за один тик — чтобы дренаж очереди не крутился бесконечно. */
 const BACKGROUND_SWEEP_MAX_PASSES = 5
@@ -410,6 +490,7 @@ async function backgroundSweepTick(): Promise<number> {
  */
 export function startExpiredHoldsSweeper(): () => void {
   let running = false
+  let lastPruneAt = 0
 
   const tick = async () => {
     // Предыдущий тик ещё идёт (после простоя проход может быть долгим) — пропускаем.
@@ -420,6 +501,15 @@ export function startExpiredHoldsSweeper(): () => void {
       const released = await backgroundSweepTick()
       if (released > 0) {
         console.log(`[v0][holds-sweeper] released ${released} expired hold(s)`)
+      }
+
+      // Уборка прошедших свободных слотов — раз в час, не на каждом тике.
+      if (Date.now() - lastPruneAt >= PRUNE_INTERVAL_MS) {
+        lastPruneAt = Date.now()
+        const pruned = await pruneDoctorsPastSlots()
+        if (pruned > 0) {
+          console.log(`[v0][holds-sweeper] pruned past slots for ${pruned} doctor(s)`)
+        }
       }
     } catch (err) {
       console.error('[v0][holds-sweeper] sweep failed:', err)
