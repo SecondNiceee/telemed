@@ -36,6 +36,29 @@ export async function POST(req: NextRequest) {
 
     const payload = await getPayload({ config })
 
+    // Телефон уникален (см. users.phone -> unique). Проверяем заранее и отдаём
+    // понятную 409, а не сырую ошибку уникального индекса из БД (500).
+    const existingByPhone = await payload.find({
+      collection: 'users',
+      where: { phone: { equals: phone } },
+      limit: 1,
+      showHiddenFields: true,
+      overrideAccess: true,
+    })
+
+    const phoneOwner = existingByPhone.docs[0] as
+      | ((typeof existingByPhone.docs)[0] & { _verified?: boolean })
+      | undefined
+
+    // Номер занят другим аккаунтом (по email). Свой же неподтверждённый аккаунт
+    // с тем же email пропускаем — он до-регистрируется ниже.
+    if (phoneOwner && phoneOwner.email !== email) {
+      return NextResponse.json(
+        { message: 'Пользователь с таким номером телефона уже существует' },
+        { status: 409 },
+      )
+    }
+
     // Check if user already exists
     const existing = await payload.find({
       collection: 'users',
