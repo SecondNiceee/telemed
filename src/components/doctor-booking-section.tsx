@@ -23,6 +23,7 @@ import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
 import { ConsultationDisclaimerDialog } from "@/components/consultation-disclaimer-dialog";
 import type { DoctorScheduleDate } from "@/lib/api/types";
+import { isScheduleSlotFuture } from "@/lib/schedule-time";
 
 interface DoctorBookingSectionProps {
   doctorId: number;
@@ -67,7 +68,9 @@ export function DoctorBookingSection({
       if (dayEntry.date && dayEntry.slots && dayEntry.slots.length > 0) {
         const times = dayEntry.slots
           .map((s) => s.time)
-          .filter(Boolean)
+          .filter((time): time is string =>
+            Boolean(time) && isScheduleSlotFuture(dayEntry.date, time),
+          )
           .sort();
         if (times.length > 0) {
           map.set(dayEntry.date, times);

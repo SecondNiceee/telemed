@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { DoctorScheduleDate, DoctorScheduleSlot } from "@/lib/api/types"
-import { toDateStr, sortSlots } from "./schedule-helpers"
+import { sortSlots } from "./schedule-helpers"
+import { filterFutureSchedule, isScheduleSlotFuture } from "@/lib/schedule-time"
 
 interface UseScheduleResult {
   schedule: DoctorScheduleDate[]
@@ -49,15 +50,13 @@ export function useSchedule(doctorId: number): UseScheduleResult {
       const doctor = await DoctorsApi.fetchById(doctorId)
       setDoctorName(doctor.name || doctor.email)
       setSlotDurationState(doctor.slotDuration || "30")
-      const todayStr = toDateStr(today)
-      const existing = (doctor.schedule || []).filter((d) => d.date >= todayStr)
-      setSchedule(existing)
+      setSchedule(filterFutureSchedule(doctor.schedule || []))
     } catch {
       setError("Не удалось загрузить данные врача")
     } finally {
       setFetchLoading(false)
     }
-  }, [doctorId, today])
+  }, [doctorId])
 
   useEffect(() => {
     loadDoctor()
@@ -77,18 +76,19 @@ export function useSchedule(doctorId: number): UseScheduleResult {
   const setDateSlots = useCallback((dateStr: string, slots: DoctorScheduleSlot[]) => {
     setSaved(false)
     setSchedule((prev) => {
+      const futureSlots = slots.filter((slot) => isScheduleSlotFuture(dateStr, slot.time))
       const idx = prev.findIndex((d) => d.date === dateStr)
-      if (slots.length === 0) {
+      if (futureSlots.length === 0) {
         if (idx === -1) return prev
         return prev.filter((d) => d.date !== dateStr)
       }
       if (idx === -1) {
-        return [...prev, { date: dateStr, slots: sortSlots(slots) }].sort((a, b) =>
+        return [...prev, { date: dateStr, slots: sortSlots(futureSlots) }].sort((a, b) =>
           a.date.localeCompare(b.date),
         )
       }
       const next = [...prev]
-      next[idx] = { ...next[idx], slots: sortSlots(slots) }
+      next[idx] = { ...next[idx], slots: sortSlots(futureSlots) }
       return next
     })
   }, [])
@@ -126,11 +126,12 @@ export function useSchedule(doctorId: number): UseScheduleResult {
     try {
       setSaving(true)
       setError("")
-      const cleanSchedule = schedule.filter((d) => d.slots.length > 0)
+      const cleanSchedule = filterFutureSchedule(schedule)
       await DoctorsApi.update(doctorId, {
         slotDuration,
         schedule: cleanSchedule,
       } as Parameters<typeof DoctorsApi.update>[1])
+      setSchedule(cleanSchedule)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (err) {

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { AddSlotInput } from "./AddSlotInput"
 import { sortSlots, toDateStr } from "./schedule-helpers"
 import type { DoctorScheduleSlot } from "@/lib/api/types"
+import { isScheduleSlotFuture } from "@/lib/schedule-time"
 
 const WEEK_DAYS = [
   { label: "Понедельник", short: "Пн", index: 1 },
@@ -85,9 +86,12 @@ export const WeekPatternDialog = memo(function WeekPatternDialog({
     const cur = new Date(today)
     while (cur <= maxDate) {
       const dayIdx = cur.getDay()
-      const slots = pattern[dayIdx] ?? []
+      const date = toDateStr(cur)
+      const slots = (pattern[dayIdx] ?? []).filter((slot) =>
+        isScheduleSlotFuture(date, slot.time),
+      )
       if (slots.length > 0) {
-        entries.push({ date: toDateStr(cur), slots: [...slots] })
+        entries.push({ date, slots: [...slots] })
       }
       cur.setDate(cur.getDate() + 1)
     }
@@ -200,7 +204,7 @@ export const WeekPatternDialog = memo(function WeekPatternDialog({
             <Info className="w-4 h-4 shrink-0" />
             <span>
               Будет заполнено <strong>{previewCount}</strong> дней
-              ({totalDays} {totalDays === 1 ? "день" : totalDays < 5 ? "дня" : "дней"} недели,{" "}
+              ({totalDays} {totalDays === 1 ? "��ень" : totalDays < 5 ? "дня" : "дней"} недели,{" "}
               {totalSlots} {totalSlots === 1 ? "слот" : totalSlots < 5 ? "слота" : "слотов"} каждую неделю)
             </span>
           </div>

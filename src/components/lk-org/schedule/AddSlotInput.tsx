@@ -12,15 +12,18 @@ import {
 } from "@/components/ui/dialog"
 import type { DoctorScheduleSlot } from "@/lib/api/types"
 import { ClockPicker } from "./ClockPicker"
+import { isScheduleSlotFuture } from "@/lib/schedule-time"
 
 interface AddSlotInputProps {
   existingSlots: DoctorScheduleSlot[]
   onAdd: (time: string) => void
+  selectedDate?: string
 }
 
 export const AddSlotInput = memo(function AddSlotInput({
   existingSlots,
   onAdd,
+  selectedDate,
 }: AddSlotInputProps) {
   const [value, setValue] = useState("09:00")
   const [inputError, setInputError] = useState("")
@@ -30,6 +33,10 @@ export const AddSlotInput = memo(function AddSlotInput({
     setInputError("")
     if (existingSlots.some((s) => s.time === value)) {
       setInputError("Такой слот уже существует")
+      return
+    }
+    if (selectedDate && !isScheduleSlotFuture(selectedDate, value)) {
+      setInputError("Нельзя добавить время, которое уже прошло")
       return
     }
     onAdd(value)
@@ -43,7 +50,7 @@ export const AddSlotInput = memo(function AddSlotInput({
       const nm = totalMin % 60
       setValue(`${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`)
     }
-  }, [value, existingSlots, onAdd])
+  }, [value, existingSlots, onAdd, selectedDate])
 
   const handleOpen = useCallback(() => {
     setInputError("")
