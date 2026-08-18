@@ -104,7 +104,11 @@ export const SlotEditor = memo(function SlotEditor({
           </p>
         )}
 
-        <AddSlotInput existingSlots={slots} onAdd={onAddSlot} />
+        <AddSlotInput
+          existingSlots={slots}
+          onAdd={onAddSlot}
+          selectedDate={selectedDate}
+        />
       </div>
     </div>
   )

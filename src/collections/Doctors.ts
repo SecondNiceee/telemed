@@ -2,6 +2,7 @@ import type { CollectionBeforeOperationHook, CollectionConfig, PayloadRequest } 
 import { after } from 'next/server'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
+import { getScheduleSlotDate, isScheduleSlotFuture } from '@/lib/schedule-time'
 
 // Safe wrapper for revalidateTag that works in build time
 const revalidateDoctorsCache = async () => {
@@ -201,6 +202,33 @@ const normalisePhotoCrop: CollectionBeforeOperationHook = ({ args }) => {
   return args
 }
 
+function validateSchedule({ data }: { data?: Record<string, unknown> }) {
+  if (!data || !Object.prototype.hasOwnProperty.call(data, 'schedule')) return data
+  if (data.schedule == null) return data
+  if (!Array.isArray(data.schedule)) throw new Error('Некорректный формат расписания')
+
+  const now = new Date()
+  for (const entry of data.schedule) {
+    if (!entry || typeof entry !== 'object') throw new Error('Некорректный формат расписания')
+    const { date, slots } = entry as { date?: unknown; slots?: unknown }
+    if (typeof date !== 'string' || !Array.isArray(slots)) {
+      throw new Error('Некорректный формат даты или слотов расписания')
+    }
+
+    for (const slot of slots) {
+      const time = slot && typeof slot === 'object' ? (slot as { time?: unknown }).time : null
+      if (typeof time !== 'string' || !getScheduleSlotDate(date, time)) {
+        throw new Error(`Некорректные дата или время слота: ${date} ${String(time ?? '')}`)
+      }
+      if (!isScheduleSlotFuture(date, time, now)) {
+        throw new Error(`Нельзя сохранить прошедший слот: ${date} ${time}`)
+      }
+    }
+  }
+
+  return data
+}
+
 export const Doctors: CollectionConfig = {
   slug: 'doctors',
   admin: {
@@ -279,7 +307,7 @@ export const Doctors: CollectionConfig = {
         })
       },
     ],
-    beforeChange: [],
+    beforeChange: [validateSchedule],
   },
   access: {
     read: () => true,

@@ -3,6 +3,7 @@ import 'server-only'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import type { DoctorScheduleDate } from '@/lib/api/types'
+import { filterFutureSchedule } from '@/lib/schedule-time'
 
 type PayloadInstance = Awaited<ReturnType<typeof getPayload>>
 
@@ -200,7 +201,7 @@ export async function releaseHold({
  * ВАЖНО: из-за троттла `releaseExpiredHolds()` возвращает 0 в двух разных
  * случаях — «освобождать было нечего» и «проход пропущен». Поэтому по нулю
  * НЕЛЬЗЯ судить о состоянии расписания (ровно на этом раньше ошибалась
- * страница врача, отдавая расписание из кеша).
+ * страница врача, отдавая расписание из кеш��).
  */
 const SWEEP_THROTTLE_MS = 10_000
 
@@ -380,7 +381,7 @@ async function backgroundSweepTick(): Promise<number> {
 
   for (let pass = 0; pass < BACKGROUND_SWEEP_MAX_PASSES; pass += 1) {
     // Скоуп 'all' занят исключительно фоновым проходом: страницы ходят
-    // со скоупом doctor/user, так что троттл здесь не мешает.
+    // со скоупом doctor/user, та�� что троттл здесь не мешает.
     const released = await runSweep({ maxBatch: BACKGROUND_SWEEP_MAX_BATCH })
     total += released
 
@@ -455,7 +456,7 @@ export async function getFreshDoctorSchedule(doctorId: number): Promise<DoctorSc
       depth: 0,
       overrideAccess: true,
     })
-    return ((doctor?.schedule || []) as DoctorScheduleDate[]) ?? []
+    return filterFutureSchedule((doctor?.schedule || []) as DoctorScheduleDate[])
   } catch (err) {
     console.error('Failed to read fresh doctor schedule:', err)
     return []
