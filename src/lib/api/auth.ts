@@ -88,11 +88,17 @@ export class AuthApi {
 
   /**
    * Verify email with the token from the verification email link.
-   * Payload endpoint: POST /api/users/verify/{token}
+   *
+   * Идём через свой роут /api/auth/verify-email: он не только подтверждает email,
+   * но и сразу выдаёт cookie `payload-token`, поэтому пользователь возвращается
+   * на сайт уже авторизованным. credentials: 'include' обязателен — иначе
+   * cookie из ответа не сохранится.
    */
-  static async verifyEmail(token: string): Promise<{ message: string }> {
-    return apiFetch<{ message: string }>(`/api/users/verify/${token}`, {
+  static async verifyEmail(token: string): Promise<{ message: string; user: User | null }> {
+    return apiFetch<{ message: string; user: User | null }>('/api/auth/verify-email', {
       method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify({ token }),
     })
   }
 
