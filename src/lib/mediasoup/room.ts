@@ -23,6 +23,8 @@ export interface Room {
 export class RoomManager {
   private readonly rooms = new Map<string, Room>()
   private readonly pendingRooms = new Map<string, Promise<Room>>()
+  private readonly closeTimers = new Map<string, NodeJS.Timeout>()
+  private readonly emptyRoomGraceMs = 30_000
 
   async createRoom(roomId: string): Promise<Room> {
     const existing = this.rooms.get(roomId)
@@ -56,8 +58,14 @@ export class RoomManager {
   }
 
   async addPeer(room: Room, peerId: string, peerName: string, role: PeerRole): Promise<Peer> {
+    const closeTimer = this.closeTimers.get(room.id)
+    if (closeTimer) {
+      clearTimeout(closeTimer)
+      this.closeTimers.delete(room.id)
+    }
+
     const existing = room.peers.get(peerId)
-    if (existing) return existing
+    if (existing) existing.close()
 
     const peer = new Peer(peerId, peerName, role)
     room.peers.set(peerId, peer)
@@ -70,14 +78,21 @@ export class RoomManager {
 
     peer.close()
     room.peers.delete(peerId)
-    if (room.peers.size === 0) this.closeRoom(room.id)
+    if (room.peers.size === 0 && !this.closeTimers.has(room.id)) {
+      const timer = setTimeout(() => {
+        this.closeTimers.delete(room.id)
+        if (room.peers.size === 0) this.closeRoom(room.id)
+      }, this.emptyRoomGraceMs)
+      timer.unref()
+      this.closeTimers.set(room.id, timer)
+    }
     return true
   }
 
   async createWebRtcTransport(room: Room, peerId: string, direction: 'send' | 'recv') {
     const peer = this.requirePeer(room, peerId)
     const transport = await room.router.createWebRtcTransport(webRtcTransportOptions)
-    peer.addTransport(transport, direction)
+    peer.replaceTransport(transport, direction)
 
     const remove = () => {
       peer.transports.delete(transport.id)
@@ -100,6 +115,10 @@ export class RoomManager {
   async connectTransport(room: Room, peerId: string, transportId: string, dtlsParameters: WebRtcTransport['dtlsParameters']): Promise<void> {
     const transport = this.requireTransport(room, peerId, transportId)
     await transport.connect({ dtlsParameters })
+  }
+
+  async restartIce(room: Room, peerId: string, transportId: string) {
+    return this.requireTransport(room, peerId, transportId).restartIce()
   }
 
   async createProducer(
@@ -184,6 +203,9 @@ export class RoomManager {
   }
 
   closeRoom(roomId: string): void {
+    const timer = this.closeTimers.get(roomId)
+    if (timer) clearTimeout(timer)
+    this.closeTimers.delete(roomId)
     const room = this.rooms.get(roomId)
     if (!room) return
     for (const peer of room.peers.values()) peer.close()

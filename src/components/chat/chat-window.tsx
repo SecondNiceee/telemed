@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSocket } from '@/components/socket-provider'
 import { useChatStore } from '@/stores/chat-store'
 import { useFeedbackStore } from '@/stores/feedback-store'
-import { useVideoCall } from '@/components/video-call'
 import { getCountdownParts } from '@/lib/utils/date'
 import { getBaseUrl } from '@/lib/api/fetch'
 import { AppointmentsApi } from '@/lib/api/appointments'
@@ -49,10 +49,10 @@ export function ChatWindow({
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
 
   // Hooks
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, startConsultation, endConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
+  const router = useRouter()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, initiateCall, startConsultation, endConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
-  const videoCall = useVideoCall()
   const { 
     isDragging, 
     handleDragOver, 
@@ -258,24 +258,8 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    const calleeRole = currentSenderType === 'doctor' ? 'patient' : 'doctor'
-    
-    // Extract numeric IDs from user/doctor (can be number or object with id)
-    const getUserId = (value: number | { id: number; name?: string | null; email: string }): number => 
-      typeof value === 'object' ? value.id : value
-    
-    const calleeId = currentSenderType === 'doctor' 
-      ? getUserId(appointment.user) 
-      : getUserId(appointment.doctor)
-    
-    const callee = {
-      odooUserId: calleeId,
-      odooPartnerId: calleeId,
-      odooPartnerName: otherPartyName,
-      peerId: `${calleeRole}_${calleeId}`,
-      role: calleeRole as 'doctor' | 'patient',
-    }
-    videoCall.startCall(callee, appointment.id, getDurationMinutes())
+    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
+    router.push(`/appointment/${appointment.id}/call`)
   }
 
   const handleStartAudioConsultation = async () => {
@@ -289,25 +273,8 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    const calleeRole = currentSenderType === 'doctor' ? 'patient' : 'doctor'
-    
-    // Extract numeric IDs from user/doctor (can be number or object with id)
-    const getUserId = (value: number | { id: number; name?: string | null; email: string }): number => 
-      typeof value === 'object' ? value.id : value
-    
-    const calleeId = currentSenderType === 'doctor' 
-      ? getUserId(appointment.user) 
-      : getUserId(appointment.doctor)
-    
-    const callee = {
-      odooUserId: calleeId,
-      odooPartnerId: calleeId,
-      odooPartnerName: otherPartyName,
-      peerId: `${calleeRole}_${calleeId}`,
-      role: calleeRole as 'doctor' | 'patient',
-    }
-    // Use startAudioCall for audio-only calls
-    videoCall.startAudioCall(callee, appointment.id, getDurationMinutes())
+    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
+    router.push(`/appointment/${appointment.id}/call?audio=1`)
   }
 
   const handleStartChatConsultation = async () => {
@@ -449,7 +416,7 @@ export function ChatWindow({
   isConnected={isConnected}
   consultationType={consultationType}
   countdownParts={countdownParts}
-  videoCallStatus={videoCall.status}
+        videoCallStatus="idle"
   isChatBlocked={isChatBlocked}
   hasFeedback={hasFeedback}
   connectionType={effectiveConnectionType}
