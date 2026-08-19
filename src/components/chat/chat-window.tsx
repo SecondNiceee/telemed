@@ -85,13 +85,6 @@ export function ChatWindow({
     ? appointment.doctorName || 'Врач'
     : appointment.userName || 'Пациент'
 
-  // Get slot duration from doctor data
-  const getDurationMinutes = useCallback((): number => {
-    const doctor = typeof appointment.doctor === 'object' ? appointment.doctor : null
-    const slotDuration = doctor?.slotDuration
-    return slotDuration ? parseInt(slotDuration, 10) : 30
-  }, [appointment.doctor])
-
   // Update countdown every second
   useEffect(() => {
     setCountdownParts(getCountdownParts(appointment.date, appointment.time))

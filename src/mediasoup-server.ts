@@ -14,7 +14,6 @@ async function main() {
 
   await workerManager.initialize()
 
-  let io: SocketIOServer
   const httpServer = createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -53,7 +52,7 @@ async function main() {
     })
   })
 
-  io = new SocketIOServer(httpServer, {
+  const io = new SocketIOServer(httpServer, {
     path: process.env.MEDIASOUP_SOCKET_PATH || '/socket.io',
     cors: { origin: serverConfig.corsOrigins, credentials: true },
     transports: ['websocket', 'polling'],

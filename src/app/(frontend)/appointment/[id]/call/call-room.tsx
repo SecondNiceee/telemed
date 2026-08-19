@@ -36,8 +36,9 @@ export function CallRoom({ appointmentId }: { appointmentId: number }) {
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
   const call = useMediasoup(appointmentId, audioOnly)
+  const connect = call.connect
 
-  useEffect(() => { void call.connect() }, []) // Connect once for this protected appointment.
+  useEffect(() => { void connect() }, [connect])
 
   const leave = () => {
     call.leave()

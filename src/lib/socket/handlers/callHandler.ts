@@ -48,7 +48,8 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
  */
 export function createCallHandler(io: SocketIOServer, payload: Payload) {
   return async (socket: AuthenticatedSocket, data: CallSignalPayload) => {
-    const { appointmentId, callerPeerId, callerName, isAudioOnly } = data
+    const { appointmentId, callerName, isAudioOnly } = data
+    const callerPeerId = data.callerPeerId ?? ''
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] ====== CALL INITIATE ======`)

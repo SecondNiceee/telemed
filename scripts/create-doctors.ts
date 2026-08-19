@@ -47,7 +47,7 @@ async function createDoctors() {
   // 1. Получаем или создаем организацию
   console.log('🏥 Проверка организации...')
   
-  let organisation = await payload.find({
+  const organisation = await payload.find({
     collection: 'organisations',
     where: {
       email: { equals: DEFAULT_ORGANISATION.email },
