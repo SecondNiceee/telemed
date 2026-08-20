@@ -1,8 +1,16 @@
 'use client'
 
-import { Check, CheckCheck, FileIcon, Download } from 'lucide-react'
+import { Check, CheckCheck, FileIcon, Download, X } from 'lucide-react'
 import type { ApiMessageAttachment } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 // Simplified message type that works with both full ApiMessage and partial data
 interface SimplifiedMessage {
@@ -112,21 +120,50 @@ function AttachmentPreview({
 
   if (isImage) {
     return (
-      <a 
-        href={resolvedUrl} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="block"
-      >
-        <img
-          src={resolvedUrl}
-          alt={attachment.filename}
-          className={cn('max-h-64 max-w-full object-cover', imageClassName)}
-          style={{
-            maxWidth: attachment.width && attachment.width > 300 ? 300 : attachment.width,
-          }}
-        />
-      </a>
+      <Dialog>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="block cursor-zoom-in overflow-hidden text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Открыть изображение ${attachment.filename}`}
+          >
+            <img
+              src={resolvedUrl}
+              alt={attachment.filename}
+              className={cn('max-h-64 max-w-full object-cover', imageClassName)}
+              style={{
+                maxWidth: attachment.width && attachment.width > 300 ? 300 : attachment.width,
+              }}
+            />
+          </button>
+        </DialogTrigger>
+        <DialogContent
+          showCloseButton={false}
+          overlayClassName="bg-surface-dark/95"
+          className="h-screen max-h-screen w-screen max-w-none border-0 bg-transparent p-4 shadow-none sm:max-w-none"
+        >
+          <DialogTitle className="sr-only">Просмотр изображения {attachment.filename}</DialogTitle>
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <Button variant="secondary" size="icon" asChild>
+              <a href={resolvedUrl} download={attachment.filename} aria-label="Скачать изображение">
+                <Download />
+              </a>
+            </Button>
+            <DialogClose asChild>
+              <Button variant="secondary" size="icon" aria-label="Закрыть изображение">
+                <X />
+              </Button>
+            </DialogClose>
+          </div>
+          <div className="flex h-full items-center justify-center pt-12">
+            <img
+              src={resolvedUrl}
+              alt={attachment.filename}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     )
   }
 
