@@ -13,6 +13,14 @@ import {
   User as UserIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import type { ApiAppointment } from "@/lib/api/types"
 
@@ -328,6 +336,15 @@ export function DoctorDashboardContent({
     setSelection({ mode: "all", day: null, rangeStart: null, rangeEnd: null })
   }
 
+  const consultationCounts: Record<ConsultationTab, number> = {
+    all: appointments.length,
+    upcoming: appointments.filter((appointment) =>
+      ["confirmed", "in_progress"].includes(appointment.status),
+    ).length,
+    completed: appointments.filter((appointment) => appointment.status === "completed").length,
+    cancelled: appointments.filter((appointment) => appointment.status === "cancelled").length,
+  }
+
   // Filter appointments by tab and date selection
   const filteredAppointments = appointments.filter((appt) => {
     // Tab filter
@@ -364,12 +381,31 @@ export function DoctorDashboardContent({
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Main content */}
           <div className="flex-1 min-w-0">
-            {/* Tabs */}
-            <div className="mb-6 flex rounded-xl bg-muted p-1">
+            {/* Status filter: picker below 1024px, tabs on desktop */}
+            <div className="mb-6 lg:hidden">
+              <Select value={tab} onValueChange={(value) => changeTab(value as ConsultationTab)}>
+                <SelectTrigger className="h-11 w-full rounded-xl bg-card px-4 shadow-sm" aria-label="Фильтр консультаций">
+                  <SelectValue placeholder="Выберите раздел" />
+                </SelectTrigger>
+                <SelectContent position="popper" className="min-w-[var(--radix-select-trigger-width)] rounded-xl">
+                  <SelectGroup>
+                    {CONSULTATION_TABS.map((item) => (
+                      <SelectItem key={item.id} value={item.id} className="py-2.5">
+                        {item.label} ({consultationCounts[item.id]})
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div role="tablist" aria-label="Фильтр консультаций" className="mb-6 hidden rounded-xl bg-muted p-1 lg:flex">
               {CONSULTATION_TABS.map((item) => (
                 <button
                   key={item.id}
                   type="button"
+                  role="tab"
+                  aria-selected={tab === item.id}
                   onClick={() => changeTab(item.id)}
                   className={cn(
                     "flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
@@ -378,7 +414,7 @@ export function DoctorDashboardContent({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {item.label}
+                  {item.label} ({consultationCounts[item.id]})
                 </button>
               ))}
             </div>
