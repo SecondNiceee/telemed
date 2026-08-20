@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Check, CheckCheck, FileIcon, Download, X } from 'lucide-react'
 import type { ApiMessageAttachment } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
@@ -117,10 +118,11 @@ function AttachmentPreview({
 }) {
   const isImage = isImageMimeType(attachment.mimeType)
   const resolvedUrl = attachment.url
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false)
 
   if (isImage) {
     return (
-      <Dialog>
+      <Dialog open={isImageViewerOpen} onOpenChange={setIsImageViewerOpen}>
         <DialogTrigger asChild>
           <button
             type="button"
@@ -139,7 +141,7 @@ function AttachmentPreview({
         </DialogTrigger>
         <DialogContent
           showCloseButton={false}
-          overlayClassName="bg-image-viewer-overlay/95"
+          overlayClassName="bg-image-viewer-overlay/70"
           className="h-screen max-h-screen w-screen max-w-none border-0 bg-transparent p-4 shadow-none sm:max-w-none"
         >
           <DialogTitle className="sr-only">Просмотр изображения {attachment.filename}</DialogTitle>
@@ -155,11 +157,16 @@ function AttachmentPreview({
               </Button>
             </DialogClose>
           </div>
-          <div className="flex h-full items-center justify-center pt-12">
+          <div
+            className="flex h-full items-center justify-center pt-12"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setIsImageViewerOpen(false)
+            }}
+          >
             <img
               src={resolvedUrl}
               alt={attachment.filename}
-              className="max-h-full max-w-full object-contain"
+              className="max-h-[70vh] max-w-[70vw] object-contain"
             />
           </div>
         </DialogContent>
