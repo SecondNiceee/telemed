@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChatSidebar } from './chat-sidebar'
 import { ChatWindow } from './chat-window'
 import { SocketProvider, useSocket } from '@/components/socket-provider'
@@ -30,6 +30,19 @@ function ChatPageContent({
     : null
   
   const [selectedAppointment, setSelectedAppointment] = useState<ApiAppointment | null>(initialAppointment)
+  const appliedInitialAppointmentId = useRef(initialAppointment?.id ?? null)
+
+  // Client-side navigation can update the query without remounting this component.
+  // Select the requested patient's dialog once it becomes available.
+  useEffect(() => {
+    if (!initialAppointmentId || appliedInitialAppointmentId.current === initialAppointmentId) return
+
+    const requestedAppointment = appointments.find((appointment) => appointment.id === initialAppointmentId)
+    if (!requestedAppointment) return
+
+    appliedInitialAppointmentId.current = initialAppointmentId
+    setSelectedAppointment(requestedAppointment)
+  }, [appointments, initialAppointmentId])
   
   // Handle appointment completion - update local state
   const handleAppointmentCompleted = useCallback((appointmentId: number) => {

@@ -60,10 +60,16 @@ export default async function LkMedChatPage({
     console.error("Failed to fetch appointments:", e)
   }
 
-  // Filter to only confirmed/in_progress/completed appointments (active chats)
+  // Keep regular chat history and always include the appointment explicitly
+  // requested from the doctor's dashboard so its patient dialog opens.
   const activeAppointments = await withOrganisationSupportPhones(
     appointments.filter(
-      (a) => a.status === "confirmed" || a.status === "in_progress" || a.status === "completed"
+      (appointment) =>
+        appointment.status === "confirmed" ||
+        appointment.status === "in_progress" ||
+        appointment.status === "completed" ||
+        appointment.status === "cancelled" ||
+        appointment.id === initialAppointmentId,
     ),
   )
 
