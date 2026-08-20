@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
+import { getIceServers } from '@/lib/mediasoup/ice-servers'
 import { signRoomToken } from '@/lib/mediasoup/room-token'
 import { getPayloadJwtSecret } from '@/lib/server/payload-jwt-secret'
 
@@ -81,7 +82,15 @@ export async function POST(request: NextRequest) {
       peerName: peerName || (role === 'doctor' ? 'Врач' : 'Пациент'),
     })
 
-    return NextResponse.json({ success: true, token, roomId, peerId, role, peerName })
+    return NextResponse.json({
+      success: true,
+      token,
+      roomId,
+      peerId,
+      role,
+      peerName,
+      iceServers: getIceServers(),
+    })
   } catch (error) {
     console.error('[MediaSoup Token] Failed to issue room token:', error)
     return NextResponse.json({ success: false, error: 'Unable to issue room token' }, { status: 500 })

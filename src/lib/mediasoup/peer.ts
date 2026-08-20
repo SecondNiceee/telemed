@@ -20,8 +20,15 @@ export class Peer {
     return this.closed
   }
 
-  addTransport(transport: Transport, direction: 'send' | 'recv'): void {
+  replaceTransport(transport: Transport, direction: 'send' | 'recv'): void {
     this.assertOpen()
+    for (const [transportId, currentDirection] of this.transportDirections) {
+      if (currentDirection !== direction) continue
+      const current = this.transports.get(transportId)
+      if (current && !current.closed) current.close()
+      this.transports.delete(transportId)
+      this.transportDirections.delete(transportId)
+    }
     this.transports.set(transport.id, transport)
     this.transportDirections.set(transport.id, direction)
   }

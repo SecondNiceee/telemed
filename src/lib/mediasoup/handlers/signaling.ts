@@ -36,7 +36,7 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
   socket.on('joinRoom', (data: { token?: string; roomId?: string; peerId?: string }, ack: Ack<{ routerRtpCapabilities: RtpCapabilities }>) => {
     handle(ack, async () => {
       if (!data?.token || !data.roomId || !data.peerId) throw new Error('token, roomId and peerId are required')
-      if (socket.data.roomId) throw new Error('Socket has already joined a room')
+      if (socket.data.roomId && socket.data.roomId !== data.roomId) throw new Error('Socket has already joined another room')
 
       const claims = verifyRoomToken(data.token, { roomId: data.roomId, peerId: data.peerId })
       const room = await roomManager.getOrCreateRoom(claims.roomId)
@@ -65,6 +65,13 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
       const { room, peerId } = inRoom(socket, data.roomId)
       await roomManager.connectTransport(room, peerId, data.transportId, data.dtlsParameters)
       return {}
+    })
+  })
+
+  socket.on('restartIce', (data: { roomId: string; transportId: string }, ack: Ack<{ iceParameters: Awaited<ReturnType<typeof roomManager.restartIce>> }>) => {
+    handle(ack, async () => {
+      const { room, peerId } = inRoom(socket, data.roomId)
+      return { iceParameters: await roomManager.restartIce(room, peerId, data.transportId) }
     })
   })
 

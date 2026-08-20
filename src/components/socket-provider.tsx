@@ -1,9 +1,11 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
+import { Phone, PhoneOff } from 'lucide-react'
 import { io, type Socket } from 'socket.io-client'
 import { useChatStore } from '@/stores/chat-store'
-import { useCallStore } from '@/stores/call-store'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useUserStore } from '@/stores/user-store'
 import { useDoctorStore } from '@/stores/doctor-store'
 import type { ApiMessage } from '@/lib/api/messages'
@@ -71,9 +73,9 @@ function playNotificationSound() {
 export function SocketProvider({ children, currentSenderType, currentSenderId }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callerName: string; isAudioOnly: boolean } | null>(null)
   // Use refs for store functions to avoid reconnection on store changes
   const chatStoreRef = useRef(useChatStore.getState())
-  const callStoreRef = useRef(useCallStore.getState())
   
   // Callbacks for remote call ended - allows VideoCallProvider to handle recording before store updates
   // Callbacks can be async - we will await them before updating the store
@@ -84,13 +86,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     const unsubChat = useChatStore.subscribe((state) => {
       chatStoreRef.current = state
     })
-    const unsubCall = useCallStore.subscribe((state) => {
-      callStoreRef.current = state
-    })
-    return () => {
-      unsubChat()
-      unsubCall()
-    }
+    return unsubChat
   }, [])
   
   // Track current sender info in refs to use in socket event handlers
@@ -188,44 +184,15 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     // Video call signaling events
-    newSocket.on('incoming-call', ({ appointmentId, callerPeerId, callerName, callerType, isAudioOnly }) => {
-      console.log('[v0] ======= INCOMING CALL EVENT =======')
-      console.log('[v0] appointmentId:', appointmentId)
-      console.log('[v0] callerPeerId:', callerPeerId)
-      console.log('[v0] callerName:', callerName)
-      console.log('[v0] callerType:', callerType)
-      console.log('[v0] isAudioOnly:', isAudioOnly)
-      console.log('[v0] currentSenderType:', currentSenderTypeRef.current)
-      console.log('[v0] currentSenderId:', currentSenderIdRef.current)
-      // Only handle if we're not the caller (different sender type)
-      console.log('[v0] Checking if we should handle this call: callerType !== currentSenderType?', callerType, '!==', currentSenderTypeRef.current, '=', callerType !== currentSenderTypeRef.current)
+    newSocket.on('incoming-call', ({ appointmentId, callerName, callerType, isAudioOnly }) => {
       if (callerType !== currentSenderTypeRef.current) {
-        console.log('[v0] This is an incoming call for us! Triggering receiveCall in callStore')
-        // IMPORTANT: First trigger receiveCall to set status to 'incoming'
-        // Then set remotePeerId - this order prevents the outgoing call effect from triggering
-        callStoreRef.current.receiveCall(null as never, callerName, appointmentId, isAudioOnly)
-        console.log('[v0] receiveCall called, now setting remotePeerId after timeout')
-        // Set remote peer ID after status is set to 'incoming'
-        // This ensures the video-call-provider won't mistake this for an answered outgoing call
-        setTimeout(() => {
-          console.log('[v0] Setting remotePeerId:', callerPeerId)
-          callStoreRef.current.setRemotePeerId(callerPeerId)
-        }, 0)
-      } else {
-        console.log('[v0] Ignoring incoming-call - same sender type (we initiated this call)')
+        setIncomingCall({ appointmentId, callerName, isAudioOnly: Boolean(isAudioOnly) })
+        playNotificationSound()
       }
     })
 
-    newSocket.on('call-answered', ({ appointmentId, answerPeerId }) => {
-      console.log('[Socket] Call answered, remote peer:', answerPeerId)
-      callStoreRef.current.setRemotePeerId(answerPeerId)
-      callStoreRef.current.setRemoteAnswered(true) // Signal that remote actually answered
-    })
-
-    newSocket.on('call-rejected', ({ appointmentId }) => {
-      console.log('[Socket] Call rejected')
-      callStoreRef.current.endCall()
-    })
+    newSocket.on('call-answered', () => undefined)
+    newSocket.on('call-rejected', () => setIncomingCall(null))
 
     newSocket.on('call-ended', async ({ appointmentId }) => {
       console.log('[Socket] Call ended by remote, appointmentId:', appointmentId, 'callbacks count:', remoteCallEndedCallbacksRef.current.size)
@@ -255,8 +222,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         console.log('[Socket] All async callbacks completed')
       }
       
-      // Now update the store (this will reset appointmentId, streams, etc.)
-      callStoreRef.current.endCall()
+      setIncomingCall(null)
     })
 
     // Consultation status events
@@ -460,9 +426,34 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     changeConnectionType,
   }
 
+  const acceptIncomingCall = () => {
+    if (!incomingCall || !socket?.connected) return
+    socket.emit('call-answer', { appointmentId: incomingCall.appointmentId, answerPeerId: '' })
+    const target = `/appointment/${incomingCall.appointmentId}/call${incomingCall.isAudioOnly ? '?audio=1' : ''}`
+    setIncomingCall(null)
+    window.location.assign(target)
+  }
+
+  const rejectIncomingCall = () => {
+    if (incomingCall && socket?.connected) socket.emit('call-reject', { appointmentId: incomingCall.appointmentId })
+    setIncomingCall(null)
+  }
+
   return (
     <SocketContext.Provider value={value}>
       {children}
+      <Dialog open={Boolean(incomingCall)} onOpenChange={(open) => { if (!open) rejectIncomingCall() }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Входящий {incomingCall?.isAudioOnly ? 'аудиозвонок' : 'видеозвонок'}</DialogTitle>
+            <DialogDescription>{incomingCall?.callerName || 'Участник консультации'} приглашает вас в защищённую комнату.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={rejectIncomingCall}><PhoneOff data-icon="inline-start" />Отклонить</Button>
+            <Button onClick={acceptIncomingCall}><Phone data-icon="inline-start" />Принять</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SocketContext.Provider>
   )
 }

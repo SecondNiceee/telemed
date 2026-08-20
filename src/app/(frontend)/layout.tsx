@@ -5,7 +5,6 @@ import { AppInit } from '@/components/app-init'
 import { NavigationHistoryTracker } from '@/components/navigation-history-tracker'
 import { Toaster } from '@/components/ui/sonner'
 import { GlobalSocketProvider } from '@/components/socket-provider'
-import { VideoCallProviderWrapper, VideoCallOverlay } from '@/components/video-call'
 
 import './globals.css'
 
@@ -29,11 +28,8 @@ export default function RootLayout({
         <AppInit />
         <NavigationHistoryTracker />
         <GlobalSocketProvider>
-          <VideoCallProviderWrapper>
-            <Toaster position="top-center" richColors />
-            <VideoCallOverlay />
-            {children}
-          </VideoCallProviderWrapper>
+          <Toaster position="top-center" richColors />
+          {children}
         </GlobalSocketProvider>
       </body>
     </html>
