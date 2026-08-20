@@ -2,7 +2,9 @@ const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
 export const BOOKING_LEAD_TIME_MINUTES = 30
-const BOOKING_LEAD_TIME_MS = BOOKING_LEAD_TIME_MINUTES * 60 * 1000
+export const BOOKING_LEAD_TIME_MS = BOOKING_LEAD_TIME_MINUTES * 60 * 1000
+export const SLOT_UNAVAILABLE_MESSAGE = 'Консультация была выбрана другим пользователем'
+export const SCHEDULE_SLOT_TOO_SOON_MESSAGE = `Время приёма должно быть не раньше, чем через ${BOOKING_LEAD_TIME_MINUTES} минут`
 
 export interface ScheduleEntryLike {
   date: string

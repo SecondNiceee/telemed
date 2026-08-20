@@ -2,7 +2,11 @@ import type { CollectionBeforeOperationHook, CollectionConfig, PayloadRequest } 
 import { after } from 'next/server'
 import { DOCTORS_CACHE_TAG } from '@/lib/api/doctors'
 import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
-import { getScheduleSlotDate, isScheduleSlotFuture } from '@/lib/schedule-time'
+import {
+  getScheduleSlotDate,
+  isScheduleSlotFuture,
+  SCHEDULE_SLOT_TOO_SOON_MESSAGE,
+} from '@/lib/schedule-time'
 
 // Safe wrapper for revalidateTag that works in build time
 const revalidateDoctorsCache = async () => {
@@ -221,7 +225,7 @@ function validateSchedule({ data }: { data?: Record<string, unknown> }) {
         throw new Error(`Некорректные дата или время слота: ${date} ${String(time ?? '')}`)
       }
       if (!isScheduleSlotFuture(date, time, now)) {
-        throw new Error(`Нельзя сохранить прошедший слот: ${date} ${time}`)
+        throw new Error(`${SCHEDULE_SLOT_TOO_SOON_MESSAGE}: ${date} ${time}`)
       }
     }
   }

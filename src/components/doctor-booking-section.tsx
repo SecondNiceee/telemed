@@ -23,7 +23,11 @@ import { useUserAppointmentStore } from "@/stores/user-appointments-store";
 import { LoginModal } from "@/components/login-modal";
 import { ConsultationDisclaimerDialog } from "@/components/consultation-disclaimer-dialog";
 import type { DoctorScheduleDate } from "@/lib/api/types";
-import { isScheduleSlotFuture } from "@/lib/schedule-time";
+import { toast } from "sonner";
+import {
+  isScheduleSlotFuture,
+  SLOT_UNAVAILABLE_MESSAGE,
+} from "@/lib/schedule-time";
 
 interface DoctorBookingSectionProps {
   doctorId: number;
@@ -214,7 +218,8 @@ export function DoctorBookingSection({
     if (!selectedDate || !selectedTime) return;
     if (!isScheduleSlotFuture(selectedDate, selectedTime)) {
       setSelectedTime(null);
-      setBookingError("Консультация была выбрана другим пользователем");
+      setBookingError(SLOT_UNAVAILABLE_MESSAGE);
+      toast.error(SLOT_UNAVAILABLE_MESSAGE);
       return;
     }
     setBookingError(null);
@@ -227,14 +232,15 @@ export function DoctorBookingSection({
     if (!isScheduleSlotFuture(selectedDate, selectedTime)) {
       setDisclaimerOpen(false);
       setSelectedTime(null);
-      setBookingError("Консультация была выбрана другим пользователем");
+      setBookingError(SLOT_UNAVAILABLE_MESSAGE);
+      toast.error(SLOT_UNAVAILABLE_MESSAGE);
       return;
     }
 
     setBookingError(null);
 
     try {
-      // Запись создаётся как неоплаченная бронь: слот сразу пропадает у всех,
+      // Запись создаётся как неоплаченная бронь: слот с��азу пропадает у всех,
       // но подтверждённой запись станет только после оплаты.
       const appointment = await createAppointment({
         doctor: doctorId,
@@ -271,9 +277,9 @@ export function DoctorBookingSection({
       router.push(`/appointment/${appointment.id}/payment`);
     } catch (err) {
       setDisclaimerOpen(false);
-      setBookingError(
-        err instanceof Error ? err.message : "Произошла ошибка при записи"
-      );
+      const message = err instanceof Error ? err.message : "Произошла ошибка при записи";
+      setBookingError(message);
+      toast.error(message);
     }
   };
 

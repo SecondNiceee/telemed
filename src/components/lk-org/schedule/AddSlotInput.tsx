@@ -12,7 +12,10 @@ import {
 } from "@/components/ui/dialog"
 import type { DoctorScheduleSlot } from "@/lib/api/types"
 import { ClockPicker } from "./ClockPicker"
-import { isScheduleSlotFuture } from "@/lib/schedule-time"
+import {
+  isScheduleSlotFuture,
+  SCHEDULE_SLOT_TOO_SOON_MESSAGE,
+} from "@/lib/schedule-time"
 
 interface AddSlotInputProps {
   existingSlots: DoctorScheduleSlot[]
@@ -36,7 +39,7 @@ export const AddSlotInput = memo(function AddSlotInput({
       return
     }
     if (selectedDate && !isScheduleSlotFuture(selectedDate, value)) {
-      setInputError("Нельзя добавить время, которое уже прошло")
+      setInputError(SCHEDULE_SLOT_TOO_SOON_MESSAGE)
       return
     }
     onAdd(value)

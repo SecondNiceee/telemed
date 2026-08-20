@@ -1,6 +1,6 @@
 import type { PayloadRequest } from 'payload'
 import { getPaymentDeadline } from '@/lib/constants/payment'
-import { isScheduleSlotFuture } from '@/lib/schedule-time'
+import { isScheduleSlotFuture, SLOT_UNAVAILABLE_MESSAGE } from '@/lib/schedule-time'
 
 /**
  * Серверная валидация создания записи.
@@ -29,7 +29,7 @@ export const MAX_ACTIVE_HOLDS = 2
  * нарушения уникального индекса (afterError), чтобы пользователь видел одно
  * и то же сообщение независимо от того, кто поймал конфликт.
  */
-export const SLOT_TAKEN_MESSAGE = 'Консультация была выбрана другим пользователем'
+export const SLOT_TAKEN_MESSAGE = SLOT_UNAVAILABLE_MESSAGE
 
 /**
  * Имя частичного уникального индекса на слот.
@@ -160,7 +160,7 @@ function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): 
  * а откатывается к значению из `originalDoc` — попытка изменения просто
  * не даёт эффекта.
  *
- * Возвращает имена полей, попытк�� изменить которые мы отклонили.
+ * Возв��ащает имена полей, попытк�� изменить которые мы отклонили.
  */
 function revertToOriginal(
   data: Record<string, unknown>,
