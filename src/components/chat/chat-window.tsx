@@ -77,11 +77,11 @@ export function ChatWindow({
   const socketStatus = appointmentStatuses[appointment.id]
   const effectiveStatus = socketStatus || localStatus
   const isCompleted = effectiveStatus === 'completed'
+  const isCancelled = effectiveStatus === 'cancelled'
   const isChatBlocked = chatBlocked[appointment.id] ?? appointment.chatBlocked === true
-  // User can send messages if:
-  // - Doctor can ALWAYS send messages
-  // - Patient can send if chat is NOT blocked
-  const canSendMessages = currentSenderType === 'doctor' || !isChatBlocked
+  // A cancelled consultation is read-only for both participants.
+  // Otherwise doctors can always send, while patients respect the chat block.
+  const canSendMessages = !isCancelled && (currentSenderType === 'doctor' || !isChatBlocked)
   // Use socket-updated connection type if available, otherwise use appointment prop
   const effectiveConnectionType = connectionTypes[appointment.id] || appointment.connectionType || 'chat'
   
@@ -489,7 +489,7 @@ export function ChatWindow({
   appointmentId={appointment.id}
   isConnected={isConnected}
   canSendMessages={canSendMessages}
-  isCompleted={isCompleted}
+  isCancelled={isCancelled}
   isChatBlocked={isChatBlocked}
   currentSenderType={currentSenderType}
   onSendMessage={handleSendMessage}
