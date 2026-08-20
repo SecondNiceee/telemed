@@ -211,12 +211,12 @@ export function MessageBubble({ message, isOwn, groupPosition = 'single' }: Mess
 
   return (
     <div className={cn('flex w-full', isOwn ? 'justify-end' : 'justify-start')}>
-      {hasImage ? (
+      {hasAttachment ? (
         <div className="flex max-w-[75%] flex-col">
           <AttachmentPreview
-            attachment={attachment as ApiMessageAttachment}
-            isOwn={isOwn}
-            imageClassName={groupedRadius}
+            attachment={attachment}
+            isOwn={false}
+            imageClassName={hasImage ? groupedRadius : undefined}
           />
           {hasText && (
             <div className={cn('mt-1 px-1', isOwn ? 'text-right' : 'text-left')}>
@@ -237,11 +237,6 @@ export function MessageBubble({ message, isOwn, groupPosition = 'single' }: Mess
             isOwn ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
           )}
         >
-          {hasAttachment && (
-            <div className={cn(hasText && 'mb-2')}>
-              <AttachmentPreview attachment={attachment} isOwn={isOwn} />
-            </div>
-          )}
           {hasText && <p className="whitespace-pre-wrap break-words text-sm">{message.text}</p>}
           {showMetadata && metadata}
         </div>

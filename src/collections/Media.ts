@@ -123,7 +123,15 @@ export const Media: CollectionConfig = {
     // process.cwd(), which is not stable between `next dev`, `next start`,
     // standalone output and PM2/systemd working directories.
     staticDir: MEDIA_DIR,
-    mimeTypes: ['image/*', 'video/*', 'audio/*', 'application/pdf'],
+    mimeTypes: [
+      'image/*',
+      'video/*',
+      'audio/*',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ],
     filesRequiredOnCreate: false,
   },
 }
