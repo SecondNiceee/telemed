@@ -41,6 +41,7 @@
   /* Тёмная секция: снято с референса — bg-slate-900 (синеватый навy, не фиолетовый) */
   --surface-dark: oklch(0.2079 0.0399 265.8);
   --surface-dark-elevated: oklch(0.2795 0.0407 260.0);
+  --image-viewer-overlay: oklch(0.08 0 0);
   --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.1448 0 0);
   --sidebar-primary: oklch(0.4989 0.1406 299.8);
@@ -72,6 +73,7 @@
   --teal-on-dark: oklch(0.82 0.105 201.3);
   --surface-dark: oklch(0.2079 0.0399 265.8);
   --surface-dark-elevated: oklch(0.2795 0.0407 260.0);
+  --image-viewer-overlay: oklch(0.08 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
   --border: oklch(0.26 0.028 295);
@@ -115,6 +117,7 @@
   --color-teal-on-dark: var(--teal-on-dark);
   --color-surface-dark: var(--surface-dark);
   --color-surface-dark-elevated: var(--surface-dark-elevated);
+  --color-image-viewer-overlay: var(--image-viewer-overlay);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
