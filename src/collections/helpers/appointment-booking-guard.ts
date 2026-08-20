@@ -1,5 +1,6 @@
 import type { PayloadRequest } from 'payload'
 import { getPaymentDeadline } from '@/lib/constants/payment'
+import { isScheduleSlotFuture } from '@/lib/schedule-time'
 
 /**
  * Серверная валидация создания записи.
@@ -28,7 +29,7 @@ export const MAX_ACTIVE_HOLDS = 2
  * нарушения уникального индекса (afterError), чтобы пользователь видел одно
  * и то же сообщение независимо от того, кто поймал конфликт.
  */
-export const SLOT_TAKEN_MESSAGE = 'Этот слот уже занят. Пожалуйста, выберите другое время.'
+export const SLOT_TAKEN_MESSAGE = 'Консультация была выбрана другим пользователем'
 
 /**
  * Имя частичного уникального индекса на слот.
@@ -159,7 +160,7 @@ function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): 
  * а откатывается к значению из `originalDoc` — попытка изменения просто
  * не даёт эффекта.
  *
- * Возвращает имена полей, попытку изменить которые мы отклонили.
+ * Возвращает имена полей, попытк�� изменить которые мы отклонили.
  */
 function revertToOriginal(
   data: Record<string, unknown>,
@@ -187,13 +188,6 @@ function revertToOriginal(
   }
 
   return reverted
-}
-
-/** Слот уже прошёл (сравниваем дату И время, а не только дату). */
-function isPastSlot(date: string, time: string): boolean {
-  const slot = new Date(`${date}T${time}:00`)
-  if (Number.isNaN(slot.getTime())) return true
-  return slot.getTime() <= Date.now()
 }
 
 /**
@@ -520,10 +514,10 @@ async function applyPatientGuards({
   date: string
   time: string
 }): Promise<Record<string, unknown>> {
-  // Сравниваем дату вместе со временем: проверки только по дате недостаточно —
-  // в 18:00 она пропускала запись на 09:00 того же дня.
-  if (isPastSlot(date, time)) {
-    throw new Error('Нельзя записаться на прошедшее время.')
+  // Сервер повторно проверяет порог непосредственно перед созданием записи:
+  // устаревшая вкладка не сможет забронировать слот, до которого осталось менее 30 минут.
+  if (!isScheduleSlotFuture(date, time)) {
+    throw new Error(SLOT_TAKEN_MESSAGE)
   }
 
   // --- Владелец записи: всегда владелец токена, а не тот, кого прислал клиент.
@@ -537,7 +531,7 @@ async function applyPatientGuards({
   )
 
   if (!slotExists) {
-    throw new Error('Это время недоступно для записи. Обновите страницу и выберите другое.')
+    throw new Error(SLOT_TAKEN_MESSAGE)
   }
 
   // --- Цена: только из карточки врача. Клиентское значение уже вырезано.

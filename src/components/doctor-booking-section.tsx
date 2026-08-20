@@ -55,10 +55,24 @@ export function DoctorBookingSection({
   const paymentNotice = searchParams.get("payment");
   const { user, fetchUser } = useUserStore();
   const { createAppointment, creating } = useUserAppointmentStore();
+  const [scheduleClock, setScheduleClock] = useState(() => new Date());
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
+
+  useEffect(() => {
+    const refreshClock = () => setScheduleClock(new Date());
+    const interval = window.setInterval(refreshClock, 30_000);
+    window.addEventListener("focus", refreshClock);
+    document.addEventListener("visibilitychange", refreshClock);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshClock);
+      document.removeEventListener("visibilitychange", refreshClock);
+    };
+  }, []);
 
   // Build a map of date -> available time slots from doctor's schedule
   const scheduleMap = useMemo(() => {
@@ -69,7 +83,7 @@ export function DoctorBookingSection({
         const times = dayEntry.slots
           .map((s) => s.time)
           .filter((time): time is string =>
-            Boolean(time) && isScheduleSlotFuture(dayEntry.date, time),
+            Boolean(time) && isScheduleSlotFuture(dayEntry.date, time, scheduleClock),
           )
           .sort();
         if (times.length > 0) {
@@ -78,7 +92,7 @@ export function DoctorBookingSection({
       }
     }
     return map;
-  }, [schedule]);
+  }, [schedule, scheduleClock]);
 
   const availableDates = useMemo(() => Array.from(scheduleMap.keys()).sort(), [scheduleMap]);
 
@@ -102,6 +116,23 @@ export function DoctorBookingSection({
   const [redirectingToPayment, setRedirectingToPayment] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const availableTimes = scheduleMap.get(selectedDate) ?? [];
+    if (availableTimes.length === 0) {
+      setSelectedDate(null);
+      setSelectedTime(null);
+      setDisclaimerOpen(false);
+      return;
+    }
+
+    if (selectedTime && !availableTimes.includes(selectedTime)) {
+      setSelectedTime(null);
+      setDisclaimerOpen(false);
+    }
+  }, [scheduleMap, selectedDate, selectedTime]);
 
   const weekDays = useMemo(() => {
     const days = [];
@@ -181,6 +212,11 @@ export function DoctorBookingSection({
   const handleBookingClick = () => {
     if (!user) return;
     if (!selectedDate || !selectedTime) return;
+    if (!isScheduleSlotFuture(selectedDate, selectedTime)) {
+      setSelectedTime(null);
+      setBookingError("Консультация была выбрана другим пользователем");
+      return;
+    }
     setBookingError(null);
     setDisclaimerOpen(true);
   };
@@ -188,6 +224,12 @@ export function DoctorBookingSection({
   const handleBooking = async () => {
     if (!user) return;
     if (!selectedDate || !selectedTime) return;
+    if (!isScheduleSlotFuture(selectedDate, selectedTime)) {
+      setDisclaimerOpen(false);
+      setSelectedTime(null);
+      setBookingError("Консультация была выбрана другим пользователем");
+      return;
+    }
 
     setBookingError(null);
 
