@@ -169,16 +169,31 @@ export function OrgConsultationView({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {messages.map((message) => {
+                <div className="flex flex-col">
+                  {messages.map((message, index) => {
                     const senderType = message.sender?.relationTo === 'doctors' ? 'doctor' : 'user'
-                    const isDoctor = senderType === 'doctor'
+                    const previous = messages[index - 1]
+                    const next = messages[index + 1]
+                    const previousSenderType = previous?.sender?.relationTo === 'doctors' ? 'doctor' : 'user'
+                    const nextSenderType = next?.sender?.relationTo === 'doctors' ? 'doctor' : 'user'
+                    const groupedWithPrevious = Boolean(previous && !message.isSystemMessage && !previous.isSystemMessage && previousSenderType === senderType)
+                    const groupedWithNext = Boolean(next && !message.isSystemMessage && !next.isSystemMessage && nextSenderType === senderType)
+                    const groupPosition = !groupedWithPrevious && !groupedWithNext
+                      ? 'single'
+                      : !groupedWithPrevious
+                        ? 'first'
+                        : !groupedWithNext
+                          ? 'last'
+                          : 'middle'
+
                     return (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        isOwn={isDoctor}
-                      />
+                      <div key={message.id} className={groupedWithNext ? 'mb-1' : 'mb-3'}>
+                        <MessageBubble
+                          message={message}
+                          isOwn={senderType === 'doctor'}
+                          groupPosition={groupPosition}
+                        />
+                      </div>
                     )
                   })}
                 </div>

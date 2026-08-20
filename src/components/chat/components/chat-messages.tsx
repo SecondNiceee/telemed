@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 import { Video } from 'lucide-react'
-import { MessageBubble } from '../message-bubble'
+import { MessageBubble, type MessageGroupPosition } from '../message-bubble'
 import type { ChatMessagesProps } from '../types'
+import { cn } from '@/lib/utils'
 
 // Local helper to get sender type from message with polymorphic sender relation
 function getMessageSenderType(message: ChatMessagesProps['messages'][number]): 'user' | 'doctor' | null {
@@ -18,9 +19,32 @@ function getMessageSenderId(message: ChatMessagesProps['messages'][number]): num
   if (!message.sender || message.sender.value === undefined) {
     return null
   }
-  return typeof message.sender.value === 'object' 
-    ? message.sender.value.id 
+  return typeof message.sender.value === 'object'
+    ? message.sender.value.id
     : message.sender.value
+}
+
+function isSameMessageSender(
+  current: ChatMessagesProps['messages'][number],
+  adjacent?: ChatMessagesProps['messages'][number],
+): boolean {
+  if (!adjacent || current.isSystemMessage || adjacent.isSystemMessage) return false
+  return getMessageSenderType(current) === getMessageSenderType(adjacent)
+    && getMessageSenderId(current) === getMessageSenderId(adjacent)
+}
+
+function getGroupPosition(
+  messages: ChatMessagesProps['messages'],
+  index: number,
+): MessageGroupPosition {
+  const message = messages[index]
+  const groupedWithPrevious = isSameMessageSender(message, messages[index - 1])
+  const groupedWithNext = isSameMessageSender(message, messages[index + 1])
+
+  if (!groupedWithPrevious && !groupedWithNext) return 'single'
+  if (!groupedWithPrevious) return 'first'
+  if (!groupedWithNext) return 'last'
+  return 'middle'
 }
 
 export function ChatMessages({
@@ -40,7 +64,7 @@ export function ChatMessages({
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex flex-1 flex-col overflow-y-auto p-4">
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
           <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -55,26 +79,27 @@ export function ChatMessages({
           </p>
         </div>
       ) : (
-        messages.map((message) => {
-          // System messages don't have a sender
-          if (message.isSystemMessage) {
-            return (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                isOwn={false}
-              />
-            )
-          }
+        messages.map((message, index) => {
+          const groupPosition = getGroupPosition(messages, index)
           const senderType = getMessageSenderType(message)
           const senderId = getMessageSenderId(message)
-          const isOwn = senderType === currentSenderType && senderId === currentSenderId
+          const isOwn = !message.isSystemMessage
+            && senderType === currentSenderType
+            && senderId === currentSenderId
+
           return (
-            <MessageBubble
+            <div
               key={message.id}
-              message={message}
-              isOwn={isOwn}
-            />
+              className={cn(
+                groupPosition === 'first' || groupPosition === 'middle' ? 'mb-1' : 'mb-3',
+              )}
+            >
+              <MessageBubble
+                message={message}
+                isOwn={isOwn}
+                groupPosition={groupPosition}
+              />
+            </div>
           )
         })
       )}
