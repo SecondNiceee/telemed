@@ -102,6 +102,7 @@ export interface ApiAppointment {
   time: string // HH:MM
   price?: number | null
   status: AppointmentStatus
+  reason?: string | null
   /** Пока запись ожидает оплаты — до этого момента слот забронирован. */
   paymentExpiresAt?: string | null
   paidAt?: string | null

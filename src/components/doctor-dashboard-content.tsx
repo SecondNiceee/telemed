@@ -16,7 +16,14 @@ import { Button } from "@/components/ui/button"
 import { useDoctorAppointmentStore } from "@/stores/doctor-appointments-store"
 import type { ApiAppointment } from "@/lib/api/types"
 
-type ConsultationTab = "active" | "completed"
+type ConsultationTab = "all" | "upcoming" | "completed" | "cancelled"
+const DOCTOR_FILTER_KEY = "doctor-appointments-filter"
+const CONSULTATION_TABS: { id: ConsultationTab; label: string }[] = [
+  { id: "all", label: "Все" },
+  { id: "upcoming", label: "Предстоящие" },
+  { id: "completed", label: "Завершённые" },
+  { id: "cancelled", label: "Отменённые" },
+]
 type FilterMode = "all" | "day" | "range"
 
 interface DateSelection {
@@ -292,7 +299,15 @@ export function DoctorDashboardContent({
     fetchAppointments(doctorId)
   }, [fetchAppointments, doctorId])
 
-  const [tab, setTab] = useState<ConsultationTab>("active")
+  const [tab, setTab] = useState<ConsultationTab>("all")
+  useEffect(() => {
+    const saved = window.localStorage.getItem(DOCTOR_FILTER_KEY)
+    if (CONSULTATION_TABS.some(({ id }) => id === saved)) setTab(saved as ConsultationTab)
+  }, [])
+  const changeTab = (nextTab: ConsultationTab) => {
+    setTab(nextTab)
+    window.localStorage.setItem(DOCTOR_FILTER_KEY, nextTab)
+  }
   const [selection, setSelection] = useState<DateSelection>({
     mode: "all",
     day: null,
@@ -316,8 +331,9 @@ export function DoctorDashboardContent({
   // Filter appointments by tab and date selection
   const filteredAppointments = appointments.filter((appt) => {
     // Tab filter
-    if (tab === "active" && appt.status !== "confirmed") return false
+    if (tab === "upcoming" && !["confirmed", "in_progress"].includes(appt.status)) return false
     if (tab === "completed" && appt.status !== "completed") return false
+    if (tab === "cancelled" && appt.status !== "cancelled") return false
 
     // Date filter
     if (selection.mode === "day" && selection.day) {
@@ -349,53 +365,22 @@ export function DoctorDashboardContent({
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Tabs */}
-            <div className="flex rounded-xl bg-muted p-1 mb-6">
-              <button
-                type="button"
-                onClick={() => setTab("active")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
-                  tab === "active"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <span className="relative flex h-2 w-2">
-                  <span
-                    className={cn(
-                      "absolute inline-flex h-full w-full rounded-full opacity-75",
-                      tab === "active" && "animate-ping bg-teal"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "relative inline-flex rounded-full h-2 w-2",
-                      tab === "active" ? "bg-teal" : "bg-muted-foreground/40"
-                    )}
-                  />
-                </span>
-                Активные
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("completed")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
-                  tab === "completed"
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Clock
+            <div className="mb-6 flex rounded-xl bg-muted p-1">
+              {CONSULTATION_TABS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => changeTab(item.id)}
                   className={cn(
-                    "w-3.5 h-3.5",
-                    tab === "completed"
-                      ? "text-foreground"
-                      : "text-muted-foreground/60"
+                    "flex-1 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                    tab === item.id
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
-                />
-                Завершенные
-              </button>
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
 
             {/* Active filter chip */}
@@ -427,14 +412,10 @@ export function DoctorDashboardContent({
                   <Video className="w-7 h-7 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {tab === "active"
-                    ? "Нет активных консультаций"
-                    : "Нет завершенных консультаций"}
+                  Нет консультаций в выбранном разделе
                 </h3>
                 <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
-                  {tab === "active"
-                    ? "Когда пациент�� запишутся на консультацию, они появятся здесь"
-                    : "Завершенные консультации будут отображаться в этом разделе"}
+                  Измените фильтр статуса или выбранный период.
                 </p>
               </div>
             ) : (

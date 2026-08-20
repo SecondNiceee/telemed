@@ -11,20 +11,20 @@ import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
 import { FeedbackPrompt } from "@/components/feedback-prompt"
 import { ConsultationGuide } from "@/components/consultation-guide"
-import { cn } from "@/lib/utils"
 
 interface LkContentProps {
   user: User | null
   appointments: ApiAppointment[]
 }
 
-type FilterType = 'all' | 'upcoming' | 'active' | 'completed'
+type FilterType = 'all' | 'upcoming' | 'completed' | 'cancelled'
 
+const FILTER_STORAGE_KEY = 'patient-appointments-filter'
 const FILTERS: { id: FilterType; label: string }[] = [
   { id: 'all', label: 'Все' },
   { id: 'upcoming', label: 'Предстоящие' },
-  { id: 'active', label: 'Активные' },
   { id: 'completed', label: 'Завершённые' },
+  { id: 'cancelled', label: 'Отменённые' },
 ]
 
 /** Тексты пустого состояния для каждого фильтра */
@@ -37,13 +37,13 @@ const EMPTY_STATE: Record<FilterType, { title: string; hint: string }> = {
     title: 'Нет предстоящих записей',
     hint: 'Запишитесь на приём, и здесь появится обратный отсчёт до консультации.',
   },
-  active: {
-    title: 'Нет активных консультаций',
-    hint: 'Консультация станет активной в назначенное время приёма.',
-  },
   completed: {
     title: 'Нет завершённых записей',
     hint: 'После консультации здесь останутся заключения и рекомендации врача.',
+  },
+  cancelled: {
+    title: 'Нет отменённых консультаций',
+    hint: 'Здесь появятся консультации, которые врач отметил как несостоявшиеся.',
   },
 }
 
@@ -51,6 +51,16 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
   const { loading: userLoading, setUser, user: storeUser, fetched: userFetched, logout } = useUserStore()
   const { appointments, setAppointments, loading: apptLoading, fetched: apptFetched } = useUserAppointmentStore()
   const [filter, setFilter] = useState<FilterType>('all')
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(FILTER_STORAGE_KEY)
+    if (FILTERS.some(({ id }) => id === saved)) setFilter(saved as FilterType)
+  }, [])
+
+  const changeFilter = (value: FilterType) => {
+    setFilter(value)
+    window.localStorage.setItem(FILTER_STORAGE_KEY, value)
+  }
 
   // Sync user to store
   useEffect(() => {
@@ -92,24 +102,27 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
       a.status === "pending_payment" &&
       (!a.paymentExpiresAt || new Date(a.paymentExpiresAt).getTime() > Date.now()),
   )
-  const upcomingAppointments = appointments.filter((a) => a.status === "confirmed")
+  const upcomingAppointments = appointments.filter((a) =>
+    a.status === "confirmed" || a.status === "in_progress",
+  )
   const activeAppointments = appointments.filter((a) => a.status === "in_progress")
   const completedAppointments = appointments.filter((a) => a.status === "completed")
+  const cancelledAppointments = appointments.filter((a) => a.status === "cancelled")
   
   const counts: Record<FilterType, number> = {
     all: appointments.length,
     upcoming: upcomingAppointments.length,
-    active: activeAppointments.length,
     completed: completedAppointments.length,
+    cancelled: cancelledAppointments.length,
   }
 
-  const filteredAppointments = filter === 'all' 
-    ? appointments 
-    : filter === 'upcoming' 
-      ? upcomingAppointments 
-      : filter === 'active'
-        ? activeAppointments
-        : completedAppointments
+  const filteredAppointments = filter === 'all'
+    ? appointments
+    : filter === 'upcoming'
+      ? upcomingAppointments
+      : filter === 'completed'
+        ? completedAppointments
+        : cancelledAppointments
 
   return (
     <div className="relative z-10 flex-1">
@@ -180,44 +193,21 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             </h2>
           </div>
 
-          {/* Фильтры: пилюли с подсветкой активного бренд-ц��етом */}
-          <div
-            role="tablist"
-            aria-label="Фильтр записей"
-            className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1"
-          >
-            {FILTERS.map((f) => {
-              const isActive = filter === f.id
-              const count = counts[f.id]
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setFilter(f.id)}
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground ring-1 ring-inset ring-border hover:text-foreground hover:ring-primary/30",
-                  )}
-                >
-                  {f.label}
-                  {count > 0 && (
-                    <span
-                      className={cn(
-                        "font-mono text-[11px] tabular-nums",
-                        isActive ? "text-primary-foreground/70" : "text-muted-foreground/70",
-                      )}
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <span className="sr-only">Фильтр записей</span>
+            <select
+              value={filter}
+              onChange={(event) => changeFilter(event.target.value as FilterType)}
+              className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Фильтр записей"
+            >
+              {FILTERS.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label} ({counts[item.id]})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {isLoading ? (

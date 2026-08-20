@@ -37,6 +37,7 @@ export function ChatHeader({
   onStartVideoCall,
   onStartAudioCall,
   onShowCompleteDialog,
+  onShowCancelDialog,
   onToggleChatBlock,
   onLeaveFeedback,
   onChangeConnectionType,
@@ -189,8 +190,20 @@ export function ChatHeader({
           </Button>
         )}
         
+        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'cancelled' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-1.5 text-destructive"
+            onClick={onShowCancelDialog}
+          >
+            <Ban className="h-3.5 w-3.5" />
+            <span className="hidden lg:inline">Консультация не состоялась</span>
+          </Button>
+        )}
+
         {/* Start consultation button - only for doctor when not started */}
-        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'in_progress' && (
+        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'in_progress' && localStatus !== 'cancelled' && (
           <Button
             variant="default"
             size="sm"

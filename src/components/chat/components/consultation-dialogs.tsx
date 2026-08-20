@@ -29,11 +29,19 @@ const connectionTypeLabels: Record<string, string> = {
 export function ConsultationDialogs({
   showCompleteDialog,
   showConsultationTypeDialog,
+  showCancelDialog,
   isCompleting,
+  isCancelling,
+  cancellationReason,
+  customCancellationReason,
   connectionType,
   onCompleteDialogChange,
   onConsultationTypeDialogChange,
+  onCancelDialogChange,
+  onCancellationReasonChange,
+  onCustomCancellationReasonChange,
   onComplete,
+  onCancel,
   onStartVideoConsultation,
   onStartAudioConsultation,
   onStartChatConsultation,
@@ -65,6 +73,45 @@ export function ConsultationDialogs({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showCancelDialog} onOpenChange={onCancelDialogChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Укажите причину, почему не состоялась консультация</DialogTitle>
+            <DialogDescription>Пациент получит эту причину по электронной почте.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            {['Технические проблемы', 'Клиент не отвечает/не берет звонок', 'Другая причина'].map((reason) => (
+              <label key={reason} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 text-sm">
+                <input
+                  type="radio"
+                  name="cancellation-reason"
+                  value={reason}
+                  checked={cancellationReason === reason}
+                  onChange={() => onCancellationReasonChange(reason)}
+                />
+                {reason}
+              </label>
+            ))}
+            {cancellationReason === 'Другая причина' && (
+              <textarea
+                value={customCancellationReason}
+                onChange={(event) => onCustomCancellationReasonChange(event.target.value)}
+                maxLength={500}
+                rows={3}
+                placeholder="Опишите причину"
+                className="resize-none rounded-lg border border-border bg-background p-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+              />
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onCancelDialogChange(false)} disabled={isCancelling}>Закрыть</Button>
+            <Button variant="destructive" onClick={onCancel} disabled={isCancelling || !cancellationReason || (cancellationReason === 'Другая причина' && !customCancellationReason.trim())}>
+              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Отменить консультацию'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Consultation type selection dialog */}
       <Dialog open={showConsultationTypeDialog} onOpenChange={onConsultationTypeDialogChange}>

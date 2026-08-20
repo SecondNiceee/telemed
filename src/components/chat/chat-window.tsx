@@ -34,7 +34,11 @@ export function ChatWindow({
     getCountdownParts(appointment.date, appointment.time)
   )
   const [showCompleteDialog, setShowCompleteDialog] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [customCancellationReason, setCustomCancellationReason] = useState('')
   const [localStatus, setLocalStatus] = useState(appointment.status)
   const [showConsultationTypeDialog, setShowConsultationTypeDialog] = useState(false)
   const [consultationType, setConsultationType] = useState<ConsultationType>(null)
@@ -171,6 +175,30 @@ export function ChatWindow({
       toast.error('Не удалось завершить консультацию')
     } finally {
       setIsCompleting(false)
+    }
+  }
+
+  const handleCancelAppointment = async () => {
+    setIsCancelling(true)
+    try {
+      const response = await fetch(`/api/appointments/${appointment.id}/cancel`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reasonType: cancellationReason,
+          customReason: customCancellationReason,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.message || 'Не удалось отменить консультацию')
+      setLocalStatus('cancelled')
+      setShowCancelDialog(false)
+      toast.success('Консультация отмечена как несостоявшаяся')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Не удалось отменить консультацию')
+    } finally {
+      setIsCancelling(false)
     }
   }
 
@@ -417,8 +445,9 @@ export function ChatWindow({
   onStartConsultation={handleStartConsultationClick}
   onStartVideoCall={handleStartVideoConsultation}
   onStartAudioCall={handleStartAudioConsultation}
-  onShowCompleteDialog={() => setShowCompleteDialog(true)}
-  onToggleChatBlock={handleToggleChatBlock}
+        onShowCompleteDialog={() => setShowCompleteDialog(true)}
+        onShowCancelDialog={() => setShowCancelDialog(true)}
+        onToggleChatBlock={handleToggleChatBlock}
   onLeaveFeedback={() => setShowFeedbackDialog(true)}
   onChangeConnectionType={handleChangeConnectionType}
   />
@@ -426,11 +455,19 @@ export function ChatWindow({
       <ConsultationDialogs
         showCompleteDialog={showCompleteDialog}
         showConsultationTypeDialog={showConsultationTypeDialog}
+        showCancelDialog={showCancelDialog}
         isCompleting={isCompleting}
+        isCancelling={isCancelling}
+        cancellationReason={cancellationReason}
+        customCancellationReason={customCancellationReason}
         connectionType={effectiveConnectionType}
         onCompleteDialogChange={setShowCompleteDialog}
         onConsultationTypeDialogChange={setShowConsultationTypeDialog}
+        onCancelDialogChange={setShowCancelDialog}
+        onCancellationReasonChange={setCancellationReason}
+        onCustomCancellationReasonChange={setCustomCancellationReason}
         onComplete={handleCompleteAppointment}
+        onCancel={handleCancelAppointment}
         onStartVideoConsultation={handleStartVideoConsultation}
         onStartAudioConsultation={handleStartAudioConsultation}
         onStartChatConsultation={handleStartChatConsultation}
