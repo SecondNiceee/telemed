@@ -25,6 +25,15 @@
 
 Секрет должен совпадать у Next.js и SFU. Не публикуйте его в переменной `NEXT_PUBLIC_*`.
 
+### Coturn / TURN fallback
+
+- `STUN_URLS` — необязательный список STUN URL через запятую.
+- `TURN_URLS` — URL вашего coturn через запятую; рекомендуется указать `turn:` UDP, `turn:` TCP и `turns:` TLS.
+- `TURN_USERNAME` — coturn username.
+- `TURN_CREDENTIAL` — coturn password/credential.
+
+TURN credentials являются серверными: не используйте для них префикс `NEXT_PUBLIC_`. Они выдаются только после проверки сессии и принадлежности appointment в `POST /api/mediasoup/token`, затем применяются к send/recv WebRTC transports. Если `TURN_URLS` заполнен, username и credential обязательны.
+
 ## Локальный запуск
 
 ```bash
@@ -60,6 +69,8 @@ location /mediasoup/health {
 
 Откройте на firewall диапазон `40000:49999` по UDP и TCP. `MEDIASOUP_ANNOUNCED_IP` должен указывать на доступный клиентам публичный IP; внутренний адрес контейнера использовать нельзя. HTTP health endpoint не заменяет проверку RTC-портов.
 
+Для coturn откройте `3478` по UDP/TCP, `5349` по TCP для TURN-TLS и настроенный relay-диапазон UDP. Домен из `TURN_URLS` должен резолвиться в публичный IP coturn; TLS-сертификат для `turns:` обязан соответствовать этому домену.
+
 ## Диагностика
 
 1. `/health` должен возвращать `status: ok`.
@@ -67,6 +78,7 @@ location /mediasoup/health {
 3. Если signaling работает, но видео отсутствует, проверьте announced IP, NAT и UDP/TCP range.
 4. При `Appointment access denied` проверьте session cookie и связи `appointment.user`/`appointment.doctor`.
 5. При reconnect убедитесь, что повторный join использует тот же `peerId`, а старые transports закрываются.
+6. Для проверки TURN откройте `chrome://webrtc-internals` и убедитесь, что выбранная candidate pair содержит локальный candidate типа `relay`; проверяйте это из ограниченной сети или временно включив relay-only в отдельной диагностической сборке.
 
 ## Тест-план врач ↔ пациент
 

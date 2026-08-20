@@ -7,7 +7,14 @@ import { getStableMicrophone, type MicrophoneGate } from '@/lib/mediasoup/mic-ga
 
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 type Ack<T = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
-interface TokenData { token: string; roomId: string; peerId: string; role: 'doctor' | 'patient'; peerName: string }
+interface TokenData {
+  token: string
+  roomId: string
+  peerId: string
+  role: 'doctor' | 'patient'
+  peerName: string
+  iceServers: RTCIceServer[]
+}
 interface RemoteMedia { peerId: string; stream: MediaStream }
 
 const ackTimeout = 10_000
@@ -94,8 +101,9 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const createTransports = useCallback(async (socket: Socket, token: TokenData, device: Device) => {
     const sendData = await emitAck<{ transport: types.TransportOptions }>(socket, 'createWebRtcTransport', { roomId: token.roomId, direction: 'send' })
     const recvData = await emitAck<{ transport: types.TransportOptions }>(socket, 'createWebRtcTransport', { roomId: token.roomId, direction: 'recv' })
-    const send = device.createSendTransport(sendData.transport)
-    const recv = device.createRecvTransport(recvData.transport)
+    const transportOptions = { iceServers: token.iceServers }
+    const send = device.createSendTransport({ ...sendData.transport, ...transportOptions })
+    const recv = device.createRecvTransport({ ...recvData.transport, ...transportOptions })
 
     send.on('connect', ({ dtlsParameters }, callback, errback) => {
       emitAck(socket, 'connectTransport', { roomId: token.roomId, transportId: send.id, dtlsParameters }).then(() => callback()).catch(errback)
