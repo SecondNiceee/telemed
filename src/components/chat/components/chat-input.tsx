@@ -146,7 +146,7 @@ export function ChatInput({
               type="file"
               className="hidden"
               onChange={handleFileSelect}
-              accept="image/*,.pdf,.doc,.docx,.txt"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.rtf,.odt,.odp,.ods,.txt,.csv,.zip,.7z"
             />
             
             <Button
