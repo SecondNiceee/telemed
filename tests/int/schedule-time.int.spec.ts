@@ -8,15 +8,15 @@ import {
 const now = new Date(2026, 7, 18, 12, 30, 0, 0)
 
 describe('schedule time utilities', () => {
-  it('accepts a future date and a later time today', () => {
+  it('accepts slots with at least 30 minutes remaining', () => {
     expect(isScheduleSlotFuture('2026-08-19', '00:00', now)).toBe(true)
-    expect(isScheduleSlotFuture('2026-08-18', '12:31', now)).toBe(true)
+    expect(isScheduleSlotFuture('2026-08-18', '13:00', now)).toBe(true)
   })
 
-  it('rejects past slots and the current moment', () => {
+  it('rejects slots inside the 30-minute booking cutoff', () => {
     expect(isScheduleSlotFuture('2026-08-17', '23:59', now)).toBe(false)
-    expect(isScheduleSlotFuture('2026-08-18', '12:29', now)).toBe(false)
     expect(isScheduleSlotFuture('2026-08-18', '12:30', now)).toBe(false)
+    expect(isScheduleSlotFuture('2026-08-18', '12:59', now)).toBe(false)
   })
 
   it('rejects invalid calendar dates and times', () => {
@@ -31,7 +31,7 @@ describe('schedule time utilities', () => {
       filterFutureSchedule(
         [
           { date: '2026-08-17', slots: [{ time: '18:00' }] },
-          { date: '2026-08-18', slots: [{ time: '12:00' }, { time: '13:00' }] },
+          { date: '2026-08-18', slots: [{ time: '12:00' }, { time: '12:59' }, { time: '13:00' }] },
           { date: '2026-08-19', slots: [{ time: '09:00' }] },
         ],
         now,

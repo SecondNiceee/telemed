@@ -1,6 +1,9 @@
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 
+export const BOOKING_LEAD_TIME_MINUTES = 30
+const BOOKING_LEAD_TIME_MS = BOOKING_LEAD_TIME_MINUTES * 60 * 1000
+
 export interface ScheduleEntryLike {
   date: string
   slots?: Array<{ time: string } | null> | null
@@ -31,10 +34,10 @@ export function getScheduleSlotDate(date: string, time: string): Date | null {
   return value
 }
 
-/** A slot at the current minute is no longer bookable. */
+/** A patient can book only while at least 30 full minutes remain before the slot. */
 export function isScheduleSlotFuture(date: string, time: string, now = new Date()): boolean {
   const slotDate = getScheduleSlotDate(date, time)
-  return slotDate !== null && slotDate.getTime() > now.getTime()
+  return slotDate !== null && slotDate.getTime() - now.getTime() >= BOOKING_LEAD_TIME_MS
 }
 
 export function filterFutureSchedule<T extends ScheduleEntryLike>(
