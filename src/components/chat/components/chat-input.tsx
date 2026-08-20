@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Send, Paperclip, X, FileIcon, Loader2, CheckCircle2 } from 'lucide-react'
+import { ArrowUp, Paperclip, X, FileIcon, Loader2, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useFileUpload } from '../hooks/use-file-upload'
 import { useTyping } from '../hooks/use-typing'
@@ -85,13 +85,14 @@ export function ChatInput({
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      if (e.nativeEvent.isComposing || e.keyCode === 229) return
       e.preventDefault()
       handleSend()
     }
   }, [handleSend])
 
   return (
-    <div className="p-4 border-t border-border bg-card">
+    <div className="border-t border-border bg-card p-2">
       {/* Chat blocked notice for patient - cannot send messages */}
       {isChatBlocked && currentSenderType === 'user' && (
         <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-600 text-sm">
@@ -171,7 +172,7 @@ export function ChatInput({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder="Введите сообщение..."
-              className="flex-1 min-h-[40px] max-h-[120px] px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-10 max-h-[120px] flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-input focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={!isConnected}
               rows={1}
               style={{ height: 'auto' }}
@@ -185,9 +186,10 @@ export function ChatInput({
               onClick={handleSend}
               disabled={(!inputValue.trim() && !uploadedAttachment) || !isConnected || isUploading}
               size="icon"
-              className="shrink-0 mb-0.5"
+              className="mb-0.5 shrink-0 rounded-full"
+              aria-label="Отправить сообщение"
             >
-              <Send className="w-4 h-4" />
+              <ArrowUp data-icon="inline-start" />
             </Button>
           </div>
         </div>
