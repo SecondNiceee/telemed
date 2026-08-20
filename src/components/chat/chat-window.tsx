@@ -54,7 +54,7 @@ export function ChatWindow({
 
   // Hooks
   const router = useRouter()
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, initiateCall, startConsultation, endConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, initiateCall, startConsultation, endConsultation, cancelConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const { 
@@ -192,6 +192,7 @@ export function ChatWindow({
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || 'Не удалось отменить консультацию')
+      cancelConsultation(appointment.id)
       setLocalStatus('cancelled')
       setShowCancelDialog(false)
       toast.success('Консультация отмечена как несостоявшаяся')
@@ -402,7 +403,7 @@ export function ChatWindow({
       await AppointmentsApi.complete(appointment.id)
       setLocalStatus('completed')
       onAppointmentCompleted?.(appointment.id)
-      toast.success('Консультация завершена')
+      toast.success('Консультация ��авершена')
     } catch (error) {
       console.error('[ChatWindow] Failed to complete appointment:', error)
       toast.error('Не удалось завершить консультацию')

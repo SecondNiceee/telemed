@@ -37,6 +37,7 @@ export interface CallParticipantRejoiningPayload { appointmentId: number; partic
 
 export interface ConsultationStartPayload { appointmentId: number }
 export interface ConsultationEndPayload { appointmentId: number }
+export interface ConsultationCancelPayload { appointmentId: number }
 export interface ChatBlockPayload { appointmentId: number }
 export interface ChatUnblockPayload { appointmentId: number }
 export interface ChangeConnectionTypePayload { appointmentId: number; connectionType: 'chat' | 'audio' | 'video' }
