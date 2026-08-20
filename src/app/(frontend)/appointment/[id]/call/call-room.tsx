@@ -31,7 +31,7 @@ function VideoSurface({ stream, muted, label }: { stream: MediaStream | null; mu
   )
 }
 
-export function CallRoom({ appointmentId }: { appointmentId: number }) {
+export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; chatPath: '/lk/chat' | '/lk-med/chat' }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
@@ -42,7 +42,7 @@ export function CallRoom({ appointmentId }: { appointmentId: number }) {
 
   const leave = () => {
     call.leave()
-    router.push('/lk/chat?appointment=' + appointmentId)
+    router.replace(`${chatPath}?appointment=${appointmentId}`)
   }
 
   return (
