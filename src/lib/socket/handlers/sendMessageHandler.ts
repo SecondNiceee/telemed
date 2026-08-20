@@ -65,6 +65,11 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         return
       }
 
+      if (accessResult.appointment?.status === 'cancelled') {
+        authSocket.emit('error', { message: 'Консультация была отменена' })
+        return
+      }
+
       // Доступ
       let senderType = accessResult.accessType!
       let senderId = accessResult.accessId!

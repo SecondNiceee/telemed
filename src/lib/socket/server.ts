@@ -13,6 +13,7 @@ import type {
   CallParticipantRejoiningPayload,
   ConsultationStartPayload,
   ConsultationEndPayload,
+  ConsultationCancelPayload,
   ChatBlockPayload,
   ChatUnblockPayload,
   ChangeConnectionTypePayload,
@@ -37,6 +38,7 @@ import {
 import {
   createConsultationStartHandler,
   createConsultationEndHandler,
+  createConsultationCancelHandler,
   createChatBlockHandler,
   createChatUnblockHandler,
   createChangeConnectionTypeHandler,
@@ -88,6 +90,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   // Хэндлеры консультации
   const consultationStartHandler = createConsultationStartHandler(io, payload)
   const consultationEndHandler = createConsultationEndHandler(io, payload)
+  const consultationCancelHandler = createConsultationCancelHandler(io, payload)
   const chatBlockHandler = createChatBlockHandler(io, payload)
   const chatUnblockHandler = createChatUnblockHandler(io, payload)
   const changeConnectionTypeHandler = createChangeConnectionTypeHandler(io, payload)
@@ -128,6 +131,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     // Consultation management events
     socket.on('consultation-start', (data: ConsultationStartPayload) => consultationStartHandler(authSocket, data))
     socket.on('consultation-end', (data: ConsultationEndPayload) => consultationEndHandler(authSocket, data))
+    socket.on('consultation-cancel', (data: ConsultationCancelPayload) => consultationCancelHandler(authSocket, data))
     socket.on('chat-block', (data: ChatBlockPayload) => chatBlockHandler(authSocket, data))
     socket.on('chat-unblock', (data: ChatUnblockPayload) => chatUnblockHandler(authSocket, data))
     socket.on('change-connection-type', (data: ChangeConnectionTypePayload) => changeConnectionTypeHandler(authSocket, data))

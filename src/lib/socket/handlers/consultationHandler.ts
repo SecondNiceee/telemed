@@ -4,6 +4,7 @@ import type {
   AuthenticatedSocket, 
   ConsultationStartPayload, 
   ConsultationEndPayload,
+  ConsultationCancelPayload,
   ChatBlockPayload,
   ChatUnblockPayload,
   ChangeConnectionTypePayload,
@@ -153,6 +154,52 @@ export function createConsultationEndHandler(io: SocketIOServer, payload: Payloa
     } catch (error) {
       console.error('[Socket] Failed to end consultation:', error)
       socket.emit('error', { message: 'Failed to end consultation' })
+    }
+  }
+}
+
+/**
+ * Notify consultation participants after the HTTP endpoint has cancelled it.
+ * This handler never changes the appointment or sends email.
+ */
+export function createConsultationCancelHandler(io: SocketIOServer, payload: Payload) {
+  return async (socket: AuthenticatedSocket, data: ConsultationCancelPayload) => {
+    const { appointmentId } = data
+    const { senderType, senderId } = socket.data
+
+    if (senderType !== 'doctor') {
+      socket.emit('error', { message: 'Only doctors can cancel consultations' })
+      return
+    }
+
+    if (!isValidAppointmentId(appointmentId)) {
+      socket.emit('error', { message: 'Invalid appointment ID' })
+      return
+    }
+
+    const accessResult = await verifyAppointmentAccess(payload, appointmentId, undefined, senderId)
+    if (!accessResult.hasAccess) {
+      socket.emit('error', { message: 'Access denied to this appointment' })
+      return
+    }
+
+    try {
+      const appointment = await payload.findByID({
+        collection: 'appointments',
+        id: appointmentId,
+        overrideAccess: true,
+      })
+
+      if (appointment.status !== 'cancelled') {
+        socket.emit('error', { message: 'Consultation has not been cancelled' })
+        return
+      }
+
+      io.to(`appointment:${appointmentId}`).emit('consultation-cancelled', { appointmentId })
+      console.log(`[Socket] Consultation cancellation announced for appointment ${appointmentId} by doctor ${senderId}`)
+    } catch (error) {
+      console.error('[Socket] Failed to announce consultation cancellation:', error)
+      socket.emit('error', { message: 'Failed to announce consultation cancellation' })
     }
   }
 }

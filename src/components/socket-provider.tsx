@@ -31,6 +31,7 @@ interface SocketContextValue {
   // Consultation management
   startConsultation: (appointmentId: number) => void
   endConsultation: (appointmentId: number) => void
+  cancelConsultation: (appointmentId: number) => void
   blockChat: (appointmentId: number) => void
   unblockChat: (appointmentId: number) => void
   changeConnectionType: (appointmentId: number, connectionType: 'chat' | 'audio' | 'video') => void
@@ -246,6 +247,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       }
     })
 
+    newSocket.on('consultation-cancelled', ({ appointmentId }) => {
+      console.log('[Socket] Consultation cancelled:', appointmentId)
+      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'cancelled')
+    })
+
     newSocket.on('chat-blocked', ({ appointmentId }) => {
       console.log('[Socket] Chat blocked:', appointmentId)
       chatStoreRef.current.setChatBlocked(appointmentId, true)
@@ -387,6 +393,12 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   }, [socket])
 
+  const cancelConsultation = useCallback((appointmentId: number) => {
+    if (socket?.connected) {
+      socket.emit('consultation-cancel', { appointmentId })
+    }
+  }, [socket])
+
   const blockChat = useCallback((appointmentId: number) => {
     if (socket?.connected) {
       socket.emit('chat-block', { appointmentId })
@@ -421,6 +433,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     onRemoteCallEnded,
     startConsultation,
     endConsultation,
+    cancelConsultation,
     blockChat,
     unblockChat,
     changeConnectionType,
@@ -475,6 +488,7 @@ const defaultSocketContext: SocketContextValue = {
   onRemoteCallEnded: () => () => {},
   startConsultation: () => {},
   endConsultation: () => {},
+  cancelConsultation: () => {},
   blockChat: () => {},
   unblockChat: () => {},
   changeConnectionType: () => {},
