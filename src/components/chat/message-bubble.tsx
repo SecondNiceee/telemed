@@ -139,7 +139,7 @@ function AttachmentPreview({
         </DialogTrigger>
         <DialogContent
           showCloseButton={false}
-          overlayClassName="bg-surface-dark/95"
+          overlayClassName="bg-image-viewer-overlay/95"
           className="h-screen max-h-screen w-screen max-w-none border-0 bg-transparent p-4 shadow-none sm:max-w-none"
         >
           <DialogTitle className="sr-only">Просмотр изображения {attachment.filename}</DialogTitle>
