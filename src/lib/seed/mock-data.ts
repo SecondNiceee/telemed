@@ -38,6 +38,9 @@ export function buildMockSchedule(): { date: string; slots: { time: string }[] }
   const schedule: { date: string; slots: { time: string }[] }[] = []
   const cursor = new Date()
   cursor.setHours(0, 0, 0, 0)
+  // Начинаем с завтрашнего дня: сегодняшние утренние слоты могут уже попасть
+  // под общий 30-минутный порог и заблокировать создание всего демо-врача.
+  cursor.setDate(cursor.getDate() + 1)
 
   for (let day = 0; day < MOCK_SCHEDULE_DAYS; day += 1) {
     const date = new Date(cursor)
