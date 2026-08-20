@@ -11,7 +11,7 @@ export function ChatInput({
   appointmentId,
   isConnected,
   canSendMessages,
-  isCompleted,
+  isCancelled,
   isChatBlocked,
   currentSenderType,
   onSendMessage,
@@ -93,13 +93,17 @@ export function ChatInput({
 
   return (
     <div className="border-t border-border bg-card p-2">
-      {/* Chat blocked notice for patient - cannot send messages */}
-      {isChatBlocked && currentSenderType === 'user' && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 text-green-600 text-sm">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+      {isCancelled ? (
+        <div className="flex items-center justify-center gap-2 rounded-lg bg-muted p-3 text-sm font-medium text-muted-foreground">
+          <X className="size-4 shrink-0" aria-hidden="true" />
+          <span>Консультация отменена</span>
+        </div>
+      ) : isChatBlocked && currentSenderType === 'user' ? (
+        <div className="flex items-center gap-2 rounded-lg bg-green-50 p-3 text-sm text-green-600">
+          <CheckCircle2 className="size-4 shrink-0" />
           <span>Консультация завершена</span>
         </div>
-      )}
+      ) : null}
       
       {/* Attachment preview */}
       {selectedFile && canSendMessages && (

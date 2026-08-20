@@ -60,7 +60,7 @@ export interface ChatInputProps {
   appointmentId: number
   isConnected: boolean
   canSendMessages: boolean
-  isCompleted: boolean
+  isCancelled: boolean
   isChatBlocked?: boolean
   currentSenderType: 'user' | 'doctor'
   onSendMessage: (text: string, attachmentId?: number) => void

@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
-import { toast } from 'sonner'
+import { useState, useEffect, useCallback } from 'react'
 import { ChatSidebar } from './chat-sidebar'
 import { ChatWindow } from './chat-window'
 import { SocketProvider, useSocket } from '@/components/socket-provider'
-import { useChatStore } from '@/stores/chat-store'
 import type { ApiAppointment } from '@/lib/api/types'
 import { MessageSquare } from 'lucide-react'
 
@@ -46,23 +43,6 @@ function ChatPageContent({
   }, [selectedAppointment?.id, onAppointmentCompleted])
   const [isMobileView, setIsMobileView] = useState(false)
   const { isConnected, joinRoom } = useSocket()
-  const router = useRouter()
-  const appointmentStatuses = useChatStore((state) => state.appointmentStatuses)
-  const handledCancellationRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (currentSenderType !== 'user' || handledCancellationRef.current !== null) return
-
-    const cancelledAppointment = appointments.find(
-      (appointment) => appointmentStatuses[appointment.id] === 'cancelled',
-    )
-    if (!cancelledAppointment) return
-
-    handledCancellationRef.current = cancelledAppointment.id
-    setSelectedAppointment(null)
-    toast.error('Консультация была отменена', { position: 'top-center' })
-    router.replace('/lk')
-  }, [appointmentStatuses, appointments, currentSenderType, router])
 
   // Check if mobile view
   useEffect(() => {
