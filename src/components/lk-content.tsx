@@ -11,6 +11,15 @@ import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
 import { FeedbackPrompt } from "@/components/feedback-prompt"
 import { ConsultationGuide } from "@/components/consultation-guide"
+import { cn } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface LkContentProps {
   user: User | null
@@ -173,7 +182,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
                 className="shrink-0 rounded-full bg-amber-500 px-5 text-white hover:bg-amber-600"
               >
                 <Link href={`/appointment/${pendingPaymentAppointments[0].id}/payment`}>
-                  Перейти к оплате
+                  Перейти к ��плате
                 </Link>
               </Button>
             </div>
@@ -193,21 +202,42 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
             </h2>
           </div>
 
-          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <span className="sr-only">Фильтр записей</span>
-            <select
-              value={filter}
-              onChange={(event) => changeFilter(event.target.value as FilterType)}
-              className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
-              aria-label="Фильтр записей"
-            >
-              {FILTERS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label} ({counts[item.id]})
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="w-full lg:hidden">
+            <Select value={filter} onValueChange={(value) => changeFilter(value as FilterType)}>
+              <SelectTrigger className="h-11 w-full rounded-xl bg-card px-4 shadow-sm" aria-label="Фильтр записей">
+                <SelectValue placeholder="Выберите раздел" />
+              </SelectTrigger>
+              <SelectContent position="popper" align="end" className="min-w-[var(--radix-select-trigger-width)] rounded-xl">
+                <SelectGroup>
+                  {FILTERS.map((item) => (
+                    <SelectItem key={item.id} value={item.id} className="py-2.5">
+                      {item.label} ({counts[item.id]})
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div role="tablist" aria-label="Фильтр записей" className="hidden items-center rounded-xl bg-muted p-1 lg:flex">
+            {FILTERS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === item.id}
+                onClick={() => changeFilter(item.id)}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  filter === item.id
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {item.label} ({counts[item.id]})
+              </button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (
