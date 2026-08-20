@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  BOOKING_LEAD_TIME_MINUTES,
   filterFutureSchedule,
   getScheduleSlotDate,
   isScheduleSlotFuture,
+  SLOT_UNAVAILABLE_MESSAGE,
 } from '@/lib/schedule-time'
 
 const now = new Date(2026, 7, 18, 12, 30, 0, 0)
 
 describe('schedule time utilities', () => {
+  it('shares one booking cutoff and conflict message across booking flows', () => {
+    expect(BOOKING_LEAD_TIME_MINUTES).toBe(30)
+    expect(SLOT_UNAVAILABLE_MESSAGE).toBe('Консультация была выбрана другим пользователем')
+  })
+
   it('accepts slots with at least 30 minutes remaining', () => {
     expect(isScheduleSlotFuture('2026-08-19', '00:00', now)).toBe(true)
     expect(isScheduleSlotFuture('2026-08-18', '13:00', now)).toBe(true)
