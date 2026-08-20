@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import type { DoctorScheduleDate } from '@/lib/api/types'
 import { filterFutureSchedule } from '@/lib/schedule-time'
+import { sendAppointmentCancellationEmail } from '@/utils/sendAppointmentEmail'
 
 type PayloadInstance = Awaited<ReturnType<typeof getPayload>>
 
@@ -253,8 +254,16 @@ async function runSweep({
     // Тянем ровно то, что нужно для восстановления слота, — без повторного
     // findByID на каждую бронь. `payment` нужен, чтобы не отменить бронь,
     // деньги за которую уже получены.
-    select: { doctor: true, date: true, time: true, payment: true },
-    depth: 0,
+    select: {
+      doctor: true,
+      doctorName: true,
+      user: true,
+      userName: true,
+      date: true,
+      time: true,
+      payment: true,
+    },
+    depth: 1,
     overrideAccess: true,
   })
 
@@ -313,6 +322,37 @@ async function runSweep({
       await restoreDoctorSlots({ payload, doctorId: id, slots })
     } catch (err) {
       console.error('Failed to restore slots for doctor', id, err)
+    }
+  }
+
+  for (const appointment of batch) {
+    if (!cancelledIds.has(appointment.id)) continue
+
+    const user = typeof appointment.user === 'object' ? appointment.user : null
+    if (user?.email) {
+      try {
+        await sendAppointmentCancellationEmail({
+          payload,
+          patientEmail: user.email,
+          patientName: appointment.userName || user.name || 'Пациент',
+          doctorName: appointment.doctorName || 'Врач',
+          date: appointment.date,
+          time: appointment.time,
+          reason: 'Консультация была отменена из-за неоплаты.',
+        })
+      } catch (err) {
+        console.error('Failed to send unpaid appointment cancellation email', err)
+      }
+    }
+
+    try {
+      await payload.delete({
+        collection: 'appointments',
+        id: appointment.id,
+        overrideAccess: true,
+      })
+    } catch (err) {
+      console.error('Failed to delete expired unpaid appointment', err)
     }
   }
 
@@ -380,7 +420,7 @@ const PRUNE_MAX_BATCH = 200
 /**
  * Физически удалить из расписания врачей прошедшие свободные слоты.
  *
- * Зачем это нужно, хотя слоты и так скрыты фильтром при чтении: без уборки JSON
+ * Зачем это нужно, хотя слоты и так скрыты фильтром при чтени��: без уборки JSON
  * `doctors.schedule` бесконечно копит «мёртвые» прошедшие слоты, по которым уже
  * никто не запишется. На appointments это НЕ влияет — занятый слот удаляется из
  * schedule ещё в момент записи, так что здесь остаются только незанятые времена.

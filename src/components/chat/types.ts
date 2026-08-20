@@ -31,6 +31,7 @@ export interface ChatHeaderProps {
   onStartVideoCall: () => void
   onStartAudioCall: () => void
   onShowCompleteDialog: () => void
+  onShowCancelDialog: () => void
   onToggleChatBlock: () => void
   onLeaveFeedback?: () => void
   onChangeConnectionType?: (connectionType: 'chat' | 'audio' | 'video') => void
@@ -81,11 +82,19 @@ export interface VideoSaveSidebarProps {
 export interface ConsultationDialogsProps {
   showCompleteDialog: boolean
   showConsultationTypeDialog: boolean
+  showCancelDialog: boolean
   isCompleting: boolean
+  isCancelling: boolean
+  cancellationReason: string
+  customCancellationReason: string
   connectionType?: 'chat' | 'audio' | 'video' | null
   onCompleteDialogChange: (open: boolean) => void
   onConsultationTypeDialogChange: (open: boolean) => void
+  onCancelDialogChange: (open: boolean) => void
+  onCancellationReasonChange: (reason: string) => void
+  onCustomCancellationReasonChange: (reason: string) => void
   onComplete: () => void
+  onCancel: () => void
   onStartVideoConsultation: () => void
   onStartAudioConsultation: () => void
   onStartChatConsultation: () => void

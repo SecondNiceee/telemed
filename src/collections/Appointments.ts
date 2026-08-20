@@ -428,8 +428,17 @@ export const Appointments: CollectionConfig = {
         { label: 'Отменена', value: 'cancelled' },
       ],
     },
-    {
-      name: 'paymentExpiresAt',
+  {
+  name: 'reason',
+  type: 'textarea',
+  label: 'Причина отмены',
+  admin: {
+  condition: (data) => data.status === 'cancelled',
+  readOnly: true,
+  },
+  },
+  {
+  name: 'paymentExpiresAt',
       type: 'date',
       label: 'Бронь действует до',
       admin: {
