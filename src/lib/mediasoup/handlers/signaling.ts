@@ -17,7 +17,16 @@ type Ack<T extends object = Record<string, never>> = (response: ({ success: true
 // A reconnect creates a new Socket.IO socket for the same logical peer. Track
 // ownership so a late disconnect from the old socket cannot remove the new peer.
 const peerSocketOwners = new Map<string, string>()
+const peerDisconnectTimers = new Map<string, NodeJS.Timeout>()
 const peerOwnerKey = (roomId: string, peerId: string) => `${roomId}:${peerId}`
+const disconnectGraceMs = 10_000
+
+function cancelDisconnectTimer(ownerKey: string): void {
+  const timer = peerDisconnectTimers.get(ownerKey)
+  if (!timer) return
+  clearTimeout(timer)
+  peerDisconnectTimers.delete(ownerKey)
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error'
@@ -46,6 +55,7 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
       const claims = verifyRoomToken(data.token, { roomId: data.roomId, peerId: data.peerId })
       const room = await roomManager.getOrCreateRoom(claims.roomId)
       const ownerKey = peerOwnerKey(claims.roomId, claims.peerId)
+      cancelDisconnectTimer(ownerKey)
       const isSameSocketJoin =
         socket.data.roomId === claims.roomId &&
         socket.data.peerId === claims.peerId &&
@@ -145,27 +155,57 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
     })
   })
 
-  const leave = () => {
+  const removeOwnedPeer = (reason: 'participant-ended' | 'participant-disconnected') => {
     const { roomId, peerId } = socket.data
     if (!roomId || !peerId) return false
+
     const ownerKey = peerOwnerKey(roomId, peerId)
     const ownsPeer = peerSocketOwners.get(ownerKey) === socket.id
-    let removed = false
+    if (!ownsPeer) return false
 
-    if (ownsPeer) {
-      peerSocketOwners.delete(ownerKey)
-      const room = roomManager.getRoom(roomId)
-      removed = room ? roomManager.removePeer(room, peerId) : false
-      if (removed) socket.to(roomId).emit('peerLeft', { peerId })
+    cancelDisconnectTimer(ownerKey)
+    peerSocketOwners.delete(ownerKey)
+    const room = roomManager.getRoom(roomId)
+    const removed = room ? roomManager.removePeer(room, peerId) : false
+    if (removed) {
+      socket.to(roomId).emit(reason === 'participant-ended' ? 'participantEnded' : 'participantDisconnected', { peerId })
     }
-
-    void socket.leave(roomId)
-    console.log(`[MediaSoup] left socket=${socket.id} room=${roomId} peer=${peerId} owner=${ownsPeer} removed=${removed}`)
-    socket.data.roomId = undefined
-    socket.data.peerId = undefined
+    console.log(`[MediaSoup] removed socket=${socket.id} room=${roomId} peer=${peerId} reason=${reason} removed=${removed}`)
     return removed
   }
 
-  socket.on('leaveRoom', (_data: unknown, ack: Ack) => handle(ack, () => { leave(); return {} }))
-  socket.on('disconnect', leave)
+  socket.on('endCall', (_data: unknown, ack: Ack) => {
+    handle(ack, () => {
+      removeOwnedPeer('participant-ended')
+      void socket.leave(socket.data.roomId ?? '')
+      socket.data.roomId = undefined
+      socket.data.peerId = undefined
+      return {}
+    })
+  })
+
+  // Kept for backwards compatibility. An explicit leave means the participant
+  // intentionally ended the call, while a disconnect receives a reconnect grace period.
+  socket.on('leaveRoom', (_data: unknown, ack: Ack) => {
+    handle(ack, () => {
+      removeOwnedPeer('participant-ended')
+      return {}
+    })
+  })
+
+  socket.on('disconnect', () => {
+    const { roomId, peerId } = socket.data
+    if (!roomId || !peerId) return
+    const ownerKey = peerOwnerKey(roomId, peerId)
+    if (peerSocketOwners.get(ownerKey) !== socket.id) return
+
+    cancelDisconnectTimer(ownerKey)
+    const timer = setTimeout(() => {
+      peerDisconnectTimers.delete(ownerKey)
+      removeOwnedPeer('participant-disconnected')
+    }, disconnectGraceMs)
+    timer.unref()
+    peerDisconnectTimers.set(ownerKey, timer)
+    console.log(`[MediaSoup] disconnect grace socket=${socket.id} room=${roomId} peer=${peerId} timeout=${disconnectGraceMs}`)
+  })
 }

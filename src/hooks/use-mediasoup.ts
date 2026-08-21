@@ -6,6 +6,7 @@ import { io, type Socket } from 'socket.io-client'
 import { getStableMicrophone, type MicrophoneGate } from '@/lib/mediasoup/mic-gate'
 
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
+export type CallEndReason = 'participant-ended' | 'participant-disconnected'
 type Ack<T = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
 interface TokenData {
   token: string
@@ -48,6 +49,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [cameraEnabled, setCameraEnabled] = useState(!audioOnly)
   const [screenSharing, setScreenSharing] = useState(false)
   const [online, setOnline] = useState(true)
+  const [endReason, setEndReason] = useState<CallEndReason | null>(null)
 
   const socketRef = useRef<Socket | null>(null)
   const tokenRef = useRef<TokenData | null>(null)
@@ -226,18 +228,37 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     }
   }, [closeMediaSession, consume, createTransports, publishLocalTracks])
 
-  const leave = useCallback(() => {
+  const cleanup = useCallback(() => {
     leftRef.current = true
-    const socket = socketRef.current
-    const token = tokenRef.current
-    if (socket && token) socket.emit('leaveRoom', { roomId: token.roomId }, () => undefined)
-    socket?.disconnect()
     pendingJoinRef.current = false
+    socketRef.current?.disconnect()
+    socketRef.current = null
     closeMediaSession()
     micGateRef.current?.close()
+    micGateRef.current = null
     localStreamRef.current?.getTracks().forEach((track) => track.stop())
+    localStreamRef.current = null
+    setLocalStream(null)
     setStatus('idle')
   }, [closeMediaSession])
+
+  const leave = useCallback(() => {
+    cleanup()
+  }, [cleanup])
+
+  const endCall = useCallback(async () => {
+    const socket = socketRef.current
+    const token = tokenRef.current
+    if (socket?.connected && token) {
+      try {
+        await emitAck(socket, 'endCall', { roomId: token.roomId })
+      } catch {
+        // Cleanup locally even if the acknowledgement is lost. The server's
+        // disconnect grace timer will still notify the other participant.
+      }
+    }
+    cleanup()
+  }, [cleanup])
 
   const connect = useCallback(async () => {
     leftRef.current = false
@@ -294,12 +315,22 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         for (const [id, consumer] of consumersRef.current) if (consumer.producerId === producerId) { consumer.close(); consumersRef.current.delete(id) }
       })
       socket.on('peerLeft', ({ peerId }) => { remoteStreamsRef.current.delete(peerId); setRemoteMedia(null) })
+      socket.on('participantEnded', () => {
+        if (leftRef.current) return
+        setEndReason('participant-ended')
+        cleanup()
+      })
+      socket.on('participantDisconnected', () => {
+        if (leftRef.current) return
+        setEndReason('participant-disconnected')
+        cleanup()
+      })
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : 'Не удалось подключиться'
       setError(message)
       setStatus('failed')
     }
-  }, [appointmentId, audioOnly, closeMediaSession, consume, join])
+  }, [appointmentId, audioOnly, cleanup, closeMediaSession, consume, join])
 
   const toggleMicrophone = useCallback(async () => {
     const enabled = !micEnabled
@@ -343,5 +374,5 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
   }, [leave])
 
-  return { status, error, localStream, remoteMedia, micEnabled, cameraEnabled, screenSharing, online, connect, leave, toggleMicrophone, toggleCamera, toggleScreen }
+  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, screenSharing, online, connect, leave, endCall, toggleMicrophone, toggleCamera, toggleScreen }
 }
