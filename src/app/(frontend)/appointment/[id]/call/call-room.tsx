@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import { Camera, CameraOff, LogOut, Mic, MicOff, MonitorUp, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -37,11 +38,24 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
   const audioOnly = searchParams.get('audio') === '1'
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
+  const handledEndReasonRef = useRef(false)
 
   useEffect(() => { void connect() }, [connect])
 
-  const leave = () => {
-    call.leave()
+  useEffect(() => {
+    if (!call.endReason || handledEndReasonRef.current) return
+    handledEndReasonRef.current = true
+    toast.info(
+      call.endReason === 'participant-ended'
+        ? 'Собеседник покинул звонок'
+        : 'Соединение с собеседником потеряно',
+      { position: 'top-center' },
+    )
+    router.replace(`${chatPath}?appointment=${appointmentId}`)
+  }, [appointmentId, call.endReason, chatPath, router])
+
+  const leave = async () => {
+    await call.endCall()
     router.replace(`${chatPath}?appointment=${appointmentId}`)
   }
 
