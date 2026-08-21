@@ -16,10 +16,11 @@ type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
 interface SocketContextValue {
   socket: Socket | null
   isConnected: boolean
+  hasConnectionError: boolean
   outgoingCallStatuses: Record<number, OutgoingCallStatus>
   joinRoom: (appointmentId: number) => void
   leaveRoom: (appointmentId: number) => void
-  sendMessage: (appointmentId: number, text: string, attachmentId?: number) => void
+  sendMessage: (appointmentId: number, text: string, attachmentId?: number) => Promise<void>
   markAsRead: (appointmentId: number) => void
   startTyping: (appointmentId: number) => void
   stopTyping: (appointmentId: number) => void
@@ -77,6 +78,7 @@ function playNotificationSound() {
 export function SocketProvider({ children, currentSenderType, currentSenderId }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [hasConnectionError, setHasConnectionError] = useState(false)
   const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callerName: string; isAudioOnly: boolean } | null>(null)
   const [outgoingCallStatuses, setOutgoingCallStatuses] = useState<Record<number, OutgoingCallStatus>>({})
   // Use refs for store functions to avoid reconnection on store changes
@@ -120,6 +122,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     newSocket.on('connect', () => {
       console.log('[Socket] Connected:', newSocket.id)
       setIsConnected(true)
+      setHasConnectionError(false)
     })
 
     newSocket.on('disconnect', () => {
@@ -130,6 +133,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     newSocket.on('connect_error', (error) => {
       console.error('[Socket] Connection error:', error.message)
       setIsConnected(false)
+      setHasConnectionError(true)
     })
 
     // Handle new messages
@@ -315,14 +319,24 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   }, [socket])
 
   const sendMessage = useCallback((appointmentId: number, text: string, attachmentId?: number) => {
-    if (socket?.connected) {
-      socket.emit('send-message', { 
-        appointmentId, 
-        text, 
+    return new Promise<void>((resolve, reject) => {
+      if (!socket?.connected) {
+        reject(new Error('Нет подключения к серверу'))
+        return
+      }
+
+      const timer = window.setTimeout(() => reject(new Error('Не удалось отправить сообщение')), 10_000)
+      socket.emit('send-message', {
+        appointmentId,
+        text,
         preferredSenderType: currentSenderTypeRef.current,
         attachmentId,
+      }, (result: { success: true } | { success: false; error: string }) => {
+        window.clearTimeout(timer)
+        if (result?.success) resolve()
+        else reject(new Error(result?.error || 'Не удалось отправить сообщение'))
       })
-    }
+    })
   }, [socket])
 
   const markAsRead = useCallback((appointmentId: number) => {
@@ -428,6 +442,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const value: SocketContextValue = {
     socket,
     isConnected,
+    hasConnectionError,
     outgoingCallStatuses,
     joinRoom,
     leaveRoom,
@@ -484,10 +499,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
 const defaultSocketContext: SocketContextValue = {
   socket: null,
   isConnected: false,
+  hasConnectionError: false,
   outgoingCallStatuses: {},
   joinRoom: () => {},
   leaveRoom: () => {},
-  sendMessage: () => {},
+  sendMessage: async () => {},
   markAsRead: () => {},
   startTyping: () => {},
   stopTyping: () => {},

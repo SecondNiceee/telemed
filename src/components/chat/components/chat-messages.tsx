@@ -55,6 +55,7 @@ export function ChatMessages({
   isLoading,
   typingUser,
   recording,
+  onRetryMessage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -98,6 +99,7 @@ export function ChatMessages({
                 message={message}
                 isOwn={isOwn}
                 groupPosition={groupPosition}
+                onRetry={typeof message.id === 'string' ? () => onRetryMessage?.(String(message.id)) : undefined}
               />
             </div>
           )
