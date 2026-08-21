@@ -5,6 +5,7 @@
 
 export interface ActiveCall {
   appointmentId: number
+  callId: string
   callerPeerId: string
   callerName: string
   callerType: 'user' | 'doctor'
@@ -43,7 +44,9 @@ export function addActiveCall(call: ActiveCall): void {
 /**
  * Remove an active call from the store
  */
-export function removeActiveCall(appointmentId: number): void {
+export function removeActiveCall(appointmentId: number, callId?: string): void {
+  const activeCall = activeCallsMap.get(appointmentId)
+  if (!activeCall || (callId !== undefined && activeCall.callId !== callId)) return
   const removed = activeCallsMap.delete(appointmentId)
   if (removed) {
     console.log(`[ActiveCalls] Removed call for appointment ${appointmentId}`)

@@ -1,5 +1,6 @@
 export interface FailedChatMessage {
   localId: string
+  clientMessageId: string
   appointmentId: number
   senderType: 'user' | 'doctor'
   senderId: number
@@ -18,7 +19,11 @@ export function readFailedMessages(senderType: 'user' | 'doctor', senderId: numb
   if (typeof window === 'undefined') return []
   try {
     const parsed = JSON.parse(window.localStorage.getItem(getStorageKey(senderType, senderId, appointmentId)) ?? '[]')
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map((message) => ({
+      ...message,
+      clientMessageId: message.clientMessageId || message.localId || crypto.randomUUID(),
+    }))
   } catch {
     return []
   }

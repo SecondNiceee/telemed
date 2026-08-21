@@ -34,6 +34,7 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
     console.log(`[Socket] Sending pending incoming-call for appointment ${call.appointmentId} to ${socket.id}`)
     socket.emit('incoming-call', {
       appointmentId: call.appointmentId,
+      callId: call.callId,
       callerPeerId: call.callerPeerId,
       callerName: call.callerName,
       callerType: call.callerType,
@@ -49,7 +50,7 @@ export function checkPendingCallsForSocket(socket: AuthenticatedSocket): void {
  */
 export function createCallHandler(io: SocketIOServer, payload: Payload) {
   return async (socket: AuthenticatedSocket, data: CallSignalPayload) => {
-    const { appointmentId, callerName, isAudioOnly } = data
+    const { appointmentId, callId, callerName, isAudioOnly } = data
     const callerPeerId = data.callerPeerId ?? ''
     const roomName = `appointment:${appointmentId}`
     
@@ -90,6 +91,7 @@ export function createCallHandler(io: SocketIOServer, payload: Payload) {
     // Store the active call first so new connections can receive it
     const activeCall: ActiveCall = {
       appointmentId,
+      callId,
       callerPeerId,
       callerName,
       callerType: socket.data.senderType,
@@ -105,6 +107,7 @@ export function createCallHandler(io: SocketIOServer, payload: Payload) {
     // Prepare the incoming call payload
     const incomingCallPayload = {
       appointmentId,
+      callId,
       callerPeerId,
       callerName,
       callerType: socket.data.senderType,
@@ -182,18 +185,20 @@ function broadcastToOtherParticipant(
  */
 export function createCallAnswerHandler(io: SocketIOServer) {
   return (socket: AuthenticatedSocket, data: CallAnswerPayload) => {
-    const { appointmentId, answerPeerId } = data
+    const { appointmentId, callId, answerPeerId } = data
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] Call answered by ${socket.data.senderType}:${socket.data.senderId}, peerId: ${answerPeerId}`)
     
     const activeCall = getActiveCall(appointmentId)
+    if (!activeCall || activeCall.callId !== callId) return
     // Remove from active calls - the call is now connected
-    removeActiveCall(appointmentId)
+    removeActiveCall(appointmentId, callId)
     
     // Broadcast to the exact caller (who might not be in the room)
     broadcastToOtherParticipant(io, socket, roomName, 'call-answered', {
       appointmentId,
+      callId,
       answerPeerId,
       answererType: socket.data.senderType,
       answererId: socket.data.senderId,
@@ -206,17 +211,19 @@ export function createCallAnswerHandler(io: SocketIOServer) {
  */
 export function createCallRejectHandler(io: SocketIOServer) {
   return (socket: AuthenticatedSocket, data: CallRejectPayload) => {
-    const { appointmentId } = data
+    const { appointmentId, callId } = data
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] Call rejected by ${socket.data.senderType}:${socket.data.senderId}`)
     
     const activeCall = getActiveCall(appointmentId)
+    if (!activeCall || activeCall.callId !== callId) return
     // Remove from active calls
-    removeActiveCall(appointmentId)
+    removeActiveCall(appointmentId, callId)
     
     broadcastToOtherParticipant(io, socket, roomName, 'call-rejected', {
       appointmentId,
+      callId,
       rejectedBy: socket.data.senderType,
     }, activeCall?.callerId)
   }
@@ -227,16 +234,17 @@ export function createCallRejectHandler(io: SocketIOServer) {
  */
 export function createCallEndHandler(io: SocketIOServer) {
   return (socket: AuthenticatedSocket, data: CallEndPayload) => {
-    const { appointmentId } = data
+    const { appointmentId, callId } = data
     const roomName = `appointment:${appointmentId}`
     
     console.log(`[Socket] Call ended by ${socket.data.senderType}:${socket.data.senderId}`)
     
-    // Remove from active calls
-    removeActiveCall(appointmentId)
+    // Remove only the matching pending attempt. Connected calls may omit callId.
+    removeActiveCall(appointmentId, callId)
     
     broadcastToOtherParticipant(io, socket, roomName, 'call-ended', {
       appointmentId,
+      callId,
       endedBy: socket.data.senderType,
     })
   }

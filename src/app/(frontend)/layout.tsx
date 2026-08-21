@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { AppInit } from '@/components/app-init'
 import { NavigationHistoryTracker } from '@/components/navigation-history-tracker'
 import { Toaster } from '@/components/ui/sonner'
-import { GlobalSocketProvider } from '@/components/socket-provider'
+import { GlobalSocketProvider } from '@/components/global-socket-provider'
 
 import './globals.css'
 

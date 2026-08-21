@@ -74,10 +74,13 @@ export function ChatWindow({
 
   // Derived state
   const appointmentMessages = messages[appointment.id] || []
+  const deliveredClientMessageIds = new Set(appointmentMessages.map((message) => message.clientMessageId).filter(Boolean))
+  const visibleFailedMessages = failedMessages.filter((message) => !deliveredClientMessageIds.has(message.clientMessageId))
   const displayedMessages = [
     ...appointmentMessages,
-    ...failedMessages.map((message) => ({
+    ...visibleFailedMessages.map((message) => ({
       id: message.localId,
+      clientMessageId: message.clientMessageId,
       appointment: message.appointmentId,
       text: message.text,
       attachment: message.attachmentId,
@@ -308,8 +311,12 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
-    router.push(`/appointment/${appointment.id}/call?caller=1`)
+    const callId = initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
+    if (!callId) {
+      toast.error('Не удалось начать звонок: нет подключения к серверу')
+      return
+    }
+    router.push(`/appointment/${appointment.id}/call?caller=1&callId=${encodeURIComponent(callId)}`)
   }
 
   const handleStartAudioConsultation = async () => {
@@ -323,8 +330,12 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
-    router.push(`/appointment/${appointment.id}/call?audio=1&caller=1`)
+    const callId = initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
+    if (!callId) {
+      toast.error('Не удалось начать звонок: нет подключения к серверу')
+      return
+    }
+    router.push(`/appointment/${appointment.id}/call?audio=1&caller=1&callId=${encodeURIComponent(callId)}`)
   }
 
   const handleStartChatConsultation = async () => {
@@ -338,11 +349,13 @@ export function ChatWindow({
   }
 
   const handleSendMessage = useCallback(async (text: string, attachmentId?: number) => {
+    const clientMessageId = crypto.randomUUID()
     try {
-      await sendMessage(appointment.id, text, attachmentId)
+      await sendMessage(appointment.id, text, attachmentId, clientMessageId)
     } catch {
       const failedMessage: FailedChatMessage = {
-        localId: `failed-${crypto.randomUUID()}`,
+        localId: `failed-${clientMessageId}`,
+        clientMessageId,
         appointmentId: appointment.id,
         senderType: currentSenderType,
         senderId: currentSenderId,
@@ -364,10 +377,10 @@ export function ChatWindow({
 
     setRetryingMessageIds((current) => new Set(current).add(localId))
     try {
-      await sendMessage(appointment.id, failedMessage.text, failedMessage.attachmentId)
+      await sendMessage(appointment.id, failedMessage.text, failedMessage.attachmentId, failedMessage.clientMessageId)
       persistFailedMessages(failedMessages.filter((message) => message.localId !== localId))
     } catch {
-      toast.error('Не удалось отправить сообщение повторно')
+      // Keep the message in the retry queue. The failed state is already visible in the bubble.
     } finally {
       setRetryingMessageIds((current) => {
         const next = new Set(current)

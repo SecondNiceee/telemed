@@ -41,6 +41,7 @@ export interface ChatMessagesProps {
   appointmentId: number
   messages: Array<{
     id: number | string
+    clientMessageId?: string | null
     text?: string | null
     deliveryStatus?: 'failed' | 'retrying'
     attachment?: ApiMessageAttachment | number | null

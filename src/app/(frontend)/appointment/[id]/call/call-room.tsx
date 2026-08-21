@@ -38,8 +38,9 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
   const isCaller = searchParams.get('caller') === '1'
+  const callId = searchParams.get('callId')
   const { outgoingCallStatuses, endCall: endCallSignal } = useSocket()
-  const invitationStatus = outgoingCallStatuses[appointmentId] ?? (isCaller ? 'waiting' : 'answered')
+  const invitationStatus = callId ? outgoingCallStatuses[callId] ?? (isCaller ? 'waiting' : 'answered') : 'answered'
   const isWaitingForPatient = isCaller && invitationStatus === 'waiting'
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
@@ -72,7 +73,7 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
 
   const leave = async () => {
     if (isWaitingForPatient) {
-      endCallSignal(appointmentId)
+      endCallSignal(appointmentId, callId ?? undefined)
       call.leave()
     } else {
       await call.endCall()

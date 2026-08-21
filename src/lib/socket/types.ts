@@ -17,6 +17,7 @@ export interface SendMessagePayload {
   text: string
   preferredSenderType?: 'doctor' | 'user'
   attachmentId?: number
+  clientMessageId: string
 }
 export interface MarkReadPayload { appointmentId: number; messageIds: string[]; preferredSenderType?: 'doctor' | 'user' }
 export interface TypingPayload { appointmentId: number; preferredSenderType?: 'doctor' | 'user' }
@@ -25,13 +26,14 @@ export interface StopTypingPayload { appointmentId: number; preferredSenderType?
 /** Chat-socket invitation only. WebRTC media never travels through this protocol. */
 export interface CallSignalPayload {
   appointmentId: number
+  callId: string
   callerPeerId?: string
   callerName: string
   isAudioOnly?: boolean
 }
-export interface CallAnswerPayload { appointmentId: number; answerPeerId?: string }
-export interface CallRejectPayload { appointmentId: number }
-export interface CallEndPayload { appointmentId: number }
+export interface CallAnswerPayload { appointmentId: number; callId: string; answerPeerId?: string }
+export interface CallRejectPayload { appointmentId: number; callId: string }
+export interface CallEndPayload { appointmentId: number; callId?: string }
 export interface CallParticipantLeavingPayload { appointmentId: number; participantType: 'doctor' | 'user' }
 export interface CallParticipantRejoiningPayload { appointmentId: number; participantType: 'doctor' | 'user'; peerId?: string }
 

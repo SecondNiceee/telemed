@@ -261,12 +261,7 @@ export function DoctorBookingSection({
           bio: doctorBio,
         },
       });
-      console.log("[v0] booking created", { appointmentId: appointment?.id });
-
       if (!appointment?.id) {
-        console.error("[v0] booking created without an id, aborting redirect", {
-          appointment,
-        });
         setDisclaimerOpen(false);
         setBookingError("Не удалось создать запись. Попробуйте ещё раз.");
         return;
@@ -291,7 +286,7 @@ export function DoctorBookingSection({
             <CreditCard className="h-7 w-7 text-teal" aria-hidden="true" />
           </div>
           <h2 className="mb-2 text-xl font-semibold text-foreground text-balance sm:text-2xl">
-            Время забронировано
+            Врем�� забронировано
           </h2>
           <p className="max-w-sm text-sm leading-relaxed text-muted-foreground text-pretty">
             Переходим к оплате консультации. Бронь действует{" "}
