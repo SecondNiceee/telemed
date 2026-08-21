@@ -14,6 +14,11 @@ interface MediaSocketData {
 type MediaSocket = Socket<Record<string, never>, Record<string, never>, Record<string, never>, MediaSocketData>
 type Ack<T extends object = Record<string, never>> = (response: ({ success: true } & T) | { success: false; error: string }) => void
 
+// A reconnect creates a new Socket.IO socket for the same logical peer. Track
+// ownership so a late disconnect from the old socket cannot remove the new peer.
+const peerSocketOwners = new Map<string, string>()
+const peerOwnerKey = (roomId: string, peerId: string) => `${roomId}:${peerId}`
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error'
 }
@@ -40,14 +45,27 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
 
       const claims = verifyRoomToken(data.token, { roomId: data.roomId, peerId: data.peerId })
       const room = await roomManager.getOrCreateRoom(claims.roomId)
-      await roomManager.addPeer(room, claims.peerId, claims.peerName, claims.role)
+      const ownerKey = peerOwnerKey(claims.roomId, claims.peerId)
+      const isSameSocketJoin =
+        socket.data.roomId === claims.roomId &&
+        socket.data.peerId === claims.peerId &&
+        peerSocketOwners.get(ownerKey) === socket.id &&
+        room.peers.has(claims.peerId)
+
+      if (!isSameSocketJoin) {
+        await roomManager.addPeer(room, claims.peerId, claims.peerName, claims.role)
+      }
 
       socket.data.peerId = claims.peerId
       socket.data.peerName = claims.peerName
       socket.data.role = claims.role
       socket.data.roomId = claims.roomId
+      peerSocketOwners.set(ownerKey, socket.id)
       await socket.join(claims.roomId)
-      socket.to(claims.roomId).emit('peerJoined', { peerId: claims.peerId, peerName: claims.peerName, role: claims.role })
+      if (!isSameSocketJoin) {
+        socket.to(claims.roomId).emit('peerJoined', { peerId: claims.peerId, peerName: claims.peerName, role: claims.role })
+      }
+      console.log(`[MediaSoup] joined socket=${socket.id} room=${claims.roomId} peer=${claims.peerId} repeat=${isSameSocketJoin}`)
       return { routerRtpCapabilities: roomManager.getRouterRtpCapabilities(room) }
     })
   })
@@ -130,10 +148,19 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
   const leave = () => {
     const { roomId, peerId } = socket.data
     if (!roomId || !peerId) return false
-    const room = roomManager.getRoom(roomId)
-    const removed = room ? roomManager.removePeer(room, peerId) : false
+    const ownerKey = peerOwnerKey(roomId, peerId)
+    const ownsPeer = peerSocketOwners.get(ownerKey) === socket.id
+    let removed = false
+
+    if (ownsPeer) {
+      peerSocketOwners.delete(ownerKey)
+      const room = roomManager.getRoom(roomId)
+      removed = room ? roomManager.removePeer(room, peerId) : false
+      if (removed) socket.to(roomId).emit('peerLeft', { peerId })
+    }
+
     void socket.leave(roomId)
-    if (removed) socket.to(roomId).emit('peerLeft', { peerId })
+    console.log(`[MediaSoup] left socket=${socket.id} room=${roomId} peer=${peerId} owner=${ownsPeer} removed=${removed}`)
     socket.data.roomId = undefined
     socket.data.peerId = undefined
     return removed

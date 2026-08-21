@@ -1,8 +1,6 @@
 import 'dotenv/config'
 import http from 'http'
 import { Server as SocketIOServer } from 'socket.io'
-import { getPayload } from 'payload'
-import config from '@payload-config'
 import { initializeSocketServer } from './lib/socket/server'
 
 // Socket.io runs on a SEPARATE port from Next.js
@@ -16,6 +14,14 @@ const ALLOWED_ORIGINS = process.env.SOCKET_ALLOWED_ORIGINS
 const ALL_ORIGINS = [NEXT_URL, ...ALLOWED_ORIGINS]
 
 async function main() {
+  // The standalone socket process must not start Payload's background sweeper.
+  // Set this before loading the Payload config, whose onInit hook reads it.
+  process.env.DISABLE_HOLDS_SWEEPER = 'true'
+  const [{ getPayload }, { default: config }] = await Promise.all([
+    import('payload'),
+    import('@payload-config'),
+  ])
+
   // Initialize Payload CMS (for database access)
   const payload = await getPayload({ config })
   console.log('[Socket Server] Payload CMS initialized')

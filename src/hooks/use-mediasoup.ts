@@ -21,12 +21,21 @@ const ackTimeout = 10_000
 
 function emitAck<T>(socket: Socket, event: string, data: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(`${event}: timeout`)), ackTimeout)
-    socket.emit(event, data, (response: Ack<T>) => {
+    let settled = false
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
       window.clearTimeout(timer)
+      socket.off('disconnect', onDisconnect)
+      callback()
+    }
+    const onDisconnect = () => finish(() => reject(new Error(`${event}: socket disconnected`)))
+    const timer = window.setTimeout(() => finish(() => reject(new Error(`${event}: timeout`))), ackTimeout)
+    socket.once('disconnect', onDisconnect)
+    socket.emit(event, data, (response: Ack<T>) => finish(() => {
       if (!response?.success) reject(new Error(response?.error || `${event}: failed`))
       else resolve(response as T)
-    })
+    }))
   })
 }
 
@@ -51,6 +60,8 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const micGateRef = useRef<MicrophoneGate | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const rebuildingRef = useRef(false)
+  const pendingJoinRef = useRef(false)
+  const joinedSocketIdRef = useRef<string | null>(null)
   const leftRef = useRef(false)
 
   const restartIce = useCallback(async (transport: types.Transport) => {
@@ -78,7 +89,15 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     const token = tokenRef.current
     const device = deviceRef.current
     const recv = recvRef.current
-    if (!socket || !token || !device || !recv || [...consumersRef.current.values()].some((item) => item.producerId === producerId)) return
+    if (
+      !socket ||
+      !token ||
+      !device ||
+      !recv ||
+      !socket.id ||
+      joinedSocketIdRef.current !== socket.id ||
+      [...consumersRef.current.values()].some((item) => item.producerId === producerId)
+    ) return
 
     const response = await emitAck<{ consumer: { id: string; producerId: string; kind: types.MediaKind; rtpParameters: types.RtpParameters } }>(socket, 'consume', {
       roomId: token.roomId,
@@ -133,32 +152,79 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     }
   }, [])
 
+  const closeMediaSession = useCallback(() => {
+    joinedSocketIdRef.current = null
+    for (const consumer of consumersRef.current.values()) consumer.close()
+    for (const producer of producersRef.current.values()) producer.close()
+    consumersRef.current.clear()
+    producersRef.current.clear()
+    remoteStreamsRef.current.clear()
+    sendRef.current?.close()
+    recvRef.current?.close()
+    sendRef.current = null
+    recvRef.current = null
+    deviceRef.current = null
+    setRemoteMedia(null)
+  }, [])
+
   const join = useCallback(async (socket: Socket, token: TokenData) => {
+    pendingJoinRef.current = true
     if (rebuildingRef.current) return
+
     rebuildingRef.current = true
     try {
-      setStatus(status === 'idle' ? 'connecting' : 'reconnecting')
-      for (const consumer of consumersRef.current.values()) consumer.close()
-      for (const producer of producersRef.current.values()) producer.close()
-      consumersRef.current.clear()
-      producersRef.current.clear()
-      sendRef.current?.close()
-      recvRef.current?.close()
+      while (pendingJoinRef.current && !leftRef.current) {
+        pendingJoinRef.current = false
+        const socketId = socket.id
+        if (!socket.connected || !socketId) return
 
-      const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities }>(socket, 'joinRoom', token)
-      const { Device } = await import('mediasoup-client')
-      const device = new Device()
-      await device.load({ routerRtpCapabilities: joined.routerRtpCapabilities })
-      deviceRef.current = device
-      await createTransports(socket, token, device)
-      await publishLocalTracks()
-      const existing = await emitAck<{ producers: Array<{ producerId: string; producerPeerId: string }> }>(socket, 'getProducers', { roomId: token.roomId })
-      await Promise.all(existing.producers.map((producer) => consume(producer.producerId, producer.producerPeerId)))
-      setStatus('connected')
+        setStatus('reconnecting')
+        closeMediaSession()
+
+        try {
+          const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities }>(socket, 'joinRoom', token)
+          if (!socket.connected || socket.id !== socketId || socketRef.current !== socket) {
+            pendingJoinRef.current = true
+            continue
+          }
+
+          joinedSocketIdRef.current = socketId
+          const { Device } = await import('mediasoup-client')
+          const device = new Device()
+          await device.load({ routerRtpCapabilities: joined.routerRtpCapabilities })
+          if (joinedSocketIdRef.current !== socketId) continue
+
+          deviceRef.current = device
+          await createTransports(socket, token, device)
+          if (joinedSocketIdRef.current !== socketId) continue
+
+          await publishLocalTracks()
+          const existing = await emitAck<{ producers: Array<{ producerId: string; producerPeerId: string }> }>(socket, 'getProducers', { roomId: token.roomId })
+          if (joinedSocketIdRef.current !== socketId) continue
+
+          await Promise.all(existing.producers.map((producer) => consume(producer.producerId, producer.producerPeerId)))
+          if (joinedSocketIdRef.current === socketId) {
+            setError(null)
+            setStatus('connected')
+          }
+        } catch (reason) {
+          if (!socket.connected || socket.id !== socketId) {
+            pendingJoinRef.current = true
+            continue
+          }
+          throw reason
+        }
+      }
     } finally {
       rebuildingRef.current = false
+      if (pendingJoinRef.current && socket.connected && !leftRef.current) {
+        void join(socket, token).catch((reason) => {
+          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setStatus('failed')
+        })
+      }
     }
-  }, [consume, createTransports, publishLocalTracks, status])
+  }, [closeMediaSession, consume, createTransports, publishLocalTracks])
 
   const leave = useCallback(() => {
     leftRef.current = true
@@ -166,16 +232,12 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     const token = tokenRef.current
     if (socket && token) socket.emit('leaveRoom', { roomId: token.roomId }, () => undefined)
     socket?.disconnect()
-    for (const consumer of consumersRef.current.values()) consumer.close()
-    for (const producer of producersRef.current.values()) producer.close()
-    consumersRef.current.clear()
-    producersRef.current.clear()
-    sendRef.current?.close()
-    recvRef.current?.close()
+    pendingJoinRef.current = false
+    closeMediaSession()
     micGateRef.current?.close()
     localStreamRef.current?.getTracks().forEach((track) => track.stop())
     setStatus('idle')
-  }, [])
+  }, [closeMediaSession])
 
   const connect = useCallback(async () => {
     leftRef.current = false
@@ -206,9 +268,28 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         path: process.env.NEXT_PUBLIC_MEDIASOUP_PATH || '/socket.io', transports: ['websocket', 'polling'], reconnection: true,
       })
       socketRef.current = socket
-      socket.on('connect', () => { if (!leftRef.current && tokenRef.current) void join(socket, tokenRef.current).catch((reason) => setError(reason instanceof Error ? reason.message : 'Ошибка подключения')) })
-      socket.on('disconnect', () => { if (!leftRef.current) setStatus('reconnecting') })
-      socket.on('newProducer', ({ producerId, producerPeerId }) => void consume(producerId, producerPeerId))
+      socket.on('connect', () => {
+        if (leftRef.current || !tokenRef.current) return
+        pendingJoinRef.current = true
+        void join(socket, tokenRef.current).catch((reason) => {
+          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setStatus('failed')
+        })
+      })
+      socket.on('disconnect', () => {
+        joinedSocketIdRef.current = null
+        pendingJoinRef.current = true
+        closeMediaSession()
+        if (!leftRef.current) setStatus('reconnecting')
+      })
+      socket.on('connect_error', (reason) => {
+        if (leftRef.current) return
+        setError(reason.message || 'Ошибка подключения к MediaSoup')
+        setStatus('reconnecting')
+      })
+      socket.on('newProducer', ({ producerId, producerPeerId }) => {
+        if (socket.id && joinedSocketIdRef.current === socket.id) void consume(producerId, producerPeerId)
+      })
       socket.on('producerClosed', ({ producerId }) => {
         for (const [id, consumer] of consumersRef.current) if (consumer.producerId === producerId) { consumer.close(); consumersRef.current.delete(id) }
       })
@@ -218,7 +299,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       setError(message)
       setStatus('failed')
     }
-  }, [appointmentId, audioOnly, consume, join])
+  }, [appointmentId, audioOnly, closeMediaSession, consume, join])
 
   const toggleMicrophone = useCallback(async () => {
     const enabled = !micEnabled

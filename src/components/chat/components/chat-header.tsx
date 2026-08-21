@@ -47,7 +47,7 @@ export function ChatHeader({
   return (
     <div className="flex flex-col border-b border-border bg-card">
       {/* Countdown banner - prominent (only show before consultation starts) */}
-      {countdownParts && !isCompleted && localStatus !== 'in_progress' && (
+      {countdownParts && !isCompleted && localStatus !== 'in_progress' && localStatus !== 'cancelled' && (
         <div className="px-5 py-4 bg-teal-soft border-b border-teal/25">
           <div className="flex items-center gap-2 mb-1">
             {appointment.specialty && (
