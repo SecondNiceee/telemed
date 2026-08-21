@@ -94,6 +94,16 @@ export const Messages: CollectionConfig = {
   hooks: {}, // Я всё равно валидирую на socket сервере, тут ничего не нужно.
   fields: [
     {
+      name: 'clientMessageId',
+      type: 'text',
+      required: false,
+      unique: true,
+      index: true,
+      admin: {
+        description: 'Ключ идемпотентности клиентской отправки',
+      },
+    },
+    {
       name: 'appointment',
       type: 'relationship',
       relationTo: 'appointments',

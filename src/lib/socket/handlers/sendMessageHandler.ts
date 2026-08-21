@@ -27,7 +27,12 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         return
       }
 
-      const { appointmentId, text, preferredSenderType, attachmentId } = data
+      const { appointmentId, text, preferredSenderType, attachmentId, clientMessageId } = data
+
+      if (typeof clientMessageId !== 'string' || clientMessageId.length < 8 || clientMessageId.length > 100) {
+        fail('Некорректный ID сообщения')
+        return
+      }
 
       // Опять дефолтная проверка
       if (!isValidAppointmentId(appointmentId)) {
@@ -108,6 +113,18 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       }
 
       try {
+        const existingMessage = await payload.find({
+          collection: 'messages',
+          where: { clientMessageId: { equals: clientMessageId } },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+        })
+        if (existingMessage.docs.length > 0) {
+          ack?.({ success: true })
+          return
+        }
+
         // Build message data with polymorphic sender
         const senderRelationTo = senderType === 'user' ? 'users' : 'doctors'
         const messageData: {
@@ -116,8 +133,10 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
           text?: string
           attachment?: number
           read: boolean
+          clientMessageId: string
         } = {
           appointment: appointmentId,
+          clientMessageId,
           sender: {
             relationTo: senderRelationTo,
             value: senderId,
@@ -170,6 +189,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         // Формируем sender вручную, т.к. payload.create может вернуть просто ID
         io.to(roomName).emit('new-message', {
           id: message.id,
+          clientMessageId,
           appointment: appointmentId,
           sender: {
             relationTo: senderRelationTo,

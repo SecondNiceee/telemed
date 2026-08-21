@@ -109,7 +109,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('leave-room', (data: JoinRoomPayload) => leaveRoomHandler(authSocket, data))
 
     // Событие на отсылку сообщений
-    socket.on('send-message', (data: SendMessagePayload) => sendMessageHandler(authSocket, data))
+    socket.on('send-message', (data: SendMessagePayload, ack) => sendMessageHandler(authSocket, data, ack))
 
     // Событие прочитки сообщений
     socket.on('mark-read', (data: MarkReadPayload) => markReadHandler(authSocket, data))

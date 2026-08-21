@@ -445,6 +445,10 @@ export interface Appointment {
  */
 export interface Message {
   id: number;
+  /**
+   * Ключ идемпотентности клиентской отправки
+   */
+  clientMessageId?: string | null;
   appointment: number | Appointment;
   /**
    * Полиморфная связь: может быть пользователем или врачом. Для системных сообщений = null
@@ -828,6 +832,7 @@ export interface AppointmentsSelect<T extends boolean = true> {
  * via the `definition` "messages_select".
  */
 export interface MessagesSelect<T extends boolean = true> {
+  clientMessageId?: T;
   appointment?: T;
   sender?: T;
   isSystemMessage?: T;

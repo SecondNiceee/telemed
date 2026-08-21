@@ -20,6 +20,7 @@ export interface ApiMessageSender {
 
 export interface ApiMessage {
   id: number
+  clientMessageId?: string | null
   appointment: number | { id: number }
   sender?: ApiMessageSender | null
   text?: string

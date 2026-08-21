@@ -74,10 +74,13 @@ export function ChatWindow({
 
   // Derived state
   const appointmentMessages = messages[appointment.id] || []
+  const deliveredClientMessageIds = new Set(appointmentMessages.map((message) => message.clientMessageId).filter(Boolean))
+  const visibleFailedMessages = failedMessages.filter((message) => !deliveredClientMessageIds.has(message.clientMessageId))
   const displayedMessages = [
     ...appointmentMessages,
-    ...failedMessages.map((message) => ({
+    ...visibleFailedMessages.map((message) => ({
       id: message.localId,
+      clientMessageId: message.clientMessageId,
       appointment: message.appointmentId,
       text: message.text,
       attachment: message.attachmentId,
@@ -346,11 +349,13 @@ export function ChatWindow({
   }
 
   const handleSendMessage = useCallback(async (text: string, attachmentId?: number) => {
+    const clientMessageId = crypto.randomUUID()
     try {
-      await sendMessage(appointment.id, text, attachmentId)
+      await sendMessage(appointment.id, text, attachmentId, clientMessageId)
     } catch {
       const failedMessage: FailedChatMessage = {
-        localId: `failed-${crypto.randomUUID()}`,
+        localId: `failed-${clientMessageId}`,
+        clientMessageId,
         appointmentId: appointment.id,
         senderType: currentSenderType,
         senderId: currentSenderId,
@@ -372,10 +377,10 @@ export function ChatWindow({
 
     setRetryingMessageIds((current) => new Set(current).add(localId))
     try {
-      await sendMessage(appointment.id, failedMessage.text, failedMessage.attachmentId)
+      await sendMessage(appointment.id, failedMessage.text, failedMessage.attachmentId, failedMessage.clientMessageId)
       persistFailedMessages(failedMessages.filter((message) => message.localId !== localId))
     } catch {
-      toast.error('Не удалось отправить сообщение повторно')
+      // Keep the message in the retry queue. The failed state is already visible in the bubble.
     } finally {
       setRetryingMessageIds((current) => {
         const next = new Set(current)
