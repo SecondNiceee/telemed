@@ -7,8 +7,14 @@ import validateMessageText from '../utils/validateMessageText'
 import isValidSenderType from '../utils/isValidSenderType'
 import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
 
+type SendMessageAck = (result: { success: true } | { success: false; error: string }) => void
+
 export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
-  return async (authSocket: AuthenticatedSocket, data: SendMessagePayload) => {
+  return async (authSocket: AuthenticatedSocket, data: SendMessagePayload, ack?: SendMessageAck) => {
+      const fail = (message: string) => {
+        authSocket.emit('error', { message })
+        ack?.({ success: false, error: message })
+      }
 
       // Самое главное - rate limiting!
       // Ключ по личности отправителя, а не по socket.id: несколько вкладок
@@ -17,7 +23,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         ? `${authSocket.data.senderType}:${authSocket.data.senderId}`
         : `socket:${authSocket.id}`
       if (isRateLimited(rateLimitKey)) {
-        authSocket.emit('error', { message: 'Слишком много запросов' })
+        fail('Слишком много запросов')
         return
       }
 
@@ -25,7 +31,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
 
       // Опять дефолтная проверка
       if (!isValidAppointmentId(appointmentId)) {
-        authSocket.emit('error', { message: 'Некорректный ID консультации' })
+        fail('Некорректный ID консультации')
         return
       }
 
@@ -34,19 +40,19 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       
       // Нужен хотя бы текст или attachment
       if (!validatedText && !attachmentId) {
-        authSocket.emit('error', { message: 'Сообщение не может быть пустым' })
+        fail('Сообщение не может быть пустым')
         return
       }
       
       // Validate attachmentId if provided
       if (attachmentId !== undefined && (typeof attachmentId !== 'number' || attachmentId <= 0)) {
-        authSocket.emit('error', { message: 'Некорректный ID файла' })
+        fail('Некорректный ID файла')
         return
       }
 
       // Проверяем чтобы senderType относился к тому, к кому нужно
       if (!isValidSenderType(preferredSenderType)) {
-        authSocket.emit('error', { message: 'Некорректный тип отправителя' })
+        fail('Некорректный тип отправителя')
         return
       }
 
@@ -61,12 +67,12 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       // Отказываем в доступе в случае неудачи
       if (!accessResult.hasAccess) {
         payload.logger.warn(`⚠️ Denied access: socket=${authSocket.id}, appointment=${appointmentId}`)
-        authSocket.emit('error', { message: 'Нет доступа к этой консультации' })
+        fail('Нет доступа к этой консультации')
         return
       }
 
       if (accessResult.appointment?.status === 'cancelled') {
-        authSocket.emit('error', { message: 'Консультация была отменена' })
+        fail('Консультация была отменена')
         return
       }
 
@@ -78,7 +84,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       // не может отправлять сообщения даже напрямую через сокет (в обход UI).
       // Врач при этом писать может всегда.
       if (senderType === 'user' && accessResult.appointment?.chatBlocked === true) {
-        authSocket.emit('error', { message: 'Чат заблокирован врачом' })
+        fail('Чат заблокирован врачом')
         return
       }
 
@@ -176,9 +182,10 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         })
 
         console.log(`[Socket] Message sent in room ${roomName} by ${senderType}:${senderId}`)
+        ack?.({ success: true })
       } catch (err) {
         console.error('[Socket] Failed to save message:', err)
-        authSocket.emit('error', { message: 'Ошибка при отправке сообщения' })
+        fail('Ошибка при отправке сообщения')
       }
   }
 }

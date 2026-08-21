@@ -16,7 +16,7 @@ export interface SendMessagePayload {
   appointmentId: number
   text: string
   preferredSenderType?: 'doctor' | 'user'
-  attachmentId?: string
+  attachmentId?: number
 }
 export interface MarkReadPayload { appointmentId: number; messageIds: string[]; preferredSenderType?: 'doctor' | 'user' }
 export interface TypingPayload { appointmentId: number; preferredSenderType?: 'doctor' | 'user' }

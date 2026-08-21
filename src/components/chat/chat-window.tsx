@@ -8,6 +8,7 @@ import { useFeedbackStore } from '@/stores/feedback-store'
 import { getCountdownParts } from '@/lib/utils/date'
 import { getBaseUrl } from '@/lib/api/fetch'
 import { AppointmentsApi } from '@/lib/api/appointments'
+import { readFailedMessages, writeFailedMessages, type FailedChatMessage } from '@/lib/chat/failed-messages'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +44,8 @@ export function ChatWindow({
   const [showConsultationTypeDialog, setShowConsultationTypeDialog] = useState(false)
   const [consultationType, setConsultationType] = useState<ConsultationType>(null)
   const [isTabVisible, setIsTabVisible] = useState(true)
+  const [failedMessages, setFailedMessages] = useState<FailedChatMessage[]>([])
+  const [retryingMessageIds, setRetryingMessageIds] = useState<Set<string>>(new Set())
   
   // Video saving state
   const [isSavingVideo, setIsSavingVideo] = useState(false)
@@ -54,7 +57,7 @@ export function ChatWindow({
 
   // Hooks
   const router = useRouter()
-  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, initiateCall, startConsultation, endConsultation, cancelConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
+  const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, hasConnectionError, initiateCall, startConsultation, endConsultation, cancelConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
   const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const { 
@@ -71,6 +74,22 @@ export function ChatWindow({
 
   // Derived state
   const appointmentMessages = messages[appointment.id] || []
+  const displayedMessages = [
+    ...appointmentMessages,
+    ...failedMessages.map((message) => ({
+      id: message.localId,
+      appointment: message.appointmentId,
+      text: message.text,
+      attachment: message.attachmentId,
+      sender: {
+        relationTo: message.senderType === 'user' ? 'users' as const : 'doctors' as const,
+        value: message.senderId,
+      },
+      createdAt: message.createdAt,
+      read: false,
+      deliveryStatus: retryingMessageIds.has(message.localId) ? 'retrying' as const : 'failed' as const,
+    })),
+  ].sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime())
   const isLoading = loadingMessages[appointment.id]
   const typingUser = typingUsers[appointment.id]
   // Use socket-updated status if available, otherwise use local/prop status
@@ -88,6 +107,15 @@ export function ChatWindow({
   const otherPartyName = currentSenderType === 'user' 
     ? appointment.doctorName || 'Врач'
     : appointment.userName || 'Пациент'
+
+  useEffect(() => {
+    setFailedMessages(readFailedMessages(currentSenderType, currentSenderId, appointment.id))
+  }, [appointment.id, currentSenderId, currentSenderType])
+
+  const persistFailedMessages = useCallback((nextMessages: FailedChatMessage[]) => {
+    setFailedMessages(nextMessages)
+    writeFailedMessages(currentSenderType, currentSenderId, appointment.id, nextMessages)
+  }, [appointment.id, currentSenderId, currentSenderType])
 
   // Update countdown every second
   useEffect(() => {
@@ -309,9 +337,45 @@ export function ChatWindow({
     toast.success('Консультация начата в чате')
   }
 
-  const handleSendMessage = useCallback((text: string, attachmentId?: number) => {
-    sendMessage(appointment.id, text, attachmentId)
-  }, [appointment.id, sendMessage])
+  const handleSendMessage = useCallback(async (text: string, attachmentId?: number) => {
+    try {
+      await sendMessage(appointment.id, text, attachmentId)
+    } catch {
+      const failedMessage: FailedChatMessage = {
+        localId: `failed-${crypto.randomUUID()}`,
+        appointmentId: appointment.id,
+        senderType: currentSenderType,
+        senderId: currentSenderId,
+        text,
+        attachmentId,
+        createdAt: new Date().toISOString(),
+      }
+      setFailedMessages((current) => {
+        const nextMessages = [...current, failedMessage]
+        writeFailedMessages(currentSenderType, currentSenderId, appointment.id, nextMessages)
+        return nextMessages
+      })
+    }
+  }, [appointment.id, currentSenderId, currentSenderType, sendMessage])
+
+  const handleRetryMessage = useCallback(async (localId: string) => {
+    const failedMessage = failedMessages.find((message) => message.localId === localId)
+    if (!failedMessage || retryingMessageIds.has(localId)) return
+
+    setRetryingMessageIds((current) => new Set(current).add(localId))
+    try {
+      await sendMessage(appointment.id, failedMessage.text, failedMessage.attachmentId)
+      persistFailedMessages(failedMessages.filter((message) => message.localId !== localId))
+    } catch {
+      toast.error('Не удалось отправить сообщение повторно')
+    } finally {
+      setRetryingMessageIds((current) => {
+        const next = new Set(current)
+        next.delete(localId)
+        return next
+      })
+    }
+  }, [appointment.id, failedMessages, persistFailedMessages, retryingMessageIds, sendMessage])
 
   const handleStartTyping = useCallback(() => {
     startTyping(appointment.id)
@@ -476,18 +540,20 @@ export function ChatWindow({
 
       <ChatMessages
         appointmentId={appointment.id}
-        messages={appointmentMessages}
+        messages={displayedMessages}
         currentSenderType={currentSenderType}
         currentSenderId={currentSenderId}
         otherPartyName={otherPartyName}
         isLoading={isLoading}
         typingUser={typingUser}
         recording={appointment.recording as { url?: string } | null}
+        onRetryMessage={(localId) => void handleRetryMessage(localId)}
       />
 
 <ChatInput
   appointmentId={appointment.id}
   isConnected={isConnected}
+  hasConnectionError={hasConnectionError}
   canSendMessages={canSendMessages}
   isCancelled={isCancelled}
   isChatBlocked={isChatBlocked}

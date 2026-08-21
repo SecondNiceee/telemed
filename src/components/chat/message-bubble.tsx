@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, CheckCheck, FileIcon, Download, X } from 'lucide-react'
+import { AlertCircle, Check, CheckCheck, FileIcon, Download, Loader2, X } from 'lucide-react'
 import type { ApiMessageAttachment } from '@/lib/api/messages'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,8 +15,9 @@ import {
 
 // Simplified message type that works with both full ApiMessage and partial data
 interface SimplifiedMessage {
-  id: number
+  id: number | string
   text?: string | null
+  deliveryStatus?: 'failed' | 'retrying'
   attachment?: ApiMessageAttachment | number | null
   createdAt?: string
   read?: boolean
@@ -29,6 +30,7 @@ interface MessageBubbleProps {
   message: SimplifiedMessage
   isOwn: boolean
   groupPosition?: MessageGroupPosition
+  onRetry?: () => void
 }
 
 function formatSystemMessageTime(dateString?: string): string {
@@ -218,7 +220,7 @@ function AttachmentPreview({
   )
 }
 
-export function MessageBubble({ message, isOwn, groupPosition = 'single' }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, groupPosition = 'single', onRetry }: MessageBubbleProps) {
   if (message.isSystemMessage) {
     return <SystemMessageBubble message={message} />
   }
@@ -245,11 +247,23 @@ export function MessageBubble({ message, isOwn, groupPosition = 'single' }: Mess
       <span className={cn('text-[10px]', isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
         {message.createdAt ? formatMessageTime(message.createdAt) : ''}
       </span>
-      {isOwn && (
-        message.read
-          ? <CheckCheck className="size-3 text-primary-foreground/70" />
-          : <Check className="size-3 text-primary-foreground/70" />
-      )}
+      {isOwn && (message.deliveryStatus === 'retrying' ? (
+        <Loader2 className="size-3 animate-spin text-primary-foreground/70" aria-label="Повторная отправка" />
+      ) : message.deliveryStatus === 'failed' ? (
+        <button
+          type="button"
+          className="rounded-full text-destructive outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onRetry}
+          title="Отправить повторно"
+          aria-label="Отправить повторно"
+        >
+          <AlertCircle className="size-4 fill-destructive text-destructive-foreground" />
+        </button>
+      ) : message.read ? (
+        <CheckCheck className="size-3 text-primary-foreground/70" />
+      ) : (
+        <Check className="size-3 text-primary-foreground/70" />
+      ))}
     </div>
   )
 

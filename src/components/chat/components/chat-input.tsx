@@ -10,6 +10,7 @@ import type { ChatInputProps } from '../types'
 export function ChatInput({
   appointmentId,
   isConnected,
+  hasConnectionError,
   canSendMessages,
   isCancelled,
   isChatBlocked,
@@ -177,7 +178,6 @@ export function ChatInput({
               onPaste={handlePaste}
               placeholder="Введите сообщение..."
               className="min-h-10 max-h-[120px] flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-input focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!isConnected}
               rows={1}
               style={{ height: 'auto' }}
               onInput={(e) => {
@@ -188,7 +188,7 @@ export function ChatInput({
             />
             <Button
               onClick={handleSend}
-              disabled={(!inputValue.trim() && !uploadedAttachment) || !isConnected || isUploading}
+              disabled={(!inputValue.trim() && !uploadedAttachment) || isUploading}
               size="icon"
               className="mb-0.5 shrink-0 rounded-full"
               aria-label="Отправить сообщение"
@@ -198,9 +198,9 @@ export function ChatInput({
           </div>
         </div>
       ) : null}
-      {!isConnected && canSendMessages && (
-        <p className="text-xs text-destructive mt-2">
-          Нет подключения к серверу. Переподключение...
+      {hasConnectionError && canSendMessages && (
+        <p className="mt-2 text-xs text-destructive">
+          Не удалось подключиться к серверу. Повторяем подключение…
         </p>
       )}
     </div>

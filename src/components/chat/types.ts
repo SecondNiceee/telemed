@@ -40,8 +40,9 @@ export interface ChatHeaderProps {
 export interface ChatMessagesProps {
   appointmentId: number
   messages: Array<{
-    id: number
+    id: number | string
     text?: string | null
+    deliveryStatus?: 'failed' | 'retrying'
     attachment?: ApiMessageAttachment | number | null
     sender?: ApiMessageSender | null
     createdAt?: string
@@ -54,11 +55,13 @@ export interface ChatMessagesProps {
   isLoading: boolean
   typingUser: { senderType: string } | null | undefined
   recording?: { url?: string } | null
+  onRetryMessage?: (localId: string) => void
 }
 
 export interface ChatInputProps {
   appointmentId: number
   isConnected: boolean
+  hasConnectionError: boolean
   canSendMessages: boolean
   isCancelled: boolean
   isChatBlocked?: boolean
