@@ -177,28 +177,28 @@ export function ChatHeader({
           </div>
         </div>
         
+        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'cancelled' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1.5 text-xs text-destructive"
+            onClick={onShowCancelDialog}
+          >
+            <Ban className="size-3.5" />
+            <span className="hidden lg:inline">Консультация не состоялась</span>
+          </Button>
+        )}
+
         {/* Complete button for doctor - show when consultation is in progress */}
         {currentSenderType === 'doctor' && !isCompleted && localStatus === 'in_progress' && (
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 text-xs gap-1.5"
+            className="h-9 shrink-0 gap-1.5 text-xs"
             onClick={onShowCompleteDialog}
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
+            <CheckCircle2 className="size-3.5" />
             <span className="hidden sm:inline">Завершить консультацию</span>
-          </Button>
-        )}
-        
-        {currentSenderType === 'doctor' && !isCompleted && localStatus !== 'cancelled' && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-1.5 text-destructive"
-            onClick={onShowCancelDialog}
-          >
-            <Ban className="h-3.5 w-3.5" />
-            <span className="hidden lg:inline">Консультация не состоялась</span>
           </Button>
         )}
 
@@ -222,10 +222,10 @@ export function ChatHeader({
               <Button
                 variant="default"
                 size="sm"
-                className="shrink-0 gap-1.5"
+                className="h-9 shrink-0 gap-1.5 text-xs"
                 disabled={!isConnected}
               >
-                <Phone className="w-4 h-4" />
+                <Phone className="size-4" />
                 <span className="hidden sm:inline">Звонок</span>
                 <ChevronDown className="w-3 h-3 ml-1" />
               </Button>

@@ -281,7 +281,7 @@ export function ChatWindow({
     startConsultation(appointment.id)
     
     initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
-    router.push(`/appointment/${appointment.id}/call`)
+    router.push(`/appointment/${appointment.id}/call?caller=1`)
   }
 
   const handleStartAudioConsultation = async () => {
@@ -296,7 +296,7 @@ export function ChatWindow({
     startConsultation(appointment.id)
     
     initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
-    router.push(`/appointment/${appointment.id}/call?audio=1`)
+    router.push(`/appointment/${appointment.id}/call?audio=1&caller=1`)
   }
 
   const handleStartChatConsultation = async () => {

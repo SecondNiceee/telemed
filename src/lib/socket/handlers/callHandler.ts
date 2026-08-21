@@ -11,7 +11,8 @@ import type {
 } from '../types'
 import { 
   addActiveCall, 
-  removeActiveCall, 
+  removeActiveCall,
+  getActiveCall,
   getActiveCallsForTarget,
   type ActiveCall 
 } from '../stores/activeCallsStore'
@@ -156,7 +157,8 @@ function broadcastToOtherParticipant(
   socket: AuthenticatedSocket,
   roomName: string,
   eventName: string,
-  eventData: Record<string, unknown>
+  eventData: Record<string, unknown>,
+  targetId?: number,
 ) {
   const targetType = socket.data.senderType === 'doctor' ? 'user' : 'doctor'
   const room = io.sockets.adapter.rooms.get(roomName)
@@ -169,7 +171,7 @@ function broadcastToOtherParticipant(
     const authSocket = connectedSocket as AuthenticatedSocket
     if (socketId === socket.id) continue
     if (room?.has(socketId)) continue
-    if (authSocket.data.senderType === targetType) {
+    if (authSocket.data.senderType === targetType && (targetId === undefined || authSocket.data.senderId === targetId)) {
       authSocket.emit(eventName, eventData)
     }
   }
@@ -185,16 +187,17 @@ export function createCallAnswerHandler(io: SocketIOServer) {
     
     console.log(`[Socket] Call answered by ${socket.data.senderType}:${socket.data.senderId}, peerId: ${answerPeerId}`)
     
+    const activeCall = getActiveCall(appointmentId)
     // Remove from active calls - the call is now connected
     removeActiveCall(appointmentId)
     
-    // Broadcast to the caller (who might not be in the room)
+    // Broadcast to the exact caller (who might not be in the room)
     broadcastToOtherParticipant(io, socket, roomName, 'call-answered', {
       appointmentId,
       answerPeerId,
       answererType: socket.data.senderType,
       answererId: socket.data.senderId,
-    })
+    }, activeCall?.callerId)
   }
 }
 
@@ -208,13 +211,14 @@ export function createCallRejectHandler(io: SocketIOServer) {
     
     console.log(`[Socket] Call rejected by ${socket.data.senderType}:${socket.data.senderId}`)
     
+    const activeCall = getActiveCall(appointmentId)
     // Remove from active calls
     removeActiveCall(appointmentId)
     
     broadcastToOtherParticipant(io, socket, roomName, 'call-rejected', {
       appointmentId,
       rejectedBy: socket.data.senderType,
-    })
+    }, activeCall?.callerId)
   }
 }
 

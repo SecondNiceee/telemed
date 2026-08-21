@@ -7,6 +7,7 @@ import { Camera, CameraOff, LogOut, Mic, MicOff, MonitorUp, RefreshCw, ShieldChe
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMediasoup } from '@/hooks/use-mediasoup'
+import { useSocket } from '@/components/socket-provider'
 
 function VideoSurface({ stream, muted, label }: { stream: MediaStream | null; muted?: boolean; label: string }) {
   const ref = useRef<HTMLVideoElement>(null)
@@ -36,11 +37,26 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
   const router = useRouter()
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
+  const isCaller = searchParams.get('caller') === '1'
+  const { outgoingCallStatuses, endCall: endCallSignal } = useSocket()
+  const invitationStatus = outgoingCallStatuses[appointmentId] ?? (isCaller ? 'waiting' : 'answered')
+  const isWaitingForPatient = isCaller && invitationStatus === 'waiting'
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
   const handledEndReasonRef = useRef(false)
+  const handledRejectionRef = useRef(false)
 
-  useEffect(() => { void connect() }, [connect])
+  useEffect(() => {
+    if (invitationStatus === 'answered') void connect()
+  }, [connect, invitationStatus])
+
+  useEffect(() => {
+    if (!isCaller || invitationStatus !== 'rejected' || handledRejectionRef.current) return
+    handledRejectionRef.current = true
+    call.leave()
+    toast.info('Пациент отклонил звонок', { position: 'top-center' })
+    router.replace(`${chatPath}?appointment=${appointmentId}`)
+  }, [appointmentId, call, chatPath, invitationStatus, isCaller, router])
 
   useEffect(() => {
     if (!call.endReason || handledEndReasonRef.current) return
@@ -55,7 +71,12 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
   }, [appointmentId, call.endReason, chatPath, router])
 
   const leave = async () => {
-    await call.endCall()
+    if (isWaitingForPatient) {
+      endCallSignal(appointmentId)
+      call.leave()
+    } else {
+      await call.endCall()
+    }
     router.replace(`${chatPath}?appointment=${appointmentId}`)
   }
 
@@ -71,8 +92,8 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
             <p className="text-sm text-muted-foreground">Консультация №{appointmentId} · медиа передаётся через SFU</p>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
-            {!call.online ? <WifiOff aria-hidden="true" /> : call.status === 'reconnecting' ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
-            <span>{!call.online ? 'Нет сети' : call.status === 'connected' ? 'Соединение установлено' : call.status === 'failed' ? 'Ошибка соединения' : 'Подключение…'}</span>
+            {!call.online ? <WifiOff aria-hidden="true" /> : !isWaitingForPatient && call.status === 'reconnecting' ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
+            <span>{isWaitingForPatient ? 'Ждём пациента…' : !call.online ? 'Нет сети' : call.status === 'connected' ? 'Соединение установлено' : call.status === 'failed' ? 'Ошибка соединения' : 'Подключение…'}</span>
           </div>
         </header>
 
@@ -83,16 +104,30 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
           </div>
         ) : null}
 
-        <div className="grid flex-1 gap-4 md:grid-cols-2">
-          <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? 'Собеседник' : 'Ожидаем собеседника'} />
-          <VideoSurface stream={call.localStream} muted label="Вы" />
-        </div>
+        {isWaitingForPatient ? (
+          <section className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-sm" role="status" aria-live="polite">
+            <span className="size-3 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+            <div className="flex flex-col gap-2">
+              <h2 className="text-balance text-2xl font-semibold">Ждём пациента…</h2>
+              <p className="text-pretty text-sm leading-6 text-muted-foreground">Подключение к защищённой комнате начнётся после принятия звонка.</p>
+            </div>
+          </section>
+        ) : (
+          <div className="grid flex-1 gap-4 md:grid-cols-2">
+            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? 'Собеседник' : 'Ожидаем собеседника'} />
+            <VideoSurface stream={call.localStream} muted label="Вы" />
+          </div>
+        )}
 
         <footer className="flex flex-wrap items-center justify-center gap-3 pt-5">
-          <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.micEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleMicrophone()} aria-label={call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}>{call.micEnabled ? <Mic /> : <MicOff />}</Button></TooltipTrigger><TooltipContent>{call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip>
-          <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.screenSharing ? 'default' : 'secondary'} onClick={() => void call.toggleScreen()} aria-label="Демонстрация экрана"><MonitorUp /></Button></TooltipTrigger><TooltipContent>Демонстрация экрана</TooltipContent></Tooltip>
-          <Button variant="destructive" size="lg" onClick={leave}><LogOut data-icon="inline-start" />Завершить</Button>
+          {!isWaitingForPatient ? (
+            <>
+              <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.micEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleMicrophone()} aria-label={call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}>{call.micEnabled ? <Mic /> : <MicOff />}</Button></TooltipTrigger><TooltipContent>{call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip>
+              <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.screenSharing ? 'default' : 'secondary'} onClick={() => void call.toggleScreen()} aria-label="Демонстрация экрана"><MonitorUp /></Button></TooltipTrigger><TooltipContent>Демонстрация экрана</TooltipContent></Tooltip>
+            </>
+          ) : null}
+          <Button variant="destructive" size="lg" onClick={() => void leave()}><LogOut data-icon="inline-start" />Завершить</Button>
         </footer>
       </main>
     </TooltipProvider>
