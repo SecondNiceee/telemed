@@ -33,7 +33,7 @@ export function createDisconnectHandler(io: SocketIOServer) {
         // If no other sockets for the caller, remove the active call
         if (!hasOtherSocket) {
           console.log(`[Socket] Caller disconnected with no other sockets, removing active call for appointment ${call.appointmentId}`)
-          removeActiveCall(call.appointmentId)
+          removeActiveCall(call.appointmentId, call.callId)
           
           // Notify the target that the call was cancelled
           const targetType = call.targetType
@@ -42,6 +42,7 @@ export function createDisconnectHandler(io: SocketIOServer) {
             if (authSocket.data.senderType === targetType) {
               authSocket.emit('call-ended', {
                 appointmentId: call.appointmentId,
+                callId: call.callId,
                 endedBy: call.callerType,
                 reason: 'caller_disconnected',
               })

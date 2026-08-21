@@ -17,7 +17,7 @@ interface SocketContextValue {
   socket: Socket | null
   isConnected: boolean
   hasConnectionError: boolean
-  outgoingCallStatuses: Record<number, OutgoingCallStatus>
+  outgoingCallStatuses: Record<string, OutgoingCallStatus>
   joinRoom: (appointmentId: number) => void
   leaveRoom: (appointmentId: number) => void
   sendMessage: (appointmentId: number, text: string, attachmentId?: number) => Promise<void>
@@ -25,10 +25,10 @@ interface SocketContextValue {
   startTyping: (appointmentId: number) => void
   stopTyping: (appointmentId: number) => void
   // Video call signaling
-  initiateCall: (appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => void
-  answerCall: (appointmentId: number, answerPeerId: string) => void
-  rejectCall: (appointmentId: number) => void
-  endCall: (appointmentId: number) => void
+  initiateCall: (appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => string | null
+  answerCall: (appointmentId: number, callId: string, answerPeerId: string) => void
+  rejectCall: (appointmentId: number, callId: string) => void
+  endCall: (appointmentId: number, callId?: string) => void
   // Callback for when remote party ends call (before store is updated)
   // Callback can be async - socket-provider will await it before updating store
   onRemoteCallEnded: (callback: (appointmentId: number) => void | Promise<void>) => () => void
@@ -79,8 +79,8 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [hasConnectionError, setHasConnectionError] = useState(false)
-  const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callerName: string; isAudioOnly: boolean } | null>(null)
-  const [outgoingCallStatuses, setOutgoingCallStatuses] = useState<Record<number, OutgoingCallStatus>>({})
+  const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callId: string; callerName: string; isAudioOnly: boolean } | null>(null)
+  const [outgoingCallStatuses, setOutgoingCallStatuses] = useState<Record<string, OutgoingCallStatus>>({})
   // Use refs for store functions to avoid reconnection on store changes
   const chatStoreRef = useRef(useChatStore.getState())
   
@@ -193,22 +193,22 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     // Video call signaling events
-    newSocket.on('incoming-call', ({ appointmentId, callerName, callerType, isAudioOnly }) => {
+    newSocket.on('incoming-call', ({ appointmentId, callId, callerName, callerType, isAudioOnly }) => {
       if (callerType !== currentSenderTypeRef.current) {
-        setIncomingCall({ appointmentId, callerName, isAudioOnly: Boolean(isAudioOnly) })
+        setIncomingCall({ appointmentId, callId, callerName, isAudioOnly: Boolean(isAudioOnly) })
         playNotificationSound()
       }
     })
 
-    newSocket.on('call-answered', ({ appointmentId }) => {
-      setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'answered' }))
+    newSocket.on('call-answered', ({ callId }) => {
+      setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'answered' }))
     })
-    newSocket.on('call-rejected', ({ appointmentId }) => {
-      setIncomingCall(null)
-      setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'rejected' }))
+    newSocket.on('call-rejected', ({ callId }) => {
+      setIncomingCall((current) => current?.callId === callId ? null : current)
+      setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'rejected' }))
     })
 
-    newSocket.on('call-ended', async ({ appointmentId }) => {
+    newSocket.on('call-ended', async ({ appointmentId, callId }) => {
       console.log('[Socket] Call ended by remote, appointmentId:', appointmentId, 'callbacks count:', remoteCallEndedCallbacksRef.current.size)
       
       // IMPORTANT: Call all registered callbacks BEFORE updating the store
@@ -236,12 +236,14 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         console.log('[Socket] All async callbacks completed')
       }
       
-      setIncomingCall(null)
-      setOutgoingCallStatuses((statuses) => {
-        const nextStatuses = { ...statuses }
-        delete nextStatuses[appointmentId]
-        return nextStatuses
-      })
+      setIncomingCall((current) => !callId || current?.callId === callId ? null : current)
+      if (callId) {
+        setOutgoingCallStatuses((statuses) => {
+          const nextStatuses = { ...statuses }
+          delete nextStatuses[callId]
+          return nextStatuses
+        })
+      }
     })
 
     // Consultation status events
@@ -368,27 +370,29 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
 
   // Video call signaling functions
   const initiateCall = useCallback((appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => {
-    if (!socket?.connected) return
-    setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'waiting' }))
-    socket.emit('call-initiate', { appointmentId, callerPeerId, callerName, isAudioOnly })
+    if (!socket?.connected) return null
+    const callId = crypto.randomUUID()
+    setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'waiting' }))
+    socket.emit('call-initiate', { appointmentId, callId, callerPeerId, callerName, isAudioOnly })
+    return callId
   }, [socket])
 
-  const answerCall = useCallback((appointmentId: number, answerPeerId: string) => {
+  const answerCall = useCallback((appointmentId: number, callId: string, answerPeerId: string) => {
     if (socket?.connected) {
       console.log('[Socket] Answering call, peerId:', answerPeerId)
-      socket.emit('call-answer', { appointmentId, answerPeerId })
+      socket.emit('call-answer', { appointmentId, callId, answerPeerId })
     }
   }, [socket])
 
-  const rejectCall = useCallback((appointmentId: number) => {
+  const rejectCall = useCallback((appointmentId: number, callId: string) => {
     if (socket?.connected) {
-      socket.emit('call-reject', { appointmentId })
+      socket.emit('call-reject', { appointmentId, callId })
     }
   }, [socket])
 
-  const endCallSignal = useCallback((appointmentId: number) => {
+  const endCallSignal = useCallback((appointmentId: number, callId?: string) => {
     if (socket?.connected) {
-      socket.emit('call-end', { appointmentId })
+      socket.emit('call-end', { appointmentId, callId })
     }
   }, [socket])
   
@@ -465,14 +469,14 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
 
   const acceptIncomingCall = () => {
     if (!incomingCall || !socket?.connected) return
-    socket.emit('call-answer', { appointmentId: incomingCall.appointmentId, answerPeerId: '' })
-    const target = `/appointment/${incomingCall.appointmentId}/call${incomingCall.isAudioOnly ? '?audio=1' : ''}`
+  socket.emit('call-answer', { appointmentId: incomingCall.appointmentId, callId: incomingCall.callId, answerPeerId: '' })
+  const target = `/appointment/${incomingCall.appointmentId}/call?callId=${encodeURIComponent(incomingCall.callId)}${incomingCall.isAudioOnly ? '&audio=1' : ''}`
     setIncomingCall(null)
     window.location.assign(target)
   }
 
   const rejectIncomingCall = () => {
-    if (incomingCall && socket?.connected) socket.emit('call-reject', { appointmentId: incomingCall.appointmentId })
+    if (incomingCall && socket?.connected) socket.emit('call-reject', { appointmentId: incomingCall.appointmentId, callId: incomingCall.callId })
     setIncomingCall(null)
   }
 
@@ -507,7 +511,7 @@ const defaultSocketContext: SocketContextValue = {
   markAsRead: () => {},
   startTyping: () => {},
   stopTyping: () => {},
-  initiateCall: () => {},
+  initiateCall: () => null,
   answerCall: () => {},
   rejectCall: () => {},
   endCall: () => {},

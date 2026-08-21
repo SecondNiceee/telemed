@@ -308,8 +308,12 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
-    router.push(`/appointment/${appointment.id}/call?caller=1`)
+    const callId = initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', false)
+    if (!callId) {
+      toast.error('Не удалось начать звонок: нет подключения к серверу')
+      return
+    }
+    router.push(`/appointment/${appointment.id}/call?caller=1&callId=${encodeURIComponent(callId)}`)
   }
 
   const handleStartAudioConsultation = async () => {
@@ -323,8 +327,12 @@ export function ChatWindow({
     // Use socket to start consultation (real-time update for all participants)
     startConsultation(appointment.id)
     
-    initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
-    router.push(`/appointment/${appointment.id}/call?audio=1&caller=1`)
+    const callId = initiateCall(appointment.id, '', currentSenderType === 'doctor' ? appointment.doctorName || 'Врач' : appointment.userName || 'Пациент', true)
+    if (!callId) {
+      toast.error('Не удалось начать звонок: нет подключения к серверу')
+      return
+    }
+    router.push(`/appointment/${appointment.id}/call?audio=1&caller=1&callId=${encodeURIComponent(callId)}`)
   }
 
   const handleStartChatConsultation = async () => {
