@@ -11,9 +11,12 @@ import { useDoctorStore } from '@/stores/doctor-store'
 import type { ApiMessage } from '@/lib/api/messages'
 import { getSenderType, getSenderId } from '@/lib/api/messages'
 
+type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
+
 interface SocketContextValue {
   socket: Socket | null
   isConnected: boolean
+  outgoingCallStatuses: Record<number, OutgoingCallStatus>
   joinRoom: (appointmentId: number) => void
   leaveRoom: (appointmentId: number) => void
   sendMessage: (appointmentId: number, text: string, attachmentId?: number) => void
@@ -75,6 +78,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callerName: string; isAudioOnly: boolean } | null>(null)
+  const [outgoingCallStatuses, setOutgoingCallStatuses] = useState<Record<number, OutgoingCallStatus>>({})
   // Use refs for store functions to avoid reconnection on store changes
   const chatStoreRef = useRef(useChatStore.getState())
   
@@ -192,8 +196,13 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       }
     })
 
-    newSocket.on('call-answered', () => undefined)
-    newSocket.on('call-rejected', () => setIncomingCall(null))
+    newSocket.on('call-answered', ({ appointmentId }) => {
+      setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'answered' }))
+    })
+    newSocket.on('call-rejected', ({ appointmentId }) => {
+      setIncomingCall(null)
+      setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'rejected' }))
+    })
 
     newSocket.on('call-ended', async ({ appointmentId }) => {
       console.log('[Socket] Call ended by remote, appointmentId:', appointmentId, 'callbacks count:', remoteCallEndedCallbacksRef.current.size)
@@ -224,6 +233,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       }
       
       setIncomingCall(null)
+      setOutgoingCallStatuses((statuses) => {
+        const nextStatuses = { ...statuses }
+        delete nextStatuses[appointmentId]
+        return nextStatuses
+      })
     })
 
     // Consultation status events
@@ -340,15 +354,9 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
 
   // Video call signaling functions
   const initiateCall = useCallback((appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => {
-    console.log('[v0] initiateCall called, socket?.connected:', socket?.connected, 'socket?.id:', socket?.id, 'isAudioOnly:', isAudioOnly)
-    if (socket?.connected) {
-      console.log('[v0] Emitting call-initiate event to socket server')
-      console.log('[v0] Payload:', { appointmentId, callerPeerId, callerName, isAudioOnly })
-      socket.emit('call-initiate', { appointmentId, callerPeerId, callerName, isAudioOnly })
-      console.log('[v0] call-initiate event emitted successfully')
-    } else {
-      console.warn('[v0] Cannot initiate call - socket not connected, socket:', socket)
-    }
+    if (!socket?.connected) return
+    setOutgoingCallStatuses((statuses) => ({ ...statuses, [appointmentId]: 'waiting' }))
+    socket.emit('call-initiate', { appointmentId, callerPeerId, callerName, isAudioOnly })
   }, [socket])
 
   const answerCall = useCallback((appointmentId: number, answerPeerId: string) => {
@@ -420,6 +428,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const value: SocketContextValue = {
     socket,
     isConnected,
+    outgoingCallStatuses,
     joinRoom,
     leaveRoom,
     sendMessage,
@@ -475,6 +484,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
 const defaultSocketContext: SocketContextValue = {
   socket: null,
   isConnected: false,
+  outgoingCallStatuses: {},
   joinRoom: () => {},
   leaveRoom: () => {},
   sendMessage: () => {},
