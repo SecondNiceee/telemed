@@ -54,6 +54,8 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [remoteMedia, setRemoteMedia] = useState<RemoteMedia | null>(null)
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = useState(!audioOnly)
+  const [remoteMicEnabled, setRemoteMicEnabled] = useState(true)
+  const [remoteCameraEnabled, setRemoteCameraEnabled] = useState(true)
   const [online, setOnline] = useState(true)
   const [endReason, setEndReason] = useState<CallEndReason | null>(null)
 
@@ -73,6 +75,21 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const pendingJoinRef = useRef(false)
   const joinedSocketIdRef = useRef<string | null>(null)
   const leftRef = useRef(false)
+
+  const broadcastMediaState = useCallback(async () => {
+    const socket = socketRef.current
+    const token = tokenRef.current
+    if (!socket?.connected || !token) return
+    try {
+      await emitAck(socket, 'mediaState', {
+        roomId: token.roomId,
+        micEnabled: micEnabledRef.current,
+        cameraEnabled: cameraEnabledRef.current,
+      })
+    } catch {
+      // Non-critical signal: the peer keeps its last known state.
+    }
+  }, [])
 
   const restartIce = useCallback(async (transport: types.Transport) => {
     const socket = socketRef.current
@@ -253,6 +270,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
           if (joinedSocketIdRef.current === socketId) {
             setError(null)
             setStatus('connected')
+            void broadcastMediaState()
           }
         } catch (reason) {
           if (!socket.connected || socket.id !== socketId) {
@@ -271,7 +289,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         })
       }
     }
-  }, [closeMediaSession, consume, createTransports, publishLocalTracks])
+  }, [broadcastMediaState, closeMediaSession, consume, createTransports, publishLocalTracks])
 
   const cleanup = useCallback(() => {
     leftRef.current = true
@@ -359,6 +377,16 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       socket.on('producerClosed', ({ producerId }) => {
         for (const [id, consumer] of consumersRef.current) if (consumer.producerId === producerId) { consumer.close(); consumersRef.current.delete(id) }
       })
+      socket.on('peerMediaState', ({ micEnabled: peerMic, cameraEnabled: peerCamera }: { micEnabled: boolean; cameraEnabled: boolean }) => {
+        setRemoteMicEnabled(peerMic)
+        setRemoteCameraEnabled(peerCamera)
+      })
+      socket.on('peerJoined', () => {
+        // The joining peer has default state; re-send ours so both UIs stay in sync.
+        setRemoteMicEnabled(true)
+        setRemoteCameraEnabled(true)
+        void broadcastMediaState()
+      })
       socket.on('peerLeft', ({ peerId }) => { remoteStreamsRef.current.delete(peerId); setRemoteMedia(null) })
       socket.on('participantEnded', () => {
         if (leftRef.current) return
@@ -374,7 +402,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       setError(getCallErrorMessage(reason, 'Не удалось подключиться'))
       setStatus('failed')
     }
-  }, [appointmentId, audioOnly, cleanup, closeMediaSession, consume, join])
+  }, [appointmentId, audioOnly, broadcastMediaState, cleanup, closeMediaSession, consume, join])
 
   const toggleMicrophone = useCallback(async () => {
     const enabled = !micEnabled
@@ -385,7 +413,8 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       await emitAck(socketRef.current, enabled ? 'resumeProducer' : 'pauseProducer', { roomId: tokenRef.current.roomId, producerId: producer.id })
     }
     setMicEnabled(enabled)
-  }, [micEnabled])
+    void broadcastMediaState()
+  }, [broadcastMediaState, micEnabled])
 
   const toggleCamera = useCallback(async () => {
     if (audioOnly) return
@@ -395,9 +424,18 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       cameraEnabledRef.current = enabled
       if (enabled) await producer.resume(); else await producer.pause()
       if (producer.track) producer.track.enabled = enabled
+      if (tokenRef.current && socketRef.current?.connected) {
+        // Pause the server-side producer too so the SFU stops forwarding frames.
+        try {
+          await emitAck(socketRef.current, enabled ? 'resumeProducer' : 'pauseProducer', { roomId: tokenRef.current.roomId, producerId: producer.id })
+        } catch {
+          // The peer still hides video through the mediaState signal below.
+        }
+      }
       setCameraEnabled(enabled)
+      void broadcastMediaState()
     }
-  }, [audioOnly, cameraEnabled])
+  }, [audioOnly, broadcastMediaState, cameraEnabled])
 
   useEffect(() => {
     const onlineHandler = () => {
@@ -419,5 +457,5 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
   }, [leave, restartIce])
 
-  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
+  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }
