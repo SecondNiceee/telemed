@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2, Video } from "lucide-react"
+import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2, XCircle } from "lucide-react"
 import Link from "next/link"
 import { DoctorsApi } from "@/lib/api/doctors"
 import type { ApiDoctor } from "@/lib/api/types"
@@ -99,48 +99,6 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Link
-            href="/lk-org/consultations?sort=all"
-            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-                <p className="text-xs text-muted-foreground">Всего консультаций</p>
-              </div>
-            </div>
-          </Link>
-          <Link
-            href="/lk-org/consultations?sort=now"
-            className="rounded-xl border border-teal/40 bg-teal-soft p-4 shadow-sm hover:shadow-md hover:border-teal hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-teal/15 flex items-center justify-center">
-                <Video className="w-5 h-5 text-teal" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.active}</p>
-                <p className="text-xs text-muted-foreground">Текущих</p>
-              </div>
-            </div>
-          </Link>
-          <Link
-            href="/lk-org/consultations?sort=future"
-            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">{stats.upcoming}</p>
-                <p className="text-xs text-muted-foreground">Предстоящих</p>
-              </div>
-            </div>
-          </Link>
-          <Link
             href="/lk-org/consultations?sort=past"
             className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-teal/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
           >
@@ -151,6 +109,48 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
               <div>
                 <p className="text-2xl font-bold text-foreground">{stats.past}</p>
                 <p className="text-xs text-muted-foreground">Прошедших</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=future"
+            className="rounded-xl border border-teal/40 bg-teal-soft p-4 shadow-sm hover:shadow-md hover:border-teal hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-teal/15 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-teal" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats.upcoming}</p>
+                <p className="text-xs text-muted-foreground">Предстоящих</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=cancelled"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-destructive/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                <XCircle className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats.cancelled}</p>
+                <p className="text-xs text-muted-foreground">Отменённые</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            href="/lk-org/consultations?sort=all"
+            className="rounded-xl border border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary/50 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Всего консультаций</p>
               </div>
             </div>
           </Link>

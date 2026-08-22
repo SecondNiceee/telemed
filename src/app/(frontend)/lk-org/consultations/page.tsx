@@ -27,7 +27,7 @@ export default async function OrgConsultationsPage({ searchParams }: PageProps) 
   const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : []
   const doctorIds = doctors.map(d => d.id)
 
-  const sortParam = params.sort as 'all' | 'now' | 'future' | 'past' | undefined
+  const sortParam = params.sort as 'all' | 'now' | 'future' | 'past' | 'cancelled' | undefined
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

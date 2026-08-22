@@ -243,7 +243,7 @@ export class AppointmentsApi {
       page?: number
       limit?: number
       search?: string
-      sort?: 'all' | 'now' | 'future' | 'past'
+      sort?: 'all' | 'now' | 'future' | 'past' | 'cancelled'
     } = {}
   ): Promise<PayloadListResponse<ApiAppointment>> {
     if (doctorIds.length === 0) {
@@ -264,11 +264,13 @@ export class AppointmentsApi {
       // Only completed consultations
       params.append('where[status][equals]', 'completed')
     } else if (sort === 'future') {
-      // Only confirmed (upcoming) consultations - exclude completed and in_progress
-      params.append('where[status][equals]', 'confirmed')
+      // Upcoming also includes consultations that are currently in progress.
+      params.append('where[status][in]', 'confirmed,in_progress')
+    } else if (sort === 'cancelled') {
+      params.append('where[status][equals]', 'cancelled')
     } else {
-      // 'all' - exclude cancelled and unpaid holds (not real bookings yet)
-      params.append('where[status][not_in]', 'cancelled,pending_payment')
+      // 'all' includes cancelled consultations, but not unpaid holds.
+      params.append('where[status][not_equals]', 'pending_payment')
     }
     
     // Search by doctor name or user name

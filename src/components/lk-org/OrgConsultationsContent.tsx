@@ -17,6 +17,7 @@ import {
   User,
   Stethoscope,
   Download,
+  XCircle,
 } from "lucide-react"
 import { AppointmentsApi } from "@/lib/api/appointments"
 import { exportConsultationsToExcel } from "@/lib/export-consultations"
@@ -29,10 +30,10 @@ interface OrgConsultationsContentProps {
   orgId: number
   orgName: string
   doctorIds: number[]
-  initialSort: 'all' | 'now' | 'future' | 'past'
+  initialSort: 'all' | 'now' | 'future' | 'past' | 'cancelled'
 }
 
-type SortType = 'all' | 'now' | 'future' | 'past'
+type SortType = 'all' | 'now' | 'future' | 'past' | 'cancelled'
 
 const CONSULTATIONS_PER_PAGE = 10
 
@@ -41,6 +42,7 @@ const sortLabels: Record<SortType, string> = {
   now: 'Текущие',
   future: 'Предстоящие',
   past: 'Прошедшие',
+  cancelled: 'Отменённые',
 }
 
 const sortIcons: Record<SortType, React.ReactNode> = {
@@ -48,6 +50,7 @@ const sortIcons: Record<SortType, React.ReactNode> = {
   now: <Video className="w-4 h-4" />,
   future: <Clock className="w-4 h-4" />,
   past: <CheckCircle className="w-4 h-4" />,
+  cancelled: <XCircle className="w-4 h-4" />,
 }
 
 export function OrgConsultationsContent({
@@ -174,6 +177,13 @@ export function OrgConsultationsContent({
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/25">
             <Clock className="w-3 h-3" />
             Запланирована
+          </span>
+        )
+      case 'cancelled':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive border border-destructive/25">
+            <XCircle className="w-3 h-3" />
+            Отменена
           </span>
         )
       default:
