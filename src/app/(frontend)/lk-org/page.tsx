@@ -14,7 +14,7 @@ export interface OrgStats {
   total: number
   upcoming: number
   past: number
-  active: number
+  cancelled: number
 }
 
 export default async function LkOrgPage() {
@@ -32,7 +32,7 @@ export default async function LkOrgPage() {
   const doctors = org ? await DoctorsApi.fetchByOrganisation(org.id) : []
   
   // Calculate stats from appointments
-  let stats: OrgStats = { total: 0, upcoming: 0, past: 0, active: 0 }
+  let stats: OrgStats = { total: 0, upcoming: 0, past: 0, cancelled: 0 }
   
   if (org && doctors.length > 0) {
     const doctorIds = doctors.map(d => d.id)
@@ -40,11 +40,14 @@ export default async function LkOrgPage() {
     
     const now = new Date()
     stats = appointments.reduce((acc, appt) => {
-      if (appt.status === 'cancelled') return acc
+      if (appt.status === 'pending_payment') return acc
       acc.total++
-      
-      if (appt.status === 'in_progress') {
-        acc.active++
+
+      if (appt.status === 'cancelled') {
+        acc.cancelled++
+      } else if (appt.status === 'in_progress') {
+        // Active consultations are part of the upcoming group.
+        acc.upcoming++
       } else if (appt.status === 'completed') {
         acc.past++
       } else {
@@ -56,7 +59,7 @@ export default async function LkOrgPage() {
         }
       }
       return acc
-    }, { total: 0, upcoming: 0, past: 0, active: 0 })
+    }, { total: 0, upcoming: 0, past: 0, cancelled: 0 })
   }
 
   return (
