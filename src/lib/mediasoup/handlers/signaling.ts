@@ -146,6 +146,18 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
     })
   }
 
+  socket.on('mediaState', (data: { roomId: string; micEnabled: boolean; cameraEnabled: boolean }, ack: Ack) => {
+    handle(ack, () => {
+      const { peerId } = inRoom(socket, data.roomId)
+      socket.to(data.roomId).emit('peerMediaState', {
+        peerId,
+        micEnabled: data.micEnabled === true,
+        cameraEnabled: data.cameraEnabled === true,
+      })
+      return {}
+    })
+  })
+
   socket.on('closeProducer', (data: { roomId: string; producerId: string }, ack: Ack) => {
     handle(ack, () => {
       const { room, peerId } = inRoom(socket, data.roomId)

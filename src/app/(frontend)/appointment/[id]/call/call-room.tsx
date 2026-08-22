@@ -11,28 +11,39 @@ import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
 import { cn } from '@/lib/utils'
 
-function VideoSurface({ stream, muted, label, audioOnly, speakingEnabled = true }: { stream: MediaStream | null; muted?: boolean; label: string; audioOnly: boolean; speakingEnabled?: boolean }) {
-  const ref = useRef<HTMLVideoElement>(null)
-  const isSpeaking = useSpeakingDetector(stream, speakingEnabled)
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream
-  }, [stream])
+interface VideoSurfaceProps {
+  stream: MediaStream | null
+  muted?: boolean
+  label: string
+  audioOnly: boolean
+  speakingEnabled?: boolean
+  cameraOff?: boolean
+  micMuted?: boolean
+}
 
-  const hasLiveVideo = !audioOnly && stream?.getVideoTracks().some((track) => track.enabled && track.readyState === 'live')
+function VideoSurface({ stream, muted, label, audioOnly, speakingEnabled = true, cameraOff = false, micMuted = false }: VideoSurfaceProps) {
+  const isSpeaking = useSpeakingDetector(stream, speakingEnabled && !micMuted)
+
+  const attachStream = (node: HTMLVideoElement | HTMLAudioElement | null) => {
+    if (node && node.srcObject !== stream) node.srcObject = stream
+  }
+
+  const hasLiveVideo = !audioOnly && !cameraOff && stream?.getVideoTracks().some((track) => track.readyState === 'live')
 
   return (
     <section className={cn('relative flex min-h-64 overflow-hidden rounded-2xl border bg-card shadow-sm transition-[border-color,box-shadow] duration-200', isSpeaking && 'border-speaking ring-2 ring-speaking/70 ring-offset-2 ring-offset-background')}>
       {hasLiveVideo ? (
-        <video ref={ref} autoPlay playsInline muted={muted} className="size-full object-cover" aria-label={label} />
+        <video ref={attachStream} autoPlay playsInline muted={muted} className="size-full object-cover" aria-label={label} />
       ) : (
         <div className="flex size-full min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
           {audioOnly ? <Mic aria-hidden="true" /> : <CameraOff aria-hidden="true" />}
           <p className="text-sm">{audioOnly ? 'Аудиозвонок' : 'Камера выключена'}</p>
-          {stream ? <audio ref={(node) => { if (node) node.srcObject = stream }} autoPlay muted={muted} /> : null}
+          {stream ? <audio ref={attachStream} autoPlay muted={muted} /> : null}
         </div>
       )}
       <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-background/90 px-3 py-1 text-sm font-medium text-foreground backdrop-blur">
         {isSpeaking ? <span className="size-2 rounded-full bg-speaking" aria-hidden="true" /> : null}
+        {micMuted ? <MicOff className="size-4 text-destructive" aria-label="Микрофон выключен" /> : null}
         {label}
       </div>
     </section>
@@ -128,8 +139,8 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
           </section>
         ) : (
           <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? remoteParticipantName : `Ожидаем: ${remoteParticipantName}`} audioOnly={audioOnly} />
-            <VideoSurface stream={call.localStream} muted label={localParticipantName} audioOnly={audioOnly} speakingEnabled={call.micEnabled} />
+            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? remoteParticipantName : `Ожидаем: ${remoteParticipantName}`} audioOnly={audioOnly} cameraOff={!call.remoteCameraEnabled} micMuted={call.remoteMedia ? !call.remoteMicEnabled : false} />
+            <VideoSurface stream={call.localStream} muted label={localParticipantName} audioOnly={audioOnly} speakingEnabled={call.micEnabled} cameraOff={!call.cameraEnabled} micMuted={!call.micEnabled} />
           </div>
         )}
 
