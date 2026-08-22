@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, User, RefreshCw, Video, MessageSquare, Clock, Mic } from "lucide-react"
+import { AlertCircle, ArrowLeft, User, RefreshCw, Video, MessageSquare, Clock, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
@@ -123,6 +123,18 @@ export function OrgConsultationView({
                 </p>
               </div>
             </div>
+
+            {appointment.status === 'cancelled' ? (
+              <div className="mt-4 flex items-start gap-3 rounded-lg border border-destructive/25 bg-destructive/10 p-4">
+                <AlertCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Причина отмены</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                    {appointment.reason?.trim() || 'Причина не указана'}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
