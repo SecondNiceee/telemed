@@ -203,6 +203,43 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
 
         console.log(`[Socket] Message sent in room ${roomName} by ${senderType}:${senderId}`)
         ack?.({ success: true })
+
+        // Глобальное уведомление второму участнику в его персональную комнату:
+        // доставляется на любой странице сайта, а не только в открытом чате.
+        try {
+          const appointment = accessResult.appointment!
+          const recipientType = senderType === 'user' ? 'doctor' : 'user'
+          const recipientId = recipientType === 'user'
+            ? (typeof appointment.user === 'object' ? (appointment.user as { id: number }).id : (appointment.user as number))
+            : (typeof appointment.doctor === 'object' ? (appointment.doctor as { id: number }).id : (appointment.doctor as number))
+
+          let senderName = senderType === 'user' ? 'Пациент' : 'Врач'
+          try {
+            const senderDoc = await payload.findByID({
+              collection: senderRelationTo,
+              id: senderId,
+              depth: 0,
+              overrideAccess: true,
+            })
+            if (senderDoc && typeof senderDoc.name === 'string' && senderDoc.name.trim()) {
+              senderName = senderDoc.name
+            }
+          } catch {
+            // Имя не критично — используем дефолтное.
+          }
+
+          io.to(`${recipientType}:${recipientId}`).emit('message-notification', {
+            messageId: message.id,
+            appointmentId,
+            recipientType,
+            senderName,
+            text: validatedText
+              ? (validatedText.length > 120 ? `${validatedText.slice(0, 120)}…` : validatedText)
+              : 'Вложение',
+          })
+        } catch (notifyErr) {
+          console.error('[Socket] Failed to send message notification:', notifyErr)
+        }
       } catch (err) {
         console.error('[Socket] Failed to save message:', err)
         fail('Ошибка при отправке сообщения')

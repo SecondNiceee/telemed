@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import { Phone, PhoneOff } from 'lucide-react'
 import { io, type Socket } from 'socket.io-client'
+import { toast } from 'sonner'
 import { useChatStore } from '@/stores/chat-store'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -184,6 +185,39 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
           }
         }
       }
+    })
+
+    // Глобальное уведомление о новом сообщении: приходит в персональную
+    // комнату получателя на любой странице сайта. Показываем тост справа
+    // снизу с кнопкой перехода в нужный чат.
+    newSocket.on('message-notification', ({ messageId, appointmentId, recipientType, senderName, text }: {
+      messageId: number
+      appointmentId: number
+      recipientType: 'user' | 'doctor'
+      senderName: string
+      text: string
+    }) => {
+      // Не показываем тост, если этот чат уже открыт и вкладка видима.
+      const isTabVisible = document.visibilityState === 'visible'
+      const isInActiveChat = chatStoreRef.current.activeAppointmentId === appointmentId
+      if (isInActiveChat && isTabVisible) return
+
+      const chatUrl = recipientType === 'doctor'
+        ? `/lk-med/chat?appointment=${appointmentId}`
+        : `/lk/chat?appointment=${appointmentId}`
+
+      // id тоста = id сообщения: если на странице смонтировано два
+      // SocketProvider (глобальный + чат), дубликат не появится.
+      toast(senderName, {
+        id: `msg-${messageId}`,
+        description: text,
+        position: 'bottom-right',
+        duration: 8000,
+        action: {
+          label: 'Перейти',
+          onClick: () => window.location.assign(chatUrl),
+        },
+      })
     })
 
     // Handle typing indicators

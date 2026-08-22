@@ -98,7 +98,12 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   io.on('connection', (socket: Socket) => {
     const authSocket = socket as AuthenticatedSocket
     console.log(`[Socket] Client connected: ${socket.id}, type: ${authSocket.data.senderType}, id: ${authSocket.data.senderId}`)
-    
+
+    // Персональные комнаты: позволяют доставлять уведомления о новых
+    // сообщениях, где бы человек ни находился на сайте (не только в чате).
+    if (authSocket.data.userId) socket.join(`user:${authSocket.data.userId}`)
+    if (authSocket.data.doctorId) socket.join(`doctor:${authSocket.data.doctorId}`)
+
     // Check for pending incoming calls (handles page refresh during incoming call)
     checkPendingCallsForSocket(authSocket)
 
