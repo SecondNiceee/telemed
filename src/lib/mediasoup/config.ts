@@ -6,7 +6,6 @@
  */
 
 import type { types as mediasoupTypes } from 'mediasoup'
-import path from 'path'
 
 type WorkerSettings = mediasoupTypes.WorkerSettings
 type RouterOptions = mediasoupTypes.RouterOptions
@@ -168,19 +167,26 @@ export const serverConfig = {
  * After recording stops, the file is uploaded to Payload CMS Media collection
  * and the temp file is deleted.
  * 
- * Default path uses path.join to create a folder in the project root.
  * You can override with RECORDING_OUTPUT_DIR env variable.
  */
 export const recordingConfig = {
-  // Directory to store temporary recordings (before upload to Payload)
-  // Default: ./mediasoup-recordings in project root
-  outputDir: process.env.RECORDING_OUTPUT_DIR || path.join(process.cwd(), 'mediasoup-recordings'),
+  // Directory to store temporary recordings (before upload to Payload).
+  // Must match the default in app/api/mediasoup-recording/finalize-server.
+  outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',
   // FFmpeg path
   ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
   // Recording format
   format: 'webm',
-  // Video codec for recording
-  videoCodec: 'libvpx-vp9',
+  // Video codec for recording (VP8 realtime is fast enough for live encoding)
+  videoCodec: 'libvpx',
   // Audio codec for recording
   audioCodec: 'libopus',
+}
+
+/**
+ * Finalization: where the mediasoup server uploads finished recordings.
+ */
+export const recordingFinalizeConfig = {
+  nextjsUrl: (process.env.NEXTJS_URL || 'http://localhost:3000').replace(/\/$/, ''),
+  serverSecret: process.env.MEDIASOUP_SERVER_SECRET || '',
 }
