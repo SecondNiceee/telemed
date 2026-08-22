@@ -30,16 +30,15 @@ interface OrgConsultationsContentProps {
   orgId: number
   orgName: string
   doctorIds: number[]
-  initialSort: 'all' | 'now' | 'future' | 'past' | 'cancelled'
+  initialSort: 'all' | 'future' | 'past' | 'cancelled'
 }
 
-type SortType = 'all' | 'now' | 'future' | 'past' | 'cancelled'
+type SortType = 'all' | 'future' | 'past' | 'cancelled'
 
 const CONSULTATIONS_PER_PAGE = 10
 
 const sortLabels: Record<SortType, string> = {
   all: 'Все консультации',
-  now: 'Текущие',
   future: 'Предстоящие',
   past: 'Прошедшие',
   cancelled: 'Отменённые',
@@ -47,7 +46,6 @@ const sortLabels: Record<SortType, string> = {
 
 const sortIcons: Record<SortType, React.ReactNode> = {
   all: <Calendar className="w-4 h-4" />,
-  now: <Video className="w-4 h-4" />,
   future: <Clock className="w-4 h-4" />,
   past: <CheckCircle className="w-4 h-4" />,
   cancelled: <XCircle className="w-4 h-4" />,
