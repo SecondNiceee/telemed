@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Calendar, Clock, CheckCircle, Search, ChevronLeft, ChevronRight, Loader2, XCircle } from "lucide-react"
 import Link from "next/link"
 import { DoctorsApi } from "@/lib/api/doctors"
@@ -27,15 +27,19 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
   const [deleteDoctor, setDeleteDoctor] = useState<ApiDoctor | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   
-  // Pagination & search state
-  const [doctors, setDoctors] = useState<ApiDoctor[]>(initialDoctors)
+  // Pagination & search state. initialDoctors is the full server-side list,
+  // so the first page is derived from it without an extra client fetch.
+  const [doctors, setDoctors] = useState<ApiDoctor[]>(() => initialDoctors.slice(0, DOCTORS_PER_PAGE))
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [totalPages, setTotalPages] = useState(() => Math.max(1, Math.ceil(initialDoctors.length / DOCTORS_PER_PAGE)))
   const [totalDocs, setTotalDocs] = useState(initialDoctors.length)
   const [isLoading, setIsLoading] = useState(false)
   const [refetchTrigger, setRefetchTrigger] = useState(0)
+  // The server already provided the first page via initialDoctors, so the
+  // fetch effect must not run on mount: it would show the loader a second time.
+  const skipInitialFetchRef = useRef(true)
 
   // Debounce search input
   useEffect(() => {
@@ -48,6 +52,11 @@ export function LkOrgContent({ userName, initialDoctors, orgId, stats }: LkOrgCo
 
   // Fetch doctors when page or search changes
   useEffect(() => {
+    if (skipInitialFetchRef.current) {
+      skipInitialFetchRef.current = false
+      return
+    }
+
     async function fetchDoctors() {
       setIsLoading(true)
       try {
