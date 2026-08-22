@@ -188,29 +188,30 @@ class Recorder {
     ]
 
     if (hasVideo) {
-      // Непрерывный фон в реальном времени. Он задаёт темп фильтр-графу,
-      // поэтому картинка не "встаёт", если поток одного участника
-      // приостановился: overlay просто повторяет его последний кадр.
-      args.push('-re', '-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
+      // Чёрный фон-канвас 1280x480, на который overlay кладёт двух участников.
+      // БЕЗ -re: overlay (framesync) сам ждёт кадры живых RTP-потоков, а
+      // realtime-чтение канваса с t=0 расходилось по времени с RTP-таймлинией.
+      args.push('-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
     }
 
     if (hasVideo) {
       args.push(
         '-filter_complex',
-        // Раньше здесь был hstack. Он требует кадры от ОБОИХ участников
-        // одновременно и не переживает смену разрешения на ходу
-        // ("Changing video frame properties on the fly is not supported"),
-        // поэтому при первом же переключении simulcast-слоя картинка
-        // застывала до конца записи.
-        // Теперь два overlay поверх realtime-канваса: смена разрешения
-        // поглощается scale, а пауза одного потока - repeatlast.
-        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+        // ВАЖНО: setpts=PTS-STARTPTS на каждом видеовходе. RTP-потоки приходят
+        // с произвольными стартовыми таймстампами, а канвас начинается с нуля;
+        // без нормализации overlay после пары секунд синхронизации показывает
+        // только канвас - "чёрный экран". После выравнивания все три таймлинии
+        // стартуют с нуля и склейка стабильна.
+        // (hstack не используем: он не переживает смену simulcast-разрешения.)
+        '[0:v:0]setpts=PTS-STARTPTS,fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[left];' +
-          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+          '[0:v:1]setpts=PTS-STARTPTS,fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
-          '[1:v][left]overlay=x=0:y=0:shortest=0:repeatlast=1[base];' +
+          '[1:v]setpts=PTS-STARTPTS[canvas];' +
+          '[canvas][left]overlay=x=0:y=0:shortest=0:repeatlast=1[base];' +
           '[base][right]overlay=x=640:y=0:shortest=0:repeatlast=1,format=yuv420p[v];' +
-          '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
+          '[0:a:0]asetpts=PTS-STARTPTS[a0];[0:a:1]asetpts=PTS-STARTPTS[a1];' +
+          '[a0][a1]amix=inputs=2:duration=longest[a]',
         '-map', '[v]',
         '-map', '[a]',
         '-c:v', recordingConfig.videoCodec,
