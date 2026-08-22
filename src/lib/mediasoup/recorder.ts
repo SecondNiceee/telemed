@@ -13,7 +13,7 @@
 
 import { spawn, ChildProcess, execSync } from 'child_process'
 import { existsSync, mkdirSync } from 'fs'
-import { writeFile } from 'fs/promises'
+import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
 import type { types as mediasoupTypes } from 'mediasoup'
 import { recordingConfig, plainTransportOptions } from './config'
@@ -46,8 +46,10 @@ export interface RecordingSession {
   appointmentId: number | null
   recordingType: 'video' | 'audio'
   startedAt: Date
-  status: 'starting' | 'recording' | 'stopping' | 'completed' | 'failed'
+  status: 'starting' | 'recording' | 'stopping' | 'composing' | 'completed' | 'failed'
   filePath: string
+  /** Промежуточный файл этапа 1: все дорожки скопированы без перекодирования */
+  rawPath: string
   sdpPath: string
   durationSeconds: number
   ffmpegProcess: ChildProcess | null
@@ -163,42 +165,45 @@ class Recorder {
   }
 
   /**
-   * FFmpeg args. The single SDP input exposes streams in m= section order.
-   * Video segment: [v0][v1] hstack + [a0][a1] amix; audio segment: amix only.
+   * ЭТАП 1 (во время звонка): FFmpeg только принимает RTP и копирует все
+   * дорожки в один MKV БЕЗ перекодирования (-c copy). Это принципиально:
+   * live-декодирование + фильтры + энкодер не успевали за реальным временем,
+   * буферы переполнялись, пакеты терялись - отсюда прерывистое видео и
+   * рассинхрон. Копирование почти не ест CPU, а единый контейнер сохраняет
+   * относительные смещения дорожек (RTCP-синхронизацию демуксера).
    */
   private buildFfmpegArgs(session: RecordingSession): string[] {
-    const hasVideo = session.recordingType === 'video'
-    const args: string[] = [
+    return [
       '-loglevel', 'warning',
       '-nostdin',
       '-protocol_whitelist', 'file,rtp,udp',
-      '-fflags', '+genpts+discardcorrupt',
       '-analyzeduration', '10M',
       '-probesize', '10M',
-      // Приёмный буфер: ядро всё равно ограничивает значение (net.core.rmem_max),
-      // просим 8 МБ — реально выделяемый максимум, без предупреждений в логах.
       '-buffer_size', '8388608',
-      // max_delay должен быть БОЛЬШИМ. При 0.5 с ffmpeg писал
-      // "max delay reached / dropping old packet received too late" и выбрасывал
-      // видеопакеты, из-за чего декодер терял опорный кадр.
       '-max_delay', '5000000',
       '-reorder_queue_size', '4096',
       '-thread_queue_size', '8192',
       '-i', session.sdpPath,
+      '-map', '0',
+      '-c', 'copy',
+      '-f', 'matroska',
+      '-y', session.rawPath,
     ]
+  }
+
+  /**
+   * ЭТАП 2 (после остановки сегмента): офлайн-склейка из MKV в итоговый WebM.
+   * Здесь нет реального времени: FFmpeg обрабатывает файл с той скоростью,
+   * с которой успевает, поэтому кадры не теряются, а дорожки уже лежат на
+   * общей таймлинии контейнера - синхрон гарантирован.
+   */
+  private buildComposeArgs(session: RecordingSession): string[] {
+    const hasVideo = session.recordingType === 'video'
+    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-i', session.rawPath]
 
     if (hasVideo) {
       args.push(
         '-filter_complex',
-        // ВАЖНО ДЛЯ СИНХРОНА: никаких setpts/asetpts-сбросов. SDP-демуксер
-        // ffmpeg выравнивает все потоки между собой по RTCP Sender Reports,
-        // и это единственный источник корректной A/V-синхронизации. Прошлый
-        // вариант обнулял PTS каждого потока НЕЗАВИСИМО (видео стартует на
-        // секунды позже аудио - ждёт первый ключевой кадр), поэтому дорожки
-        // разъезжались. Чёрный lavfi-канвас убран по той же причине: его
-        // таймлиния начиналась с нуля и не совпадала с RTP.
-        // Макет: левый участник паддится до 1280x480, правый кладётся overlay.
-        // (hstack не используем: он не переживает смену simulcast-разрешения.)
         '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,' +
           'pad=1280:480:0:0:color=black[base];' +
@@ -209,11 +214,12 @@ class Recorder {
         '-map', '[v]',
         '-map', '[a]',
         '-c:v', recordingConfig.videoCodec,
-        '-deadline', 'realtime',
-        '-cpu-used', '8',
+        // Офлайн можно кодировать качественнее, но cpu-used 4 держит скорость
+        // выше реального времени даже на слабом сервере.
+        '-deadline', 'good',
+        '-cpu-used', '4',
         '-b:v', '1500k',
-        '-g', '30',
-        '-r', '15',
+        '-g', '60',
       )
     } else {
       args.push(
@@ -224,6 +230,37 @@ class Recorder {
 
     args.push('-c:a', recordingConfig.audioCodec, '-b:a', '128k', '-f', recordingConfig.format, '-y', session.filePath)
     return args
+  }
+
+  /** Запускает офлайн-склейку и ждёт её завершения. */
+  private composeSegment(session: RecordingSession): Promise<void> {
+    const args = this.buildComposeArgs(session)
+    console.log('[Recorder] Composing:', recordingConfig.ffmpegPath, args.join(' '))
+
+    return new Promise<void>((resolve, reject) => {
+      const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
+
+      ffmpeg.stderr?.on('data', (data: Buffer) => {
+        const text = data.toString().trim()
+        if (text) console.log(`[Recorder] Compose [${session.id}]: ${text}`)
+      })
+
+      // Страховка: склейка не должна длиться дольше 30 минут.
+      const timeout = setTimeout(() => {
+        if (ffmpeg.exitCode === null) ffmpeg.kill('SIGKILL')
+      }, 30 * 60 * 1000)
+      timeout.unref()
+
+      ffmpeg.on('error', (error) => {
+        clearTimeout(timeout)
+        reject(error)
+      })
+      ffmpeg.on('close', (code) => {
+        clearTimeout(timeout)
+        if (code === 0) resolve()
+        else reject(new Error(`Compose FFmpeg exited with code ${code}`))
+      })
+    })
   }
 
   private startFfmpeg(session: RecordingSession): ChildProcess {
@@ -286,6 +323,7 @@ class Recorder {
       startedAt: new Date(),
       status: 'starting',
       filePath: path.join(recordingConfig.outputDir, `${sessionId}.${recordingConfig.format}`),
+      rawPath: path.join(recordingConfig.outputDir, `${sessionId}.raw.mkv`),
       sdpPath: path.join(recordingConfig.outputDir, `${sessionId}.sdp`),
       durationSeconds: 0,
       ffmpegProcess: null,
@@ -394,13 +432,29 @@ class Recorder {
           clearTimeout(timeout)
           resolve()
         })
-        // SIGTERM lets FFmpeg flush and close the WebM container properly.
+        // SIGTERM lets FFmpeg flush and close the MKV container properly.
         ffmpeg.kill('SIGTERM')
       })
     }
 
-    if (session.status === 'stopping') session.status = 'completed'
-    console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s)`)
+    // Этап 2: офлайн-склейка сырого MKV в итоговый WebM.
+    try {
+      session.status = 'composing'
+      await this.composeSegment(session)
+      session.status = 'completed'
+    } catch (error) {
+      session.status = 'failed'
+      session.error = error instanceof Error ? error.message : 'Compose failed'
+      console.error(`[Recorder] Compose failed for ${sessionId}:`, error)
+    }
+
+    // Временные файлы больше не нужны (raw оставляем при ошибке для отладки).
+    if (session.status === 'completed') {
+      void unlink(session.rawPath).catch(() => {})
+      void unlink(session.sdpPath).catch(() => {})
+    }
+
+    console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s, ${session.status})`)
     return session
   }
 
