@@ -121,6 +121,15 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       console.log('[Socket] Connected:', newSocket.id)
       setIsConnected(true)
       setHasConnectionError(false)
+
+      // Server-side rooms don't survive a reconnect (a new socket id is issued),
+      // so re-join the active chat room and refetch messages: anything sent by
+      // the other party during the offline window would otherwise be lost until reload.
+      const activeAppointmentId = chatStoreRef.current.activeAppointmentId
+      if (activeAppointmentId !== null) {
+        newSocket.emit('join-room', { appointmentId: activeAppointmentId })
+        void chatStoreRef.current.loadMessages(activeAppointmentId, true)
+      }
     })
 
     newSocket.on('disconnect', () => {
@@ -325,7 +334,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         return
       }
 
-      const timer = window.setTimeout(() => reject(new Error('Не удалось отправить сообщение')), 10_000)
+      const timer = window.setTimeout(() => reject(new Error('Не удало��ь отправить сообщение')), 10_000)
       socket.emit('send-message', {
         appointmentId,
         text,
