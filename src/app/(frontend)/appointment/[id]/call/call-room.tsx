@@ -39,7 +39,14 @@ function VideoSurface({ stream, muted, label, audioOnly, speakingEnabled = true 
   )
 }
 
-export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; chatPath: '/lk/chat' | '/lk-med/chat' }) {
+interface CallRoomProps {
+  appointmentId: number
+  chatPath: '/lk/chat' | '/lk-med/chat'
+  localParticipantName: string
+  remoteParticipantName: string
+}
+
+export function CallRoom({ appointmentId, chatPath, localParticipantName, remoteParticipantName }: CallRoomProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
@@ -70,12 +77,12 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
     handledEndReasonRef.current = true
     toast.info(
       call.endReason === 'participant-ended'
-        ? 'Собеседник покинул звонок'
-        : 'Соединение с собеседником потеряно',
+        ? `${remoteParticipantName} покинул(а) звонок`
+        : `Соединение с ${remoteParticipantName} потеряно`,
       { position: 'top-center' },
     )
     router.replace(`${chatPath}?appointment=${appointmentId}`)
-  }, [appointmentId, call.endReason, chatPath, router])
+  }, [appointmentId, call.endReason, chatPath, remoteParticipantName, router])
 
   const leave = async () => {
     if (isWaitingForPatient) {
@@ -121,8 +128,8 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
           </section>
         ) : (
           <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? 'Собеседник' : 'Ожидаем собеседника'} audioOnly={audioOnly} />
-            <VideoSurface stream={call.localStream} muted label="Вы" audioOnly={audioOnly} speakingEnabled={call.micEnabled} />
+            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? remoteParticipantName : `Ожидаем: ${remoteParticipantName}`} audioOnly={audioOnly} />
+            <VideoSurface stream={call.localStream} muted label={localParticipantName} audioOnly={audioOnly} speakingEnabled={call.micEnabled} />
           </div>
         )}
 
