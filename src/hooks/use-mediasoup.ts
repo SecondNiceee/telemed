@@ -210,7 +210,27 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       if (producersRef.current.has(key)) continue
       // stopTracks: false keeps the capture alive when producers are closed
       // during a session rebuild, so tracks survive network switches.
-      const producer = await send.produce({ track, appData: { source: key }, stopTracks: false })
+      const producer = await send.produce({
+        track,
+        appData: { source: key },
+        stopTracks: false,
+        ...(key === 'camera'
+          ? {
+              // Simulcast: the SFU switches layers instead of the encoder
+              // collapsing to a single degraded stream on bad networks, and
+              // quality recovers instantly after pause/resume.
+              encodings: [
+                { maxBitrate: 300_000, scaleResolutionDownBy: 4 },
+                { maxBitrate: 900_000, scaleResolutionDownBy: 2 },
+                { maxBitrate: 2_500_000, scaleResolutionDownBy: 1 },
+              ],
+              codecOptions: { videoGoogleStartBitrate: 1000 },
+            }
+          : {
+              // FEC recovers audio on lossy networks; DTX saves bandwidth in silence.
+              codecOptions: { opusFec: true, opusDtx: true },
+            }),
+      })
       producersRef.current.set(key, producer)
       if (key === 'camera' && !cameraEnabledRef.current) await producer.pause()
     }
