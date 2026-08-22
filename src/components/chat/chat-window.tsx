@@ -58,7 +58,7 @@ export function ChatWindow({
   // Hooks
   const router = useRouter()
   const { sendMessage, joinRoom, leaveRoom, markAsRead, startTyping, stopTyping, isConnected, hasConnectionError, initiateCall, startConsultation, endConsultation, cancelConsultation, blockChat, unblockChat, changeConnectionType } = useSocket()
-  const { messages, loadMessages, loadingMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
+  const { messages, loadMessages, loadOlderMessages, loadingMessages, loadingOlderMessages, hasOlderMessages, typingUsers, setActiveChat, appointmentStatuses, chatBlocked, connectionTypes } = useChatStore()
   const { feedbackExistsByAppointment, checkFeedbackExists, setFeedbackExists } = useFeedbackStore()
   const { 
     isDragging, 
@@ -558,6 +558,9 @@ export function ChatWindow({
         currentSenderId={currentSenderId}
         otherPartyName={otherPartyName}
         isLoading={isLoading}
+        isLoadingOlder={loadingOlderMessages[appointment.id] ?? false}
+        hasOlderMessages={hasOlderMessages[appointment.id] ?? false}
+        onLoadOlder={() => loadOlderMessages(appointment.id)}
         typingUser={typingUser}
         recording={appointment.recording as { url?: string } | null}
         onRetryMessage={(localId) => void handleRetryMessage(localId)}

@@ -19,6 +19,13 @@ interface TokenData {
 interface RemoteMedia { peerId: string; stream: MediaStream }
 
 const ackTimeout = 10_000
+const INTERNET_CONNECTION_ERROR = 'Нет подключения к интернету'
+
+function getCallErrorMessage(reason: unknown, fallback = 'Ошибка подключения'): string {
+  const message = reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : fallback
+  const isConnectionError = /websocket|socket|network|track\s*ended|trackended|transport|timeout|disconnected|connection|fetch failed/i.test(message)
+  return isConnectionError ? INTERNET_CONNECTION_ERROR : message
+}
 
 function emitAck<T>(socket: Socket, event: string, data: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -60,6 +67,8 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const remoteStreamsRef = useRef(new Map<string, MediaStream>())
   const micGateRef = useRef<MicrophoneGate | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const micEnabledRef = useRef(true)
+  const cameraEnabledRef = useRef(!audioOnly)
   const rebuildingRef = useRef(false)
   const pendingJoinRef = useRef(false)
   const joinedSocketIdRef = useRef<string | null>(null)
@@ -141,17 +150,54 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     recvRef.current = recv
   }, [wireTransport])
 
+  const ensureLiveLocalTracks = useCallback(async () => {
+    const stream = localStreamRef.current
+    if (!stream) return
+
+    // A network switch (break-before-make) can end capture tracks. Reacquire them
+    // before republishing so the rebuilt session sends live media again.
+    const audioTrack = stream.getAudioTracks()[0]
+    if (!audioTrack || audioTrack.readyState === 'ended') {
+      micGateRef.current?.close()
+      const mic = await getStableMicrophone()
+      micGateRef.current = mic
+      mic.setEnabled(micEnabledRef.current)
+      if (audioTrack) stream.removeTrack(audioTrack)
+      stream.addTrack(mic.track)
+    }
+
+    if (!audioOnly) {
+      const videoTrack = stream.getVideoTracks()[0]
+      if (!videoTrack || videoTrack.readyState === 'ended') {
+        const camera = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+        const freshTrack = camera.getVideoTracks()[0]
+        if (freshTrack) {
+          freshTrack.enabled = cameraEnabledRef.current
+          if (videoTrack) stream.removeTrack(videoTrack)
+          stream.addTrack(freshTrack)
+        }
+      }
+    }
+
+    localStreamRef.current = stream
+    setLocalStream(new MediaStream(stream.getTracks()))
+  }, [audioOnly])
+
   const publishLocalTracks = useCallback(async () => {
+    await ensureLiveLocalTracks()
     const send = sendRef.current
     const stream = localStreamRef.current
     if (!send || !stream) return
     for (const track of stream.getTracks()) {
       const key = track.kind === 'audio' ? 'mic' : 'camera'
       if (producersRef.current.has(key)) continue
-      const producer = await send.produce({ track, appData: { source: key } })
+      // stopTracks: false keeps the capture alive when producers are closed
+      // during a session rebuild, so tracks survive network switches.
+      const producer = await send.produce({ track, appData: { source: key }, stopTracks: false })
       producersRef.current.set(key, producer)
+      if (key === 'camera' && !cameraEnabledRef.current) await producer.pause()
     }
-  }, [])
+  }, [ensureLiveLocalTracks])
 
   const closeMediaSession = useCallback(() => {
     joinedSocketIdRef.current = null
@@ -220,7 +266,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       rebuildingRef.current = false
       if (pendingJoinRef.current && socket.connected && !leftRef.current) {
         void join(socket, token).catch((reason) => {
-          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setError(getCallErrorMessage(reason))
           setStatus('failed')
         })
       }
@@ -292,7 +338,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         if (leftRef.current || !tokenRef.current) return
         pendingJoinRef.current = true
         void join(socket, tokenRef.current).catch((reason) => {
-          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setError(getCallErrorMessage(reason))
           setStatus('failed')
         })
       })
@@ -304,7 +350,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       })
       socket.on('connect_error', (reason) => {
         if (leftRef.current) return
-        setError(reason.message || 'Ошибка подключения к MediaSoup')
+        setError(INTERNET_CONNECTION_ERROR)
         setStatus('reconnecting')
       })
       socket.on('newProducer', ({ producerId, producerPeerId }) => {
@@ -325,14 +371,14 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         cleanup()
       })
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Не удалось подключиться'
-      setError(message)
+      setError(getCallErrorMessage(reason, 'Не удалось подключиться'))
       setStatus('failed')
     }
   }, [appointmentId, audioOnly, cleanup, closeMediaSession, consume, join])
 
   const toggleMicrophone = useCallback(async () => {
     const enabled = !micEnabled
+    micEnabledRef.current = enabled
     micGateRef.current?.setEnabled(enabled)
     const producer = producersRef.current.get('mic')
     if (producer && tokenRef.current && socketRef.current) {
@@ -346,6 +392,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     const producer = producersRef.current.get('camera')
     if (producer) {
       const enabled = !cameraEnabled
+      cameraEnabledRef.current = enabled
       if (enabled) await producer.resume(); else await producer.pause()
       if (producer.track) producer.track.enabled = enabled
       setCameraEnabled(enabled)
@@ -353,12 +400,24 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   }, [audioOnly, cameraEnabled])
 
   useEffect(() => {
-    const onlineHandler = () => { setOnline(true); if (socketRef.current && !socketRef.current.connected) socketRef.current.connect() }
-    const offlineHandler = () => { setOnline(false); setStatus('reconnecting') }
+    const onlineHandler = () => {
+      setOnline(true)
+      const socket = socketRef.current
+      if (!socket) return
+      if (!socket.connected) {
+        socket.connect()
+        return
+      }
+      // The socket may have survived the network switch while ICE did not:
+      // proactively restart ICE on both transports instead of waiting for timeouts.
+      if (sendRef.current) void restartIce(sendRef.current)
+      if (recvRef.current) void restartIce(recvRef.current)
+    }
+    const offlineHandler = () => { setOnline(false); setError(INTERNET_CONNECTION_ERROR); setStatus('reconnecting') }
     window.addEventListener('online', onlineHandler)
     window.addEventListener('offline', offlineHandler)
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
-  }, [leave])
+  }, [leave, restartIce])
 
   return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }

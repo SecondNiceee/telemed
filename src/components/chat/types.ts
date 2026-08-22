@@ -54,6 +54,9 @@ export interface ChatMessagesProps {
   currentSenderId: number
   otherPartyName: string
   isLoading: boolean
+  isLoadingOlder?: boolean
+  hasOlderMessages?: boolean
+  onLoadOlder?: () => Promise<void>
   typingUser: { senderType: string } | null | undefined
   recording?: { url?: string } | null
   onRetryMessage?: (localId: string) => void
