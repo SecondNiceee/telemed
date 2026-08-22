@@ -94,16 +94,14 @@ export function ChatSidebar({
     }
   }, [messages])
 
-  // Всегда сортировка по приходу нового сообщения
+  // Сортируем по последней активности. У нового диалога сообщений ещё нет,
+  // поэтому его активностью считается дата создания консультации — так новая
+  // запись сразу оказывается первой без искусственного системного сообщения.
   const sortedAppointments = [...appointments].sort((a, b) => {
-    const lastA = lastMessages[a.id]
-    const lastB = lastMessages[b.id]
-    
-    if (!lastA && !lastB) return 0
-    if (!lastA) return 1
-    if (!lastB) return -1
-    
-    return new Date(lastB.createdAt).getTime() - new Date(lastA.createdAt).getTime()
+    const activityA = lastMessages[a.id]?.createdAt ?? a.createdAt
+    const activityB = lastMessages[b.id]?.createdAt ?? b.createdAt
+
+    return new Date(activityB).getTime() - new Date(activityA).getTime()
   })
 
   if (loading) {
