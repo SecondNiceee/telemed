@@ -52,6 +52,7 @@ export interface RecordingSession {
   durationSeconds: number
   ffmpegProcess: ChildProcess | null
   inputs: RecordingInput[]
+  keyFrameTimer: NodeJS.Timeout | null
   error?: string
 }
 
@@ -159,17 +160,27 @@ class Recorder {
       '-loglevel', 'warning',
       '-nostdin',
       '-protocol_whitelist', 'file,rtp,udp',
-      '-fflags', '+genpts',
       '-analyzeduration', '10M',
       '-probesize', '10M',
+      // КРИТИЧНО для видео: без большого приёмного буфера ядро отбрасывает
+      // RTP-пакеты видеопотока (он в десятки раз "толще" аудио), кадры бьются
+      // и картинка застывает на первом ключевом кадре до конца записи.
+      '-buffer_size', '20971520',
+      '-reorder_queue_size', '2048',
+      '-max_delay', '500000',
+      '-thread_queue_size', '4096',
+      '-use_wallclock_as_timestamps', '1',
       '-i', session.sdpPath,
     ]
 
     if (hasVideo) {
       args.push(
         '-filter_complex',
-        '[0:v:0]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,fps=24[left];' +
-          '[0:v:1]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,fps=24[right];' +
+        // fps ставим ПЕРЕД scale и одинаковый для обоих входов: hstack требует
+        // совпадающего фреймрейта, а 15 fps сильно снижает нагрузку на CPU
+        // (перегруз энкодера - вторая причина "замерзшей" картинки).
+        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1[left];' +
+          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1[right];' +
           '[left][right]hstack=inputs=2[v];' +
           '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
         '-map', '[v]',
@@ -177,7 +188,9 @@ class Recorder {
         '-c:v', recordingConfig.videoCodec,
         '-deadline', 'realtime',
         '-cpu-used', '8',
-        '-b:v', '1M',
+        '-b:v', '1500k',
+        '-g', '30',
+        '-r', '15',
       )
     } else {
       args.push(
@@ -254,6 +267,7 @@ class Recorder {
       durationSeconds: 0,
       ffmpegProcess: null,
       inputs: [],
+      keyFrameTimer: null,
     }
     this.sessions.set(sessionId, session)
 
@@ -285,19 +299,39 @@ class Recorder {
     }
   }
 
+  private requestKeyFrames(session: RecordingSession): void {
+    for (const input of session.inputs) {
+      if (input.kind === 'video' && !input.consumer.closed) {
+        input.consumer.requestKeyFrame().catch(() => {})
+      }
+    }
+  }
+
+  /**
+   * Ключевые кадры нужно запрашивать ВСЮ запись, а не только на старте.
+   * FFmpeg не умеет присылать PLI/FIR через RTCP, поэтому после любой потери
+   * пакета декодер остаётся без опорного кадра и картинка "застывает"
+   * навсегда. Регулярный requestKeyFrame восстанавливает видео за пару секунд.
+   */
   private scheduleKeyFrameRequests(session: RecordingSession): void {
-    // A few staggered requests to cover FFmpeg startup time.
-    for (const delayMs of [1000, 3000, 6000]) {
+    // Стартовые запросы: покрывают время запуска FFmpeg.
+    for (const delayMs of [500, 1500, 3000]) {
       const timer = setTimeout(() => {
         if (session.status !== 'recording') return
-        for (const input of session.inputs) {
-          if (input.kind === 'video' && !input.consumer.closed) {
-            input.consumer.requestKeyFrame().catch(() => {})
-          }
-        }
+        this.requestKeyFrames(session)
       }, delayMs)
       timer.unref()
     }
+
+    const interval = setInterval(() => {
+      if (session.status !== 'recording') {
+        clearInterval(interval)
+        return
+      }
+      this.requestKeyFrames(session)
+    }, 2000)
+    interval.unref()
+    session.keyFrameTimer = interval
   }
 
   private closeInputs(session: RecordingSession): void {
@@ -314,6 +348,11 @@ class Recorder {
 
     session.status = 'stopping'
     session.durationSeconds = Math.max(1, Math.round((Date.now() - session.startedAt.getTime()) / 1000))
+
+    if (session.keyFrameTimer) {
+      clearInterval(session.keyFrameTimer)
+      session.keyFrameTimer = null
+    }
 
     this.closeInputs(session)
     this.releasePorts(session)
