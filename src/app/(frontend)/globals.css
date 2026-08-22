@@ -29,6 +29,7 @@
   --teal-on-dark: oklch(0.82 0.105 201.3);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.98 0 0);
+  --speaking: oklch(0.66 0.18 145);
   --border: oklch(0.9219 0 0);
   --input: oklch(0.9219 0 0);
   --ring: oklch(0.6273 0.1067 201.3);
@@ -76,6 +77,7 @@
   --image-viewer-overlay: oklch(0.08 0 0);
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.637 0.237 25.331);
+  --speaking: oklch(0.74 0.19 145);
   --border: oklch(0.26 0.028 295);
   --input: oklch(0.26 0.028 295);
   --ring: oklch(0.70 0.105 187);
@@ -120,6 +122,7 @@
   --color-image-viewer-overlay: var(--image-viewer-overlay);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-speaking: var(--speaking);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

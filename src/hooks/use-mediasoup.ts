@@ -47,7 +47,6 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [remoteMedia, setRemoteMedia] = useState<RemoteMedia | null>(null)
   const [micEnabled, setMicEnabled] = useState(true)
   const [cameraEnabled, setCameraEnabled] = useState(!audioOnly)
-  const [screenSharing, setScreenSharing] = useState(false)
   const [online, setOnline] = useState(true)
   const [endReason, setEndReason] = useState<CallEndReason | null>(null)
 
@@ -343,6 +342,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   }, [micEnabled])
 
   const toggleCamera = useCallback(async () => {
+    if (audioOnly) return
     const producer = producersRef.current.get('camera')
     if (producer) {
       const enabled = !cameraEnabled
@@ -350,21 +350,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       if (producer.track) producer.track.enabled = enabled
       setCameraEnabled(enabled)
     }
-  }, [cameraEnabled])
-
-  const toggleScreen = useCallback(async () => {
-    const send = sendRef.current
-    if (!send) return
-    const current = producersRef.current.get('screen')
-    if (current) { current.close(); producersRef.current.delete('screen'); setScreenSharing(false); return }
-    const display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
-    const track = display.getVideoTracks()[0]
-    if (!track) return
-    const producer = await send.produce({ track, appData: { source: 'screen' } })
-    producersRef.current.set('screen', producer)
-    setScreenSharing(true)
-    track.addEventListener('ended', () => { producer.close(); producersRef.current.delete('screen'); setScreenSharing(false) }, { once: true })
-  }, [])
+  }, [audioOnly, cameraEnabled])
 
   useEffect(() => {
     const onlineHandler = () => { setOnline(true); if (socketRef.current && !socketRef.current.connected) socketRef.current.connect() }
@@ -374,5 +360,5 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
   }, [leave])
 
-  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, screenSharing, online, connect, leave, endCall, toggleMicrophone, toggleCamera, toggleScreen }
+  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }
