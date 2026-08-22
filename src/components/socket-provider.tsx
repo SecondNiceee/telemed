@@ -117,18 +117,28 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       path: socketPath,
     })
 
+    let hasConnectedBefore = false
+
     newSocket.on('connect', () => {
       console.log('[Socket] Connected:', newSocket.id)
       setIsConnected(true)
       setHasConnectionError(false)
 
+      // On the FIRST connect the chat mounts normally (join-room + loadMessages
+      // are handled by the chat itself), so nothing to do here.
+      if (!hasConnectedBefore) {
+        hasConnectedBefore = true
+        return
+      }
+
       // Server-side rooms don't survive a reconnect (a new socket id is issued),
-      // so re-join the active chat room and refetch messages: anything sent by
-      // the other party during the offline window would otherwise be lost until reload.
+      // so re-join the active chat room and silently refetch messages: anything
+      // sent by the other party during the offline window would otherwise be
+      // lost until reload. refreshMessages does not toggle the loading spinner.
       const activeAppointmentId = chatStoreRef.current.activeAppointmentId
       if (activeAppointmentId !== null) {
         newSocket.emit('join-room', { appointmentId: activeAppointmentId })
-        void chatStoreRef.current.loadMessages(activeAppointmentId, true)
+        void chatStoreRef.current.refreshMessages(activeAppointmentId)
       }
     })
 

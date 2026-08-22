@@ -38,6 +38,9 @@ interface ChatState {
   
   loadMessages: (appointmentId: number, forceRefresh?: boolean) => Promise<void>
 
+  /** Background refetch: updates messages without toggling the loading spinner. */
+  refreshMessages: (appointmentId: number) => Promise<void>
+
   loadOlderMessages: (appointmentId: number) => Promise<void>
   
   markAsRead: (appointmentId: number) => void
@@ -162,6 +165,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
           [appointmentId]: false,
         },
       }))
+    }
+  },
+
+  refreshMessages: async (appointmentId) => {
+    const state = get()
+    // If a regular load is running it will bring fresh data anyway.
+    if (state.loadingMessages[appointmentId]) return
+
+    try {
+      const page = await MessagesApi.fetchByAppointment(appointmentId)
+      set((current) => {
+        // Keep messages that arrived via socket while the request was in flight.
+        const existing = current.messages[appointmentId] || []
+        const fetchedIds = new Set(page.messages.map((message) => message.id))
+        const extras = existing.filter((message) => !fetchedIds.has(message.id))
+        return {
+          messages: { ...current.messages, [appointmentId]: [...page.messages, ...extras] },
+          hasOlderMessages: { ...current.hasOlderMessages, [appointmentId]: page.hasOlder },
+          nextMessagePages: { ...current.nextMessagePages, [appointmentId]: page.nextPage },
+        }
+      })
+    } catch (err) {
+      console.error('Failed to refresh messages:', err)
     }
   },
 
