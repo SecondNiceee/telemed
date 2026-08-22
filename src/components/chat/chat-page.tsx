@@ -12,6 +12,7 @@ interface ChatPageProps {
   currentSenderType: 'user' | 'doctor'
   currentSenderId: number
   initialAppointmentId?: number | null
+  singleConversation?: boolean
   onAppointmentCompleted?: (appointmentId: number) => void
 }
 
@@ -20,6 +21,7 @@ function ChatPageContent({
   currentSenderType,
   currentSenderId,
   initialAppointmentId,
+  singleConversation = false,
   onAppointmentCompleted,
 }: ChatPageProps) {
   const [appointments, setAppointments] = useState(initialAppointments)
@@ -83,6 +85,21 @@ function ChatPageContent({
 
   const handleBack = () => {
     setSelectedAppointment(null)
+  }
+
+  // A direct appointment URL opens only that conversation, without the
+  // conversations sidebar. The rest of ChatWindow remains unchanged.
+  if (singleConversation && selectedAppointment) {
+    return (
+      <div className="mx-auto h-full w-full max-w-5xl overflow-hidden border-x border-border bg-card">
+        <ChatWindow
+          appointment={selectedAppointment}
+          currentSenderType={currentSenderType}
+          currentSenderId={currentSenderId}
+          onAppointmentCompleted={handleAppointmentCompleted}
+        />
+      </div>
+    )
   }
 
   // Mobile view: show either sidebar or chat window
