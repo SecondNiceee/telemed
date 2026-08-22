@@ -188,30 +188,24 @@ class Recorder {
     ]
 
     if (hasVideo) {
-      // Чёрный фон-канвас 1280x480, на который overlay кладёт двух участников.
-      // БЕЗ -re: overlay (framesync) сам ждёт кадры живых RTP-потоков, а
-      // realtime-чтение канваса с t=0 расходилось по времени с RTP-таймлинией.
-      args.push('-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
-    }
-
-    if (hasVideo) {
       args.push(
         '-filter_complex',
-        // ВАЖНО: setpts=PTS-STARTPTS на каждом видеовходе. RTP-потоки приходят
-        // с произвольными стартовыми таймстампами, а канвас начинается с нуля;
-        // без нормализации overlay после пары секунд синхронизации показывает
-        // только канвас - "чёрный экран". После выравнивания все три таймлинии
-        // стартуют с нуля и склейка стабильна.
+        // ВАЖНО ДЛЯ СИНХРОНА: никаких setpts/asetpts-сбросов. SDP-демуксер
+        // ffmpeg выравнивает все потоки между собой по RTCP Sender Reports,
+        // и это единственный источник корректной A/V-синхронизации. Прошлый
+        // вариант обнулял PTS каждого потока НЕЗАВИСИМО (видео стартует на
+        // секунды позже аудио - ждёт первый ключевой кадр), поэтому дорожки
+        // разъезжались. Чёрный lavfi-канвас убран по той же причине: его
+        // таймлиния начиналась с нуля и не совпадала с RTP.
+        // Макет: левый участник паддится до 1280x480, правый кладётся overlay.
         // (hstack не используем: он не переживает смену simulcast-разрешения.)
-        '[0:v:0]setpts=PTS-STARTPTS,fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
-          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[left];' +
-          '[0:v:1]setpts=PTS-STARTPTS,fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,' +
+          'pad=1280:480:0:0:color=black[base];' +
+          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
-          '[1:v]setpts=PTS-STARTPTS[canvas];' +
-          '[canvas][left]overlay=x=0:y=0:shortest=0:repeatlast=1[base];' +
-          '[base][right]overlay=x=640:y=0:shortest=0:repeatlast=1,format=yuv420p[v];' +
-          '[0:a:0]asetpts=PTS-STARTPTS[a0];[0:a:1]asetpts=PTS-STARTPTS[a1];' +
-          '[a0][a1]amix=inputs=2:duration=longest[a]',
+          '[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];' +
+          '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
         '-map', '[v]',
         '-map', '[a]',
         '-c:v', recordingConfig.videoCodec,
@@ -220,9 +214,6 @@ class Recorder {
         '-b:v', '1500k',
         '-g', '30',
         '-r', '15',
-        // Канвас бесконечен, поэтому страхуемся жёстким лимитом: если стоп
-        // сегмента почему-то не придёт, файл не будет расти бесконечно.
-        '-t', '14400',
       )
     } else {
       args.push(
