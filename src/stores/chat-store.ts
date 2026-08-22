@@ -13,6 +13,9 @@ interface ChatState {
   
   // Loading state per appointment
   loadingMessages: Record<number, boolean>
+  loadingOlderMessages: Record<number, boolean>
+  hasOlderMessages: Record<number, boolean>
+  nextMessagePages: Record<number, number | null>
   
   // Typing indicator state (senderType для совместимости с socket events)
   typingUsers: Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>
@@ -34,6 +37,8 @@ interface ChatState {
   setMessages: (appointmentId: number, messages: ApiMessage[]) => void
   
   loadMessages: (appointmentId: number, forceRefresh?: boolean) => Promise<void>
+
+  loadOlderMessages: (appointmentId: number) => Promise<void>
   
   markAsRead: (appointmentId: number) => void
   
@@ -59,6 +64,9 @@ const initialState = {
   messages: {} as Record<number, ApiMessage[]>,
   unreadCounts: {} as Record<number, number>,
   loadingMessages: {} as Record<number, boolean>,
+  loadingOlderMessages: {} as Record<number, boolean>,
+  hasOlderMessages: {} as Record<number, boolean>,
+  nextMessagePages: {} as Record<number, number | null>,
   typingUsers: {} as Record<number, { senderType: 'user' | 'doctor'; senderId: number } | null>,
   appointmentStatuses: {} as Record<number, string>,
   chatBlocked: {} as Record<number, boolean>,
@@ -130,11 +138,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
 
     try {
-      const messages = await MessagesApi.fetchByAppointment(appointmentId)
+      const page = await MessagesApi.fetchByAppointment(appointmentId)
       set((state) => ({
         messages: {
           ...state.messages,
-          [appointmentId]: messages,
+          [appointmentId]: page.messages,
+        },
+        hasOlderMessages: {
+          ...state.hasOlderMessages,
+          [appointmentId]: page.hasOlder,
+        },
+        nextMessagePages: {
+          ...state.nextMessagePages,
+          [appointmentId]: page.nextPage,
         },
       }))
     } catch (err) {
@@ -145,6 +161,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
           ...state.loadingMessages,
           [appointmentId]: false,
         },
+      }))
+    }
+  },
+
+  loadOlderMessages: async (appointmentId) => {
+    const state = get()
+    const pageNumber = state.nextMessagePages[appointmentId]
+    if (state.loadingOlderMessages[appointmentId] || !state.hasOlderMessages[appointmentId] || !pageNumber) return
+
+    set((current) => ({
+      loadingOlderMessages: { ...current.loadingOlderMessages, [appointmentId]: true },
+    }))
+
+    try {
+      const page = await MessagesApi.fetchByAppointment(appointmentId, pageNumber)
+      set((current) => {
+        const existing = current.messages[appointmentId] || []
+        const existingIds = new Set(existing.map((message) => message.id))
+        const older = page.messages.filter((message) => !existingIds.has(message.id))
+        return {
+          messages: { ...current.messages, [appointmentId]: [...older, ...existing] },
+          hasOlderMessages: { ...current.hasOlderMessages, [appointmentId]: page.hasOlder },
+          nextMessagePages: { ...current.nextMessagePages, [appointmentId]: page.nextPage },
+        }
+      })
+    } catch (err) {
+      console.error('Failed to load older messages:', err)
+    } finally {
+      set((current) => ({
+        loadingOlderMessages: { ...current.loadingOlderMessages, [appointmentId]: false },
       }))
     }
   },

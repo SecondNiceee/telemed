@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import { Video } from 'lucide-react'
 import { MessageBubble, type MessageGroupPosition } from '../message-bubble'
 import type { ChatMessagesProps } from '../types'
@@ -48,24 +48,77 @@ function getGroupPosition(
 }
 
 export function ChatMessages({
+  appointmentId,
   messages,
   currentSenderType,
   currentSenderId,
   otherPartyName,
   isLoading,
+  isLoadingOlder = false,
+  hasOlderMessages = false,
+  onLoadOlder,
   typingUser,
   recording,
   onRetryMessage,
 }: ChatMessagesProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const initializedAppointmentRef = useRef<number | null>(null)
+  const previousLastMessageIdRef = useRef<number | string | null>(null)
+  const wasNearBottomRef = useRef(true)
+  const prependScrollHeightRef = useRef<number | null>(null)
+  const loadingOlderRef = useRef(false)
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  const loadOlder = useCallback(async () => {
+    const container = scrollContainerRef.current
+    if (!container || !onLoadOlder || loadingOlderRef.current || isLoadingOlder || !hasOlderMessages) return
+    loadingOlderRef.current = true
+    prependScrollHeightRef.current = container.scrollHeight
+    try {
+      await onLoadOlder()
+    } finally {
+      loadingOlderRef.current = false
+    }
+  }, [hasOlderMessages, isLoadingOlder, onLoadOlder])
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    wasNearBottomRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 120
+    if (container.scrollTop <= 80) void loadOlder()
+  }, [loadOlder])
+
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container || isLoading) return
+
+    if (initializedAppointmentRef.current !== appointmentId) {
+      initializedAppointmentRef.current = appointmentId
+      previousLastMessageIdRef.current = messages.at(-1)?.id ?? null
+      wasNearBottomRef.current = true
+      container.scrollTop = container.scrollHeight
+      return
+    }
+
+    if (prependScrollHeightRef.current !== null) {
+      container.scrollTop += container.scrollHeight - prependScrollHeightRef.current
+      prependScrollHeightRef.current = null
+      return
+    }
+
+    const lastMessageId = messages.at(-1)?.id ?? null
+    const hasNewLastMessage = lastMessageId !== previousLastMessageIdRef.current
+    previousLastMessageIdRef.current = lastMessageId
+    if (hasNewLastMessage && wasNearBottomRef.current) container.scrollTop = container.scrollHeight
+  }, [appointmentId, isLoading, messages])
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto p-4">
+    <div ref={scrollContainerRef} onScroll={handleScroll} className="flex flex-1 flex-col overflow-y-auto p-4">
+      {!isLoading && isLoadingOlder ? (
+        <div className="flex justify-center pb-3" aria-label="Загрузка предыдущих сообщений">
+          <div className="size-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : null}
+      {!isLoading ? <div className="mt-auto" aria-hidden="true" /> : null}
       {isLoading ? (
         <div className="flex items-center justify-center h-full">
           <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -134,8 +187,6 @@ export function ChatMessages({
           </video>
         </div>
       )}
-      
-      <div ref={messagesEndRef} />
     </div>
   )
 }

@@ -52,16 +52,28 @@ export function getSenderId(message: ApiMessage): number | null {
     : message.sender.value
 }
 
+export interface MessagePage {
+  messages: ApiMessage[]
+  hasOlder: boolean
+  nextPage: number | null
+}
+
+const MESSAGE_PAGE_SIZE = 15
+
 export class MessagesApi {
   /**
-   * Fetch messages for a specific appointment
+   * Fetch a page from newest to oldest, then normalize it for chronological UI rendering.
    */
-  static async fetchByAppointment(appointmentId: number): Promise<ApiMessage[]> {
+  static async fetchByAppointment(appointmentId: number, page = 1): Promise<MessagePage> {
     const data = await apiFetch<PayloadListResponse<ApiMessage>>(
-      `/api/messages?where[appointment][equals]=${appointmentId}&sort=createdAt&limit=500&depth=1`,
+      `/api/messages?where[appointment][equals]=${appointmentId}&sort=-createdAt&limit=${MESSAGE_PAGE_SIZE}&page=${page}&depth=1`,
       { credentials: 'include' }
     )
-    return data.docs
+    return {
+      messages: [...data.docs].reverse(),
+      hasOlder: data.hasNextPage,
+      nextPage: data.nextPage,
+    }
   }
 
   /**
