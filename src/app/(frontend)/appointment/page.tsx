@@ -1,6 +1,6 @@
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { fetchCategoriesLocal } from "@/lib/api/categories.server";
+import { fetchCategoriesWithDoctorsLocal } from "@/lib/api/categories.server";
 import { AppointmentPageClient } from "./appointment-client";
 import { BackgroundDecor } from "@/components/background-decor";
 
@@ -12,7 +12,7 @@ export const metadata = {
 export const revalidate = 60;
 
 export default async function AppointmentPage() {
-  const categories = await fetchCategoriesLocal();
+  const categories = await fetchCategoriesWithDoctorsLocal();
 
   return (
     <div className="min-h-screen flex flex-col">
