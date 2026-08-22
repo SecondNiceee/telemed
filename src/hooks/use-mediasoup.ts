@@ -19,6 +19,13 @@ interface TokenData {
 interface RemoteMedia { peerId: string; stream: MediaStream }
 
 const ackTimeout = 10_000
+const INTERNET_CONNECTION_ERROR = 'Нет подключения к интернету'
+
+function getCallErrorMessage(reason: unknown, fallback = 'Ошибка подключения'): string {
+  const message = reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : fallback
+  const isConnectionError = /websocket|socket|network|track\s*ended|trackended|transport|timeout|disconnected|connection|fetch failed/i.test(message)
+  return isConnectionError ? INTERNET_CONNECTION_ERROR : message
+}
 
 function emitAck<T>(socket: Socket, event: string, data: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -220,7 +227,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       rebuildingRef.current = false
       if (pendingJoinRef.current && socket.connected && !leftRef.current) {
         void join(socket, token).catch((reason) => {
-          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setError(getCallErrorMessage(reason))
           setStatus('failed')
         })
       }
@@ -292,7 +299,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         if (leftRef.current || !tokenRef.current) return
         pendingJoinRef.current = true
         void join(socket, tokenRef.current).catch((reason) => {
-          setError(reason instanceof Error ? reason.message : 'Ошибка подключения')
+          setError(getCallErrorMessage(reason))
           setStatus('failed')
         })
       })
@@ -304,7 +311,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       })
       socket.on('connect_error', (reason) => {
         if (leftRef.current) return
-        setError(reason.message || 'Ошибка подключения к MediaSoup')
+        setError(INTERNET_CONNECTION_ERROR)
         setStatus('reconnecting')
       })
       socket.on('newProducer', ({ producerId, producerPeerId }) => {
@@ -325,8 +332,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         cleanup()
       })
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Не удалось подключиться'
-      setError(message)
+      setError(getCallErrorMessage(reason, 'Не удалось подключиться'))
       setStatus('failed')
     }
   }, [appointmentId, audioOnly, cleanup, closeMediaSession, consume, join])
@@ -354,7 +360,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
 
   useEffect(() => {
     const onlineHandler = () => { setOnline(true); if (socketRef.current && !socketRef.current.connected) socketRef.current.connect() }
-    const offlineHandler = () => { setOnline(false); setStatus('reconnecting') }
+    const offlineHandler = () => { setOnline(false); setError(INTERNET_CONNECTION_ERROR); setStatus('reconnecting') }
     window.addEventListener('online', onlineHandler)
     window.addEventListener('offline', offlineHandler)
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
