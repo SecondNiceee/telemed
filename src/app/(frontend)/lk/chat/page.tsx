@@ -91,6 +91,7 @@ export default async function LkChatPage({
           currentSenderType="user"
           currentSenderId={user.id}
           initialAppointmentId={initialAppointmentId}
+          singleConversation={initialAppointmentId !== null}
         />
       </main>
     </div>
