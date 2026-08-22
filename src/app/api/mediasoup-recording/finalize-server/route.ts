@@ -114,8 +114,12 @@ export async function POST(request: NextRequest) {
     const mediaId = mediaDoc.id
     console.log('[MediaSoupRecording/FinalizeServer] Media uploaded, ID:', mediaId)
 
-    // Calculate duration if not provided
-    const estimatedDuration = durationSeconds || Math.round(recordingBuffer.length / 50000)
+    // Real duration comes from the recording controller; fall back to a
+    // rough size-based estimate only if it was not provided.
+    const estimatedDuration =
+      typeof durationSeconds === 'number' && durationSeconds > 0
+        ? Math.round(durationSeconds)
+        : Math.round(recordingBuffer.length / 50000)
 
     // Create call-recording entry
     const recording = await payload.create({

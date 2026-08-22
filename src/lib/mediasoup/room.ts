@@ -9,6 +9,7 @@ import type {
 } from 'mediasoup/types'
 import { plainTransportOptions, routerOptions, webRtcTransportOptions } from './config'
 import { Peer, type PeerRole } from './peer'
+import { recordingController } from './recording-controller'
 import { workerManager } from './worker-manager'
 
 export interface Room {
@@ -65,7 +66,13 @@ export class RoomManager {
     }
 
     const existing = room.peers.get(peerId)
-    if (existing) existing.close()
+    if (existing) {
+      // Session rebuild (e.g. network switch): the old producers are about to
+      // die, so finalize the current segment. A new one starts when both
+      // participants publish again.
+      recordingController.onPeerLeft(room)
+      existing.close()
+    }
 
     const peer = new Peer(peerId, peerName, role)
     room.peers.set(peerId, peer)
@@ -75,6 +82,10 @@ export class RoomManager {
   removePeer(room: Room, peerId: string): boolean {
     const peer = room.peers.get(peerId)
     if (!peer) return false
+
+    // Stop and finalize the current recording segment BEFORE the peer's
+    // producers are closed, so FFmpeg receives every last frame.
+    recordingController.onPeerLeft(room)
 
     peer.close()
     room.peers.delete(peerId)
@@ -138,6 +149,7 @@ export class RoomManager {
     })
     peer.producers.set(producer.id, producer)
     producer.on('transportclose', () => peer.producers.delete(producer.id))
+    recordingController.onProducersChanged(room)
     return { id: producer.id }
   }
 
@@ -210,8 +222,11 @@ export class RoomManager {
     if (!room) return
     for (const peer of room.peers.values()) peer.close()
     room.peers.clear()
-    if (!room.router.closed) room.router.close()
     this.rooms.delete(roomId)
+    // Finalize any in-flight recording, then close the router.
+    void recordingController.onRoomClosing(roomId).finally(() => {
+      if (!room.router.closed) room.router.close()
+    })
   }
 
   closeAllRooms(): void {

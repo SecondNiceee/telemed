@@ -1,26 +1,30 @@
 /**
  * MediaSoup Recorder
- * 
+ *
  * Server-side recording using PlainTransport + FFmpeg.
- * Records both video and audio streams from a room into a single WebM file.
+ * Records BOTH participants of a call into a single WebM file:
+ * - video call: two windows side by side (hstack) + mixed audio (amix)
+ * - audio call: mixed audio only (amix)
+ *
+ * Each recording session corresponds to one "call segment": it starts when
+ * both participants have published their tracks and stops when one of them
+ * leaves. Multiple calls within one appointment produce multiple files.
  */
 
 import { spawn, ChildProcess, execSync } from 'child_process'
-import { createWriteStream, existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
+import { writeFile } from 'fs/promises'
 import path from 'path'
 import type { types as mediasoupTypes } from 'mediasoup'
+import { recordingConfig, plainTransportOptions } from './config'
 
 type Router = mediasoupTypes.Router
 type Producer = mediasoupTypes.Producer
 type PlainTransport = mediasoupTypes.PlainTransport
 type Consumer = mediasoupTypes.Consumer
-type RtpParameters = mediasoupTypes.RtpParameters
-import { recordingConfig, plainTransportOptions } from './config'
 
-/**
- * Recording session for a single producer (audio or video)
- */
-interface ProducerRecording {
+/** Media input of one participant that FFmpeg receives over RTP */
+interface RecordingInput {
   producerId: string
   kind: 'audio' | 'video'
   transport: PlainTransport
@@ -29,210 +33,184 @@ interface ProducerRecording {
   rtcpPort: number
 }
 
-/**
- * Active recording session
- */
+/** Producers of one participant to include in a segment */
+export interface ParticipantProducers {
+  peerId: string
+  audio: Producer
+  video?: Producer
+}
+
 export interface RecordingSession {
   id: string
   roomId: string
-  appointmentId: number | null // Store appointment ID for server-side finalization
-  recordingType: 'video' | 'audio' // Type of recording
+  appointmentId: number | null
+  recordingType: 'video' | 'audio'
   startedAt: Date
   status: 'starting' | 'recording' | 'stopping' | 'completed' | 'failed'
   filePath: string
+  sdpPath: string
+  durationSeconds: number
   ffmpegProcess: ChildProcess | null
-  producerRecordings: Map<string, ProducerRecording>
-  // Port assignments
-  videoRtpPort?: number
-  videoRtcpPort?: number
-  audioRtpPort?: number
-  audioRtcpPort?: number
+  inputs: RecordingInput[]
   error?: string
 }
 
+const PORT_RANGE_START = 5000
+const PORT_RANGE_END = 5998
+
 class Recorder {
-  private sessions: Map<string, RecordingSession> = new Map()
-  private nextRtpPort = 5000 // Starting port for RTP
+  private readonly sessions = new Map<string, RecordingSession>()
+  private readonly usedPorts = new Set<number>()
   private ffmpegAvailable: boolean | null = null
 
-  /**
-   * Check if FFmpeg is available
-   */
   checkFfmpegAvailable(): boolean {
-    if (this.ffmpegAvailable !== null) {
-      return this.ffmpegAvailable
-    }
-
+    if (this.ffmpegAvailable !== null) return this.ffmpegAvailable
     try {
       execSync(`${recordingConfig.ffmpegPath} -version`, { stdio: 'ignore' })
       this.ffmpegAvailable = true
       console.log('[Recorder] FFmpeg is available')
     } catch {
       this.ffmpegAvailable = false
-      console.warn('[Recorder] FFmpeg is NOT available - recording will fail')
+      console.warn('[Recorder] FFmpeg is NOT available - recording disabled')
     }
-
     return this.ffmpegAvailable
   }
 
-  /**
-   * Get the next available RTP port pair
-   */
-  private getNextPortPair(): { rtpPort: number; rtcpPort: number } {
-    const rtpPort = this.nextRtpPort
-    const rtcpPort = rtpPort + 1
-    this.nextRtpPort += 2
-    
-    // Wrap around if we exceed a reasonable range
-    if (this.nextRtpPort > 6000) {
-      this.nextRtpPort = 5000
+  /** Allocate an even RTP port + odd RTCP port pair, tracking usage. */
+  private allocatePortPair(): { rtpPort: number; rtcpPort: number } {
+    for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port += 2) {
+      if (!this.usedPorts.has(port)) {
+        this.usedPorts.add(port)
+        return { rtpPort: port, rtcpPort: port + 1 }
+      }
     }
-    
-    return { rtpPort, rtcpPort }
+    throw new Error('No free RTP ports for recording')
+  }
+
+  private releasePorts(session: RecordingSession): void {
+    for (const input of session.inputs) this.usedPorts.delete(input.rtpPort)
   }
 
   /**
-   * Create a PlainTransport for receiving RTP from a producer
+   * Pipe one producer to FFmpeg: PlainTransport consumes the producer and
+   * sends RTP to 127.0.0.1:<rtpPort> where FFmpeg is listening (per SDP).
+   * The transport binds its own port from the worker RTC range - it must NOT
+   * bind the FFmpeg port, otherwise FFmpeg cannot listen on it.
    */
-  private async createPlainTransport(
-    router: Router,
-    rtpPort: number,
-    rtcpPort: number
-  ): Promise<PlainTransport> {
+  private async createInput(router: Router, producer: Producer): Promise<RecordingInput> {
+    const { rtpPort, rtcpPort } = this.allocatePortPair()
     const transport = await router.createPlainTransport({
       ...plainTransportOptions,
-      listenInfo: {
-        ...plainTransportOptions.listenInfo,
-        port: rtpPort,
-      },
-      rtcpListenInfo: {
-        ...plainTransportOptions.listenInfo,
-        port: rtcpPort,
-      },
+      listenInfo: { ...plainTransportOptions.listenInfo, ip: '127.0.0.1', announcedAddress: undefined },
     })
 
-    return transport
+    try {
+      await transport.connect({ ip: '127.0.0.1', port: rtpPort, rtcpPort })
+      const consumer = await transport.consume({
+        producerId: producer.id,
+        rtpCapabilities: router.rtpCapabilities,
+        paused: false,
+      })
+      return { producerId: producer.id, kind: producer.kind, transport, consumer, rtpPort, rtcpPort }
+    } catch (error) {
+      this.usedPorts.delete(rtpPort)
+      transport.close()
+      throw error
+    }
   }
 
-  /**
-   * Create a consumer on the plain transport to receive the producer's media
-   */
-  private async createPlainConsumer(
-    transport: PlainTransport,
-    router: Router,
-    producer: Producer
-  ): Promise<Consumer> {
-    const consumer = await transport.consume({
-      producerId: producer.id,
-      rtpCapabilities: router.rtpCapabilities,
-      paused: false,
-    })
+  /** SDP media section for one RTP input consumed from mediasoup. */
+  private sdpMediaSection(input: RecordingInput): string[] {
+    const codec = input.consumer.rtpParameters.codecs[0]
+    const payloadType = codec.payloadType
+    const codecName = codec.mimeType.split('/')[1]
+    const lines: string[] = []
 
-    return consumer
+    if (input.kind === 'video') {
+      lines.push(`m=video ${input.rtpPort} RTP/AVP ${payloadType}`)
+      lines.push(`a=rtpmap:${payloadType} ${codecName}/${codec.clockRate}`)
+    } else {
+      lines.push(`m=audio ${input.rtpPort} RTP/AVP ${payloadType}`)
+      lines.push(`a=rtpmap:${payloadType} ${codecName}/${codec.clockRate}/${codec.channels || 2}`)
+    }
+
+    const fmtp = Object.entries(codec.parameters ?? {})
+      .map(([key, value]) => `${key}=${value}`)
+      .join(';')
+    if (fmtp) lines.push(`a=fmtp:${payloadType} ${fmtp}`)
+    lines.push(`a=rtcp:${input.rtcpPort}`)
+    lines.push('a=recvonly')
+    return lines
   }
 
-  /**
-   * Get SDP file content for FFmpeg input
-   */
-  private generateSdp(
-    videoPort: number | undefined,
-    audioPort: number | undefined,
-    videoRtpParameters: RtpParameters | undefined,
-    audioRtpParameters: RtpParameters | undefined
-  ): string {
-    const lines: string[] = [
-      'v=0',
-      'o=- 0 0 IN IP4 127.0.0.1',
-      's=MediaSoup Recording',
-      'c=IN IP4 127.0.0.1',
-      't=0 0',
-    ]
-
-    // Video media line
-    if (videoPort && videoRtpParameters) {
-      const videoCodec = videoRtpParameters.codecs[0]
-      const payloadType = videoCodec.payloadType
-
-      lines.push(`m=video ${videoPort} RTP/AVP ${payloadType}`)
-      lines.push(`a=rtpmap:${payloadType} ${videoCodec.mimeType.split('/')[1]}/${videoCodec.clockRate}`)
-      
-      if (videoCodec.parameters) {
-        const fmtp = Object.entries(videoCodec.parameters)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(';')
-        if (fmtp) {
-          lines.push(`a=fmtp:${payloadType} ${fmtp}`)
-        }
-      }
-      
-      lines.push('a=recvonly')
-    }
-
-    // Audio media line
-    if (audioPort && audioRtpParameters) {
-      const audioCodec = audioRtpParameters.codecs[0]
-      const payloadType = audioCodec.payloadType
-
-      lines.push(`m=audio ${audioPort} RTP/AVP ${payloadType}`)
-      lines.push(`a=rtpmap:${payloadType} ${audioCodec.mimeType.split('/')[1]}/${audioCodec.clockRate}/${audioCodec.channels || 2}`)
-      lines.push('a=recvonly')
-    }
-
+  private generateSdp(inputs: RecordingInput[]): string {
+    const lines = ['v=0', 'o=- 0 0 IN IP4 127.0.0.1', 's=MediaSoup Recording', 'c=IN IP4 127.0.0.1', 't=0 0']
+    for (const input of inputs) lines.push(...this.sdpMediaSection(input))
     return lines.join('\r\n') + '\r\n'
   }
 
   /**
-   * Start FFmpeg recording process
+   * FFmpeg args. The single SDP input exposes streams in m= section order.
+   * Video segment: [v0][v1] hstack + [a0][a1] amix; audio segment: amix only.
    */
-  private startFfmpeg(session: RecordingSession, sdpPath: string): ChildProcess {
+  private buildFfmpegArgs(session: RecordingSession): string[] {
+    const hasVideo = session.recordingType === 'video'
     const args: string[] = [
       '-loglevel', 'warning',
+      '-nostdin',
       '-protocol_whitelist', 'file,rtp,udp',
       '-fflags', '+genpts',
-      '-i', sdpPath,
+      '-analyzeduration', '10M',
+      '-probesize', '10M',
+      '-i', session.sdpPath,
     ]
 
-    // Output settings
-    if (session.videoRtpPort) {
-      args.push('-c:v', recordingConfig.videoCodec)
-      args.push('-b:v', '1M')
-    }
-    
-    if (session.audioRtpPort) {
-      args.push('-c:a', recordingConfig.audioCodec)
-      args.push('-b:a', '128k')
+    if (hasVideo) {
+      args.push(
+        '-filter_complex',
+        '[0:v:0]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,fps=24[left];' +
+          '[0:v:1]scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,fps=24[right];' +
+          '[left][right]hstack=inputs=2[v];' +
+          '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
+        '-map', '[v]',
+        '-map', '[a]',
+        '-c:v', recordingConfig.videoCodec,
+        '-deadline', 'realtime',
+        '-cpu-used', '8',
+        '-b:v', '1M',
+      )
+    } else {
+      args.push(
+        '-filter_complex', '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
+        '-map', '[a]',
+      )
     }
 
-    args.push(
-      '-f', recordingConfig.format,
-      '-y', // Overwrite output
-      session.filePath
-    )
+    args.push('-c:a', recordingConfig.audioCodec, '-b:a', '128k', '-f', recordingConfig.format, '-y', session.filePath)
+    return args
+  }
 
-    console.log(`[Recorder] Starting FFmpeg:`, recordingConfig.ffmpegPath, args.join(' '))
+  private startFfmpeg(session: RecordingSession): ChildProcess {
+    const args = this.buildFfmpegArgs(session)
+    console.log('[Recorder] Starting FFmpeg:', recordingConfig.ffmpegPath, args.join(' '))
 
     const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
 
-    ffmpeg.stdout?.on('data', (data) => {
-      console.log(`[Recorder] FFmpeg stdout: ${data}`)
-    })
-
-    ffmpeg.stderr?.on('data', (data) => {
-      console.log(`[Recorder] FFmpeg stderr: ${data}`)
+    ffmpeg.stderr?.on('data', (data: Buffer) => {
+      const text = data.toString().trim()
+      if (text) console.log(`[Recorder] FFmpeg [${session.id}]: ${text}`)
     })
 
     ffmpeg.on('close', (code) => {
-      console.log(`[Recorder] FFmpeg process exited with code ${code}`)
-      if (session.status === 'recording') {
+      console.log(`[Recorder] FFmpeg [${session.id}] exited with code ${code}`)
+      if (session.status === 'recording' || session.status === 'starting') {
         session.status = code === 0 ? 'completed' : 'failed'
-        if (code !== 0) {
-          session.error = `FFmpeg exited with code ${code}`
-        }
+        if (code !== 0) session.error = `FFmpeg exited with code ${code}`
       }
     })
 
     ffmpeg.on('error', (error) => {
-      console.error(`[Recorder] FFmpeg error:`, error)
+      console.error(`[Recorder] FFmpeg [${session.id}] error:`, error)
       session.status = 'failed'
       session.error = error.message
     })
@@ -241,307 +219,145 @@ class Recorder {
   }
 
   /**
-   * Start recording a room
-   * @param roomId - The room ID (format: "appointment_123")
-   * @param router - MediaSoup router
-   * @param producers - Map of producers to record
-   * @param appointmentId - Optional appointment ID for server-side finalization
-   * @param recordingType - Type of recording ('video' or 'audio')
+   * Start recording one call segment with both participants.
+   * recordingType is derived from the inputs: video when both have video.
    */
-  async startRecording(
+  async startSegment(
     roomId: string,
     router: Router,
-    producers: Map<string, Producer>,
-    appointmentId?: number,
-    recordingType: 'video' | 'audio' = 'video'
+    participantA: ParticipantProducers,
+    participantB: ParticipantProducers,
+    appointmentId: number | null,
   ): Promise<RecordingSession> {
-    // Check if FFmpeg is available
     if (!this.checkFfmpegAvailable()) {
-      throw new Error('FFmpeg is not available on the server. Please install FFmpeg to enable recording.')
+      throw new Error('FFmpeg is not available on the server')
     }
 
-    // Check if recording already exists for this room
-    const existingSession = Array.from(this.sessions.values()).find(
-      (s) => s.roomId === roomId && (s.status === 'recording' || s.status === 'starting')
-    )
-    if (existingSession) {
-      console.log(`[Recorder] Recording already exists for room ${roomId}`)
-      return existingSession
-    }
+    const existing = this.getActiveRecordingForRoom(roomId)
+    if (existing) return existing
 
-    // Create output directory if it doesn't exist
     if (!existsSync(recordingConfig.outputDir)) {
       mkdirSync(recordingConfig.outputDir, { recursive: true })
     }
 
-    // Generate session ID and file path
+    const withVideo = Boolean(participantA.video && participantB.video)
     const sessionId = `${roomId}-${Date.now()}`
-    const filePath = path.join(recordingConfig.outputDir, `${sessionId}.${recordingConfig.format}`)
-
     const session: RecordingSession = {
       id: sessionId,
       roomId,
-      appointmentId: appointmentId ?? null,
-      recordingType,
+      appointmentId,
+      recordingType: withVideo ? 'video' : 'audio',
       startedAt: new Date(),
       status: 'starting',
-      filePath,
+      filePath: path.join(recordingConfig.outputDir, `${sessionId}.${recordingConfig.format}`),
+      sdpPath: path.join(recordingConfig.outputDir, `${sessionId}.sdp`),
+      durationSeconds: 0,
       ffmpegProcess: null,
-      producerRecordings: new Map(),
+      inputs: [],
     }
-
     this.sessions.set(sessionId, session)
 
     try {
-      // Find video and audio producers
-      let videoProducer: Producer | undefined
-      let audioProducer: Producer | undefined
-      let videoRtpParameters: RtpParameters | undefined
-      let audioRtpParameters: RtpParameters | undefined
-
-      for (const producer of producers.values()) {
-        if (producer.kind === 'video' && !videoProducer) {
-          videoProducer = producer
-        } else if (producer.kind === 'audio' && !audioProducer) {
-          audioProducer = producer
-        }
+      // Input order defines SDP stream order: video A, video B, audio A, audio B.
+      if (withVideo) {
+        session.inputs.push(await this.createInput(router, participantA.video!))
+        session.inputs.push(await this.createInput(router, participantB.video!))
       }
+      session.inputs.push(await this.createInput(router, participantA.audio))
+      session.inputs.push(await this.createInput(router, participantB.audio))
 
-      if (!videoProducer && !audioProducer) {
-        throw new Error('No producers to record')
-      }
-
-      // Create plain transports and consumers for video
-      if (videoProducer) {
-        const { rtpPort, rtcpPort } = this.getNextPortPair()
-        session.videoRtpPort = rtpPort
-        session.videoRtcpPort = rtcpPort
-
-        const transport = await this.createPlainTransport(router, rtpPort, rtcpPort)
-        const consumer = await this.createPlainConsumer(transport, router, videoProducer)
-
-        // Connect the transport to localhost
-        await transport.connect({
-          ip: '127.0.0.1',
-          port: rtpPort,
-          rtcpPort: rtcpPort,
-        })
-
-        videoRtpParameters = consumer.rtpParameters
-
-        session.producerRecordings.set(videoProducer.id, {
-          producerId: videoProducer.id,
-          kind: 'video',
-          transport,
-          consumer,
-          rtpPort,
-          rtcpPort,
-        })
-
-        console.log(`[Recorder] Created video recording on port ${rtpPort}`)
-      }
-
-      // Create plain transports and consumers for audio
-      if (audioProducer) {
-        const { rtpPort, rtcpPort } = this.getNextPortPair()
-        session.audioRtpPort = rtpPort
-        session.audioRtcpPort = rtcpPort
-
-        const transport = await this.createPlainTransport(router, rtpPort, rtcpPort)
-        const consumer = await this.createPlainConsumer(transport, router, audioProducer)
-
-        // Connect the transport to localhost
-        await transport.connect({
-          ip: '127.0.0.1',
-          port: rtpPort,
-          rtcpPort: rtcpPort,
-        })
-
-        audioRtpParameters = consumer.rtpParameters
-
-        session.producerRecordings.set(audioProducer.id, {
-          producerId: audioProducer.id,
-          kind: 'audio',
-          transport,
-          consumer,
-          rtpPort,
-          rtcpPort,
-        })
-
-        console.log(`[Recorder] Created audio recording on port ${rtpPort}`)
-      }
-
-      // Generate SDP file for FFmpeg
-      const sdpContent = this.generateSdp(
-        session.videoRtpPort,
-        session.audioRtpPort,
-        videoRtpParameters,
-        audioRtpParameters
-      )
-
-      const sdpPath = path.join(recordingConfig.outputDir, `${sessionId}.sdp`)
-      const sdpStream = createWriteStream(sdpPath)
-      sdpStream.write(sdpContent)
-      sdpStream.end()
-
-      console.log(`[Recorder] Generated SDP file: ${sdpPath}`)
-      console.log(`[Recorder] SDP content:\n${sdpContent}`)
-
-      // Start FFmpeg
-      session.ffmpegProcess = this.startFfmpeg(session, sdpPath)
+      await writeFile(session.sdpPath, this.generateSdp(session.inputs))
+      session.ffmpegProcess = this.startFfmpeg(session)
       session.status = 'recording'
 
-      console.log(`[Recorder] Started recording session ${sessionId} for room ${roomId}`)
+      // FFmpeg needs a keyframe to start decoding each video stream.
+      if (withVideo) this.scheduleKeyFrameRequests(session)
 
+      console.log(`[Recorder] Started ${session.recordingType} segment ${sessionId} for room ${roomId}`)
       return session
     } catch (error) {
       session.status = 'failed'
       session.error = error instanceof Error ? error.message : 'Unknown error'
-      console.error(`[Recorder] Failed to start recording:`, error)
+      this.closeInputs(session)
+      this.releasePorts(session)
+      console.error('[Recorder] Failed to start segment:', error)
       throw error
     }
   }
 
-  /**
-   * Add a producer to an existing recording session
-   */
-  async addProducerToRecording(
-    sessionId: string,
-    router: Router,
-    producer: Producer
-  ): Promise<void> {
-    const session = this.sessions.get(sessionId)
-    if (!session) {
-      throw new Error(`Recording session ${sessionId} not found`)
+  private scheduleKeyFrameRequests(session: RecordingSession): void {
+    // A few staggered requests to cover FFmpeg startup time.
+    for (const delayMs of [1000, 3000, 6000]) {
+      const timer = setTimeout(() => {
+        if (session.status !== 'recording') return
+        for (const input of session.inputs) {
+          if (input.kind === 'video' && !input.consumer.closed) {
+            input.consumer.requestKeyFrame().catch(() => {})
+          }
+        }
+      }, delayMs)
+      timer.unref()
     }
-
-    if (session.status !== 'recording') {
-      throw new Error(`Recording session ${sessionId} is not active`)
-    }
-
-    // Check if already recording this producer
-    if (session.producerRecordings.has(producer.id)) {
-      console.log(`[Recorder] Already recording producer ${producer.id}`)
-      return
-    }
-
-    const { rtpPort, rtcpPort } = this.getNextPortPair()
-    const transport = await this.createPlainTransport(router, rtpPort, rtcpPort)
-    const consumer = await this.createPlainConsumer(transport, router, producer)
-
-    await transport.connect({
-      ip: '127.0.0.1',
-      port: rtpPort,
-      rtcpPort: rtcpPort,
-    })
-
-    session.producerRecordings.set(producer.id, {
-      producerId: producer.id,
-      kind: producer.kind,
-      transport,
-      consumer,
-      rtpPort,
-      rtcpPort,
-    })
-
-    console.log(`[Recorder] Added ${producer.kind} producer ${producer.id} to session ${sessionId}`)
   }
 
-  /**
-   * Stop a recording session
-   */
-  async stopRecording(sessionId: string): Promise<RecordingSession> {
-    const session = this.sessions.get(sessionId)
-    if (!session) {
-      throw new Error(`Recording session ${sessionId} not found`)
+  private closeInputs(session: RecordingSession): void {
+    for (const input of session.inputs) {
+      if (!input.consumer.closed) input.consumer.close()
+      if (!input.transport.closed) input.transport.close()
     }
+  }
 
-    if (session.status === 'completed' || session.status === 'failed') {
-      return session
-    }
+  async stopSegment(sessionId: string): Promise<RecordingSession> {
+    const session = this.sessions.get(sessionId)
+    if (!session) throw new Error(`Recording session ${sessionId} not found`)
+    if (session.status === 'completed' || session.status === 'failed') return session
 
     session.status = 'stopping'
+    session.durationSeconds = Math.max(1, Math.round((Date.now() - session.startedAt.getTime()) / 1000))
 
-    // Close all plain transports (this stops the consumers)
-    for (const recording of session.producerRecordings.values()) {
-      recording.consumer.close()
-      recording.transport.close()
-    }
+    this.closeInputs(session)
+    this.releasePorts(session)
 
-    // Stop FFmpeg gracefully
-    if (session.ffmpegProcess) {
+    const ffmpeg = session.ffmpegProcess
+    if (ffmpeg && ffmpeg.exitCode === null) {
       await new Promise<void>((resolve) => {
-        const ffmpeg = session.ffmpegProcess!
-        
-        ffmpeg.once('close', () => {
-          resolve()
-        })
-
-        // Send 'q' to FFmpeg stdin to quit gracefully
-        if (ffmpeg.stdin) {
-          ffmpeg.stdin.write('q')
-          ffmpeg.stdin.end()
-        }
-
-        // Fallback: kill after 5 seconds
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           if (ffmpeg.exitCode === null) {
-            console.log('[Recorder] FFmpeg did not exit gracefully, killing...')
+            console.log(`[Recorder] FFmpeg [${session.id}] did not exit, killing`)
             ffmpeg.kill('SIGKILL')
           }
           resolve()
         }, 5000)
+        ffmpeg.once('close', () => {
+          clearTimeout(timeout)
+          resolve()
+        })
+        // SIGTERM lets FFmpeg flush and close the WebM container properly.
+        ffmpeg.kill('SIGTERM')
       })
     }
 
-    session.status = 'completed'
-    console.log(`[Recorder] Stopped recording session ${sessionId}`)
-
+    if (session.status === 'stopping') session.status = 'completed'
+    console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s)`)
     return session
   }
 
-  /**
-   * Stop recording for a room
-   */
-  async stopRecordingByRoom(roomId: string): Promise<RecordingSession | null> {
-    const session = Array.from(this.sessions.values()).find(
-      (s) => s.roomId === roomId && (s.status === 'recording' || s.status === 'starting')
-    )
-
-    if (!session) {
-      console.log(`[Recorder] No active recording found for room ${roomId}`)
-      return null
-    }
-
-    return this.stopRecording(session.id)
+  async stopSegmentByRoom(roomId: string): Promise<RecordingSession | null> {
+    const session = this.getActiveRecordingForRoom(roomId)
+    if (!session) return null
+    return this.stopSegment(session.id)
   }
 
-  /**
-   * Get recording session by ID
-   */
   getSession(sessionId: string): RecordingSession | undefined {
     return this.sessions.get(sessionId)
   }
 
-  /**
-   * Get active recording for a room
-   */
   getActiveRecordingForRoom(roomId: string): RecordingSession | undefined {
     return Array.from(this.sessions.values()).find(
-      (s) => s.roomId === roomId && (s.status === 'recording' || s.status === 'starting')
+      (s) => s.roomId === roomId && (s.status === 'recording' || s.status === 'starting'),
     )
   }
 
-  /**
-   * Get all recording sessions
-   */
-  getAllSessions(): RecordingSession[] {
-    return Array.from(this.sessions.values())
-  }
-
-  /**
-   * Cleanup old sessions
-   */
   cleanupOldSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): void {
     const now = Date.now()
     for (const [id, session] of this.sessions) {
@@ -550,11 +366,9 @@ class Recorder {
         now - session.startedAt.getTime() > maxAgeMs
       ) {
         this.sessions.delete(id)
-        console.log(`[Recorder] Cleaned up old session ${id}`)
       }
     }
   }
 }
 
-// Singleton instance
 export const recorder = new Recorder()
