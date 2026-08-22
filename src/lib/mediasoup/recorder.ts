@@ -112,6 +112,18 @@ class Recorder {
         rtpCapabilities: router.rtpCapabilities,
         paused: false,
       })
+
+      // Фиксируем верхний simulcast-слой: иначе mediasoup переключает слои по
+      // ходу звонка, разрешение меняется на лету и фильтр-граф FFmpeg встаёт.
+      // mediasoup сам ограничит номер слоя, если их меньше.
+      if (producer.kind === 'video') {
+        try {
+          await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 })
+        } catch {
+          // Не simulcast-продюсер - ничего фиксировать не нужно.
+        }
+      }
+
       return { producerId: producer.id, kind: producer.kind, transport, consumer, rtpPort, rtcpPort }
     } catch (error) {
       this.usedPorts.delete(rtpPort)
@@ -160,28 +172,44 @@ class Recorder {
       '-loglevel', 'warning',
       '-nostdin',
       '-protocol_whitelist', 'file,rtp,udp',
+      '-fflags', '+genpts+discardcorrupt',
       '-analyzeduration', '10M',
       '-probesize', '10M',
-      // КРИТИЧНО для видео: без большого приёмного буфера ядро отбрасывает
-      // RTP-пакеты видеопотока (он в десятки раз "толще" аудио), кадры бьются
-      // и картинка застывает на первом ключевом кадре до конца записи.
-      '-buffer_size', '20971520',
-      '-reorder_queue_size', '2048',
-      '-max_delay', '500000',
-      '-thread_queue_size', '4096',
-      '-use_wallclock_as_timestamps', '1',
+      // Приёмный буфер: ядро всё равно ограничивает значение (net.core.rmem_max),
+      // просим 8 МБ — реально выделяемый максимум, без предупреждений в логах.
+      '-buffer_size', '8388608',
+      // max_delay должен быть БОЛЬШИМ. При 0.5 с ffmpeg писал
+      // "max delay reached / dropping old packet received too late" и выбрасывал
+      // видеопакеты, из-за чего декодер терял опорный кадр.
+      '-max_delay', '5000000',
+      '-reorder_queue_size', '4096',
+      '-thread_queue_size', '8192',
       '-i', session.sdpPath,
     ]
 
     if (hasVideo) {
+      // Непрерывный фон в реальном времени. Он задаёт темп фильтр-графу,
+      // поэтому картинка не "встаёт", если поток одного участника
+      // приостановился: overlay просто повторяет его последний кадр.
+      args.push('-re', '-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
+    }
+
+    if (hasVideo) {
       args.push(
         '-filter_complex',
-        // fps ставим ПЕРЕД scale и одинаковый для обоих входов: hstack требует
-        // совпадающего фреймрейта, а 15 fps сильно снижает нагрузку на CPU
-        // (перегруз энкодера - вторая причина "замерзшей" картинки).
-        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1[left];' +
-          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1[right];' +
-          '[left][right]hstack=inputs=2[v];' +
+        // Раньше здесь был hstack. Он требует кадры от ОБОИХ участников
+        // одновременно и не переживает смену разрешения на ходу
+        // ("Changing video frame properties on the fly is not supported"),
+        // поэтому при первом же переключении simulcast-слоя картинка
+        // застывала до конца записи.
+        // Теперь два overlay поверх realtime-канваса: смена разрешения
+        // поглощается scale, а пауза одного потока - repeatlast.
+        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[left];' +
+          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
+          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
+          '[1:v][left]overlay=x=0:y=0:shortest=0:repeatlast=1[base];' +
+          '[base][right]overlay=x=640:y=0:shortest=0:repeatlast=1,format=yuv420p[v];' +
           '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
         '-map', '[v]',
         '-map', '[a]',
@@ -191,6 +219,9 @@ class Recorder {
         '-b:v', '1500k',
         '-g', '30',
         '-r', '15',
+        // Канвас бесконечен, поэтому страхуемся жёстким лимитом: если стоп
+        // сегмента почему-то не придёт, файл не будет расти бесконечно.
+        '-t', '14400',
       )
     } else {
       args.push(
