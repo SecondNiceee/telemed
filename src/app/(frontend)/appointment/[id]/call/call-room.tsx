@@ -3,30 +3,36 @@
 import { useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Camera, CameraOff, LogOut, Mic, MicOff, MonitorUp, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
+import { Camera, CameraOff, LogOut, Mic, MicOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useMediasoup } from '@/hooks/use-mediasoup'
+import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
+import { cn } from '@/lib/utils'
 
-function VideoSurface({ stream, muted, label }: { stream: MediaStream | null; muted?: boolean; label: string }) {
+function VideoSurface({ stream, muted, label, audioOnly, speakingEnabled = true }: { stream: MediaStream | null; muted?: boolean; label: string; audioOnly: boolean; speakingEnabled?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null)
+  const isSpeaking = useSpeakingDetector(stream, speakingEnabled)
   useEffect(() => {
     if (ref.current) ref.current.srcObject = stream
   }, [stream])
 
+  const hasLiveVideo = !audioOnly && stream?.getVideoTracks().some((track) => track.enabled && track.readyState === 'live')
+
   return (
-    <section className="relative flex min-h-64 overflow-hidden rounded-2xl border bg-card shadow-sm">
-      {stream?.getVideoTracks().some((track) => track.enabled && track.readyState === 'live') ? (
+    <section className={cn('relative flex min-h-64 overflow-hidden rounded-2xl border bg-card shadow-sm transition-[border-color,box-shadow] duration-200', isSpeaking && 'border-speaking ring-2 ring-speaking/70 ring-offset-2 ring-offset-background')}>
+      {hasLiveVideo ? (
         <video ref={ref} autoPlay playsInline muted={muted} className="size-full object-cover" aria-label={label} />
       ) : (
         <div className="flex size-full min-h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
-          <CameraOff aria-hidden="true" />
-          <p className="text-sm">Камера выключена</p>
+          {audioOnly ? <Mic aria-hidden="true" /> : <CameraOff aria-hidden="true" />}
+          <p className="text-sm">{audioOnly ? 'Аудиозвонок' : 'Камера выключена'}</p>
           {stream ? <audio ref={(node) => { if (node) node.srcObject = stream }} autoPlay muted={muted} /> : null}
         </div>
       )}
-      <div className="absolute bottom-3 left-3 rounded-full bg-background/90 px-3 py-1 text-sm font-medium text-foreground backdrop-blur">
+      <div className="absolute bottom-3 left-3 flex items-center gap-2 rounded-full bg-background/90 px-3 py-1 text-sm font-medium text-foreground backdrop-blur">
+        {isSpeaking ? <span className="size-2 rounded-full bg-speaking" aria-hidden="true" /> : null}
         {label}
       </div>
     </section>
@@ -115,8 +121,8 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
           </section>
         ) : (
           <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? 'Собеседник' : 'Ожидаем собеседника'} />
-            <VideoSurface stream={call.localStream} muted label="Вы" />
+            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? 'Собеседник' : 'Ожидаем собеседника'} audioOnly={audioOnly} />
+            <VideoSurface stream={call.localStream} muted label="Вы" audioOnly={audioOnly} speakingEnabled={call.micEnabled} />
           </div>
         )}
 
@@ -124,8 +130,7 @@ export function CallRoom({ appointmentId, chatPath }: { appointmentId: number; c
           {!isWaitingForPatient ? (
             <>
               <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.micEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleMicrophone()} aria-label={call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}>{call.micEnabled ? <Mic /> : <MicOff />}</Button></TooltipTrigger><TooltipContent>{call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.screenSharing ? 'default' : 'secondary'} onClick={() => void call.toggleScreen()} aria-label="Демонстрация экрана"><MonitorUp /></Button></TooltipTrigger><TooltipContent>Демонстрация экрана</TooltipContent></Tooltip>
+              {!audioOnly ? <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip> : null}
             </>
           ) : null}
           <Button variant="destructive" size="lg" onClick={() => void leave()}><LogOut data-icon="inline-start" />Завершить</Button>
