@@ -5,15 +5,13 @@ import path from 'path'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import jwt from 'jsonwebtoken'
+import { CHUNKS_DIR, getSessionId } from '@/lib/server/recording-chunks'
 
 interface DecodedToken {
   id: number
   email: string
   collection: string
 }
-
-// Directory to store temporary chunks
-const CHUNKS_DIR = '/tmp/recording-chunks'
 
 // Ensure chunks directory exists
 async function ensureChunksDir() {
@@ -22,11 +20,6 @@ async function ensureChunksDir() {
   } catch {
     // Directory exists
   }
-}
-
-// Get session ID for a recording (appointmentId + doctorId)
-function getSessionId(appointmentId: number, doctorId: number): string {
-  return `${appointmentId}_${doctorId}`
 }
 
 /**
