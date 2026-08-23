@@ -180,7 +180,7 @@ class Recorder {
   /**
    * ЭТАП 1 (во время звонка): FFmpeg только принимает RTP и копирует все
    * дорожки в один MKV БЕЗ перекодирования (-c copy). Это принципиально:
-   * live-декодирование + фильтры + энкодер не успевали за реальным временем,
+   * live-декодирование + фильтры + энко��ер не успевали за реальным временем,
    * буферы переполнялись, пакеты терялись - отсюда прерывистое видео и
    * рассинхрон. Копирование почти не ест CPU, а единый контейнер сохраняет
    * относительные смещения дорожек (RTCP-синхронизацию демуксера).
@@ -213,7 +213,7 @@ class Recorder {
       // copyts сохраняет проставленные wallclock-метки без пересчёта,
       // vsync passthrough запрещает ffmpeg дублировать/выбрасывать кадры.
       '-copyts',
-      '-vsync', 'passthrough',
+      '-fps_mode', 'passthrough',
       '-max_interleave_delta', '0',
       '-f', 'matroska',
       '-y', session.rawPath,
@@ -228,9 +228,13 @@ class Recorder {
    */
   private buildComposeArgs(session: RecordingSession): string[] {
     const hasVideo = session.recordingType === 'video'
-    // -copyts на входе: сохраняем абсолютные wallclock-метки из этапа 1,
-    // чтобы взаимные сдвиги дорожек не потерялись при декодировании.
-    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-copyts', '-i', session.rawPath]
+    // БЕЗ -copyts: MKV после этапа 1 уже хранит взаимные сдвиги дорожек на
+    // общей шкале. С -copyts абсолютные wallclock-метки (сотни секунд от
+    // старта системы) конфликтовали с aresample first_pts=0, который сбрасывал
+    // аудио в нуль - на выходе DTS падал с 1814 до 24, ffmpeg зажимал ВСЮ
+    // аудиодорожку в одну точку ("changing to 1814") и звук ехал относительно
+    // видео. Обычные относительные метки контейнера работают корректно.
+    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-i', session.rawPath]
 
     if (hasVideo) {
       args.push(
@@ -245,16 +249,13 @@ class Recorder {
           '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
           '[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];' +
-          '[0:a:0]aresample=async=1:first_pts=0[a0];' +
-          '[0:a:1]aresample=async=1:first_pts=0[a1];' +
+          '[0:a:0]aresample=async=1000[a0];' +
+          '[0:a:1]aresample=async=1000[a1];' +
           '[a0][a1]amix=inputs=2:duration=longest,apad[a]',
         '-map', '[v]',
         '-map', '[a]',
         // shortest обрезает добавленную apad-тишину точно по концу видео.
         '-shortest',
-        // Итоговый файл должен начинаться с нуля, иначе плеер покажет
-        // многосекундную "пустоту" в начале.
-        '-start_at_zero',
         '-avoid_negative_ts', 'make_zero',
         '-c:v', recordingConfig.videoCodec,
         // Офлайн можно кодировать качественнее, но cpu-used 4 держит скорость
@@ -267,11 +268,10 @@ class Recorder {
     } else {
       args.push(
         '-filter_complex',
-        '[0:a:0]aresample=async=1:first_pts=0[a0];' +
-          '[0:a:1]aresample=async=1:first_pts=0[a1];' +
+        '[0:a:0]aresample=async=1000[a0];' +
+          '[0:a:1]aresample=async=1000[a1];' +
           '[a0][a1]amix=inputs=2:duration=longest[a]',
         '-map', '[a]',
-        '-start_at_zero',
         '-avoid_negative_ts', 'make_zero',
       )
     }
@@ -463,9 +463,10 @@ class Recorder {
       session.keyFrameTimer = null
     }
 
-    this.closeInputs(session)
-    this.releasePorts(session)
-
+    // ВАЖЕН ПОРЯДОК: сначала останавливаем FFmpeg, и только потом закрываем
+    // консюмеры. Раньше было наоборот - поток пакетов обрывался, FFmpeg
+    // навсегда блокировался в recvfrom() на UDP-сокете и не успевал прочитать
+    // "q" со stdin ("ignored q" -> SIGKILL -> недописанный MKV).
     const ffmpeg = session.ffmpegProcess
     if (ffmpeg && ffmpeg.exitCode === null) {
       await new Promise<void>((resolve) => {
@@ -507,6 +508,10 @@ class Recorder {
         }
       })
     }
+
+    // Теперь RTP больше не нужен - освобождаем ресурсы mediasoup.
+    this.closeInputs(session)
+    this.releasePorts(session)
 
     // Этап 2: офлайн-склейка сырого MKV в итоговый WebM.
     try {
