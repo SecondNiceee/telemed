@@ -109,9 +109,22 @@ class Recorder {
 
     try {
       await transport.connect({ ip: '127.0.0.1', port: rtpPort, rtcpPort })
+
+      // КРИТИЧНО: консюмим с "очищенными" capabilities - без RTX-кодеков и
+      // без rtcpFeedback (nack/transport-cc/goog-remb). Иначе mediasoup шлёт
+      // в тот же порт ретрансмиссии и probation-пакеты со СВОИМИ sequence
+      // номерами, ffmpeg считает их "RTP: missed 20000+ packets" и портит
+      // дорожки (в т.ч. "Error parsing Opus packet header").
+      const recordingRtpCapabilities = {
+        ...router.rtpCapabilities,
+        codecs: (router.rtpCapabilities.codecs ?? [])
+          .filter((codec) => !codec.mimeType.toLowerCase().endsWith('/rtx'))
+          .map((codec) => ({ ...codec, rtcpFeedback: [] })),
+      }
+
       const consumer = await transport.consume({
         producerId: producer.id,
-        rtpCapabilities: router.rtpCapabilities,
+        rtpCapabilities: recordingRtpCapabilities,
         paused: false,
       })
 
@@ -173,9 +186,12 @@ class Recorder {
    * относительные смещения дорожек (RTCP-синхронизацию демуксера).
    */
   private buildFfmpegArgs(session: RecordingSession): string[] {
+    // Без -nostdin: остановка делается командой "q" через stdin - это
+    // единственный способ, при котором ffmpeg гарантированно финализирует
+    // MKV. SIGTERM он может не обработать, пока заблокирован в чтении UDP
+    // (в логах было "did not exit, killing" -> "File ended prematurely").
     return [
       '-loglevel', 'warning',
-      '-nostdin',
       '-protocol_whitelist', 'file,rtp,udp',
       '-analyzeduration', '10M',
       '-probesize', '10M',
@@ -421,19 +437,42 @@ class Recorder {
     const ffmpeg = session.ffmpegProcess
     if (ffmpeg && ffmpeg.exitCode === null) {
       await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
+        // Эскалация: "q" -> SIGTERM -> SIGKILL. Команда "q" через stdin -
+        // единственный способ, при котором ffmpeg дописывает индекс и
+        // корректно финализирует MKV (иначе - "File ended prematurely").
+        const termTimer = setTimeout(() => {
+          if (ffmpeg.exitCode === null) {
+            console.log(`[Recorder] FFmpeg [${session.id}] ignored "q", sending SIGTERM`)
+            ffmpeg.kill('SIGTERM')
+          }
+        }, 4000)
+        termTimer.unref()
+
+        const killTimer = setTimeout(() => {
           if (ffmpeg.exitCode === null) {
             console.log(`[Recorder] FFmpeg [${session.id}] did not exit, killing`)
             ffmpeg.kill('SIGKILL')
           }
           resolve()
-        }, 5000)
+        }, 8000)
+        killTimer.unref()
+
         ffmpeg.once('close', () => {
-          clearTimeout(timeout)
+          clearTimeout(termTimer)
+          clearTimeout(killTimer)
           resolve()
         })
-        // SIGTERM lets FFmpeg flush and close the MKV container properly.
-        ffmpeg.kill('SIGTERM')
+
+        try {
+          if (ffmpeg.stdin && ffmpeg.stdin.writable) {
+            ffmpeg.stdin.write('q')
+            ffmpeg.stdin.end()
+          } else {
+            ffmpeg.kill('SIGTERM')
+          }
+        } catch {
+          ffmpeg.kill('SIGTERM')
+        }
       })
     }
 
