@@ -1,414 +1,78 @@
-
 /root/.pm2/logs/mediasoup-out.log last 15 lines:
 2|mediasou | [Room] Created room appointment_5
-2|mediasou | [MediaSoup] joined socket=FPUv34n6zPFeUxayAAAF room=appointment_5 peer=doctor-27 repeat=false
-2|mediasou | [MediaSoup] joined socket=X8ALX8aeU2eH-_AVAAAH room=appointment_5 peer=patient-2 repeat=false
-2|mediasou | [Recorder] Starting FFmpeg: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 10M -probesize 10M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787497750304.sdp -map 0 -c copy -copyts -vsync passthrough -max_interleave_delta 0 -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787497750304.raw.mkv
-2|mediasou | [Recorder] Started video segment appointment_5-1787497750304 for room appointment_5
-2|mediasou | [Recorder] FFmpeg [appointment_5-1787497750304]: -vsync is deprecated. Use -fps_mode
-2|mediasou | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasou | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
+2|mediasou | [MediaSoup] joined socket=HCkrG24SxGXX9U7KAAAG room=appointment_5 peer=patient-2 repeat=false
+2|mediasou | [MediaSoup] joined socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 repeat=false
+2|mediasou | [Recorder] Starting FFmpeg [a-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.mkv
+2|mediasou | [Recorder] Starting FFmpeg [b-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.mkv
+2|mediasou | [Recorder] Starting FFmpeg [a-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-audio.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.a-audio.mkv
+2|mediasou | [Recorder] b-audio media start captured (rtp)
+2|mediasou | [Recorder] Starting FFmpeg [b-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-audio.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.b-audio.mkv
+2|mediasou | [Recorder] Started video segment appointment_5-1787500155249 for room appointment_5 (4 independent FFmpeg processes)
+2|mediasou | [Recorder] a-audio media start captured (rtp)
+2|mediasou | [Recorder] a-video media start captured (keyframe)
+2|mediasou | [Recorder] b-video media start captured (keyframe)
+2|mediasou | [Recorder] FFmpeg [appointment_5-1787500155249/b-video]: [sdp @ 0x575d05991fc0] max delay reached. need to consume packet
+2|mediasou | [sdp @ 0x575d05991fc0] RTP: missed 1 packets
 
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080]
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 2 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304]: [sdp @ 0x60d57d2d3080] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60d57d2d3080] RTP: missed 1 packets
-2|mediasoup  | [MediaSoup] removed socket=X8ALX8aeU2eH-_AVAAAH room=appointment_5 peer=patient-2 reason=participant-ended removed=true
-2|mediasoup  | [MediaSoup] disconnect grace socket=FPUv34n6zPFeUxayAAAF room=appointment_5 peer=doctor-27 timeout=10000
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video]: [sdp @ 0x6034861b2fc0] max delay reached. need to consume packet
+2|mediasoup  | [sdp @ 0x6034861b2fc0] RTP: missed 1 packets
+2|mediasoup  | [MediaSoup] removed socket=HCkrG24SxGXX9U7KAAAG room=appointment_5 peer=patient-2 reason=participant-ended removed=true
+2|mediasoup  | [MediaSoup] disconnect grace socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 timeout=10000
 0|site       | [LkMedChatPage] Doctor found: 27 Врач Ниокоалай 2
-1|socket     | [Socket] Client connected: QniCBHQndQdfAXRsAAAj, type: doctor, id: 27
+1|socket     | [Socket] Client connected: e9ZmjWaxe6a8KD_9AAAc, type: doctor, id: 27
 1|socket     | [Socket] Checking pending calls for doctor:27
 1|socket     | [Socket] Found 0 pending calls
-1|socket     | [Socket] doctor:27 joined room appointment:5
-1|socket     | [Socket] Client connected: ZPtWafNJXnprS1M3AAAl, type: user, id: 2
+1|socket     | [Socket] Client connected: tx7o2a5zfNqz9vo9AAAd, type: user, id: 2
 1|socket     | [Socket] Checking pending calls for user:2
 1|socket     | [Socket] Found 0 pending calls
 1|socket     | [Socket] user:2 joined room appointment:5
+1|socket     | [Socket] doctor:27 joined room appointment:5
 1|socket     | [Socket] user:2 joined room appointment:4
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304] ignored "q", sending SIGTERM
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304] did not exit, killing
-2|mediasoup  | [Recorder] Composing: ffmpeg -loglevel warning -nostdin -copyts -i /tmp/mediasoup-recordings/appointment_5-1787497750304.raw.mkv -filter_complex [0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,pad=1280:480:0:0:color=black[base];[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];[0:a:0]aresample=async=1:first_pts=0[a0];[0:a:1]aresample=async=1:first_pts=0[a1];[a0][a1]amix=inputs=2:duration=longest,apad[a] -map [v] -map [a] -shortest -start_at_zero -avoid_negative_ts make_zero -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_5-1787497750304.webm
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787497750304] exited with code null
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [libopus @ 0x590f6d21a800] Queue input is backward in time
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 24; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 44; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 64; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 84; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 104; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 124; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 144; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 164; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 184; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 204; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 224; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 244; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 264; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 284; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 304; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 324; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 344; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 364; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 384; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 404; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 424; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 444; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 464; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 484; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 504; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 524; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 544; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 564; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 584; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 604; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 624; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 644; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 664; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 684; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 704; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 724; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 744; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 764; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 784; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 804; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 824; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 844; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 864; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 884; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 904; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 924; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 944; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 964; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 984; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1004; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1024; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1044; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1064; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1084; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1104; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1124; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1144; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1164; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1184; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1204; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1224; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1244; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1264; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1284; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1304; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1324; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1344; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1364; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1384; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1404; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1424; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1444; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1464; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1484; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1504; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 1814, current: 1524; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1544; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1564; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1584; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1604; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1624; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1644; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1664; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1684; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1704; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1724; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1744; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1764; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1784; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 1814, current: 1804; changing to 1814. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [libopus @ 0x590f6d21a800] Queue input is backward in time
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 26; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 46; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 66; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 86; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 106; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 126; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 146; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 166; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 186; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 206; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 226; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 246; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 266; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 286; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 306; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 326; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 346; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 366; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 386; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 406; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 426; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 446; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 466; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 486; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 506; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 526; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 546; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 566; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 586; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 606; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 626; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 646; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 666; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 686; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 706; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 726; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 746; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 766; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 786; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 806; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 826; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 846; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 866; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 886; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 906; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 926; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 946; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 966; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 986; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1006; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1026; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1046; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1066; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1086; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1106; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1126; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1146; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1166; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1186; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1206; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1226; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1246; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1266; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1286; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1306; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1326; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1346; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1366; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1386; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1406; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1426; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1446; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1466; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1486; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1506; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1526; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1546; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1566; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1586; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1606; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1626; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1646; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1666; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1686; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1706; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1726; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1746; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1766; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1786; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1806; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1826; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1846; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1866; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1886; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1906; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1926; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1946; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1966; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 1986; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2006; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2026; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2046; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2066; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2086; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2106; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2126; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2146; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2166; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2186; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2206; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2226; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2246; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2266; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2286; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2306; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2326; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2346; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2366; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2386; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2406;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2426; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2446; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2466; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2486; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2506; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2526; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2546; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2566; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2586; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2606; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2626; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2646; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2666; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2686; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2706; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2726; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2746; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2766; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2786; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2806; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2826; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2846; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2866; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2886; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 2906; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 2926;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 2946; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2966; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 2986; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3006; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3026; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3046; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3066; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3086; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3106; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3126; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3146; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 3166;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 3186;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 3206; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3226; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3246; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3266; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3286; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3306; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3326; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3346; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3366; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3386; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3406; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3426; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3446; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3466; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3486; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3506; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3526; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3546; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3566; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3586; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3606; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3626; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3646; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3666; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3686; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3706; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3726; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 3746;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3766; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3786; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3806; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3826; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3846; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3866; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3886; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3906; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3926; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3946; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 3966; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 3986;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 4006; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4026; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4046; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4066; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4086; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4106; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4126; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4146; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4166; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4186; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4206; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 4226;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: Non-monotonic DTS; previous: 4464, current: 4246;
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4266; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4286; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4306; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4326; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4346; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4366; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4386; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4406; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4426; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:1/libopus @ 0x590f6d22bb80] Non-monotonic DTS; previous: 4464, current: 4446; changing to 4464. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [MediaSoup] removed socket=FPUv34n6zPFeUxayAAAF room=appointment_5 peer=doctor-27 reason=participant-disconnected removed=true
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [matroska,webm @ 0x590f6d190580] File ended prematurely
-2|mediasoup  | [Recorder] Compose [appointment_5-1787497750304]: [opus @ 0x590f6d1a9540] Error parsing Opus packet header.
-2|mediasoup  | [opus @ 0x590f6d1a9d80] Error parsing Opus packet header.
-2|mediasoup  | [Recorder] Stopped segment appointment_5-1787497750304 (65s, completed)
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] ignored "q", sending SIGTERM
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] ignored "q", sending SIGTERM
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] ignored "q", sending SIGTERM
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] ignored "q", sending SIGTERM
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] did not exit, killing
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] did not exit, killing
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] did not exit, killing
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] did not exit, killing
+2|mediasoup  | [Recorder] Composing: ffmpeg -loglevel warning -nostdin -f lavfi -i color=c=black:s=1280x480:r=15 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.mkv -itsoffset 0.508 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.mkv -filter_complex [1:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w0];[0:v][w0]overlay=x=0:y=0:eof_action=pass:repeatlast=0[b0];[2:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w1];[b0][w1]overlay=x=640:y=0:eof_action=pass:repeatlast=0,format=yuv420p[v] -map [v] -t 53 -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -avoid_negative_ts make_zero -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_5-1787500155249.webm
+2|mediasoup  | [Recorder] Skipping empty tracks: a-audio, b-audio
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] exited with code null
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] exited with code null
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] exited with code null
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] exited with code null
+2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [out#0/webm @ 0x5fd001aef8c0] Codec AVOption b:a (set bitrate (in bits/s)) has not been used for any stream. The most likely reason is either wrong type (e.g. a video option with no video streams) or that it is a private option of some decoder which was not actually used for any stream.
+2|mediasoup  | [MediaSoup] removed socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 reason=participant-disconnected removed=true
+2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [matroska,webm @ 0x5fd001ae7c40]
+2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: File ended prematurely
+2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [matroska,webm @ 0x5fd001ae5140]
+2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: File ended prematurely
+2|mediasoup  | [Recorder] Stopped segment appointment_5-1787500155249 (53s, completed)
 0|site       | [MediaSoupRecording/FinalizeServer] Starting server-side finalization
 0|site       | [MediaSoupRecording/FinalizeServer] Request data: {
 0|site       |   appointmentId: 5,
-0|site       |   sessionId: 'appointment_5-1787497750304',
-0|site       |   durationSeconds: 65,
+0|site       |   sessionId: 'appointment_5-1787500155249',
+0|site       |   durationSeconds: 53,
 0|site       |   recordingType: 'video'
 0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Looking for recording at: /tmp/mediasoup-recordings/appointment_5-1787497750304.webm
-0|site       | [MediaSoupRecording/FinalizeServer] Recording file found, size: 2650162
-0|site       | [MediaSoupRecording/FinalizeServer] Read recording buffer, size: 2650162
+0|site       | [MediaSoupRecording/FinalizeServer] Looking for recording at: /tmp/mediasoup-recordings/appointment_5-1787500155249.webm
+0|site       | [MediaSoupRecording/FinalizeServer] Recording file found, size: 10152131
+0|site       | [MediaSoupRecording/FinalizeServer] Read recording buffer, size: 10152131
 0|site       | [MediaSoupRecording/FinalizeServer] Uploading to media via Payload...
 0|site       | [media] create incoming {
-0|site       |   filename: 'consultation-5-1787497829584-mt5y20ghqw8i34.webm',
+0|site       |   filename: 'consultation-5-1787500223175-mt5zhbd46id3yk.webm',
 0|site       |   mimeType: 'video/webm',
-0|site       |   size: 2650162
+0|site       |   size: 10152131
 0|site       | }
 0|site       | [media] afterChange {
 0|site       |   operation: 'create',
-0|site       |   id: 86,
-0|site       |   filename: 'consultation-5-1787497829584-mt5y20ghqw8i34.webm',
+0|site       |   id: 90,
+0|site       |   filename: 'consultation-5-1787500223175-mt5zhbd46id3yk.webm',
 0|site       |   mimeType: 'video/webm',
-0|site       |   filesize: 2650162
+0|site       |   filesize: 10152131
 0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Media uploaded, ID: 86
-0|site       | [MediaSoupRecording/FinalizeServer] CallRecording created, ID: 13
+0|site       | [MediaSoupRecording/FinalizeServer] Media uploaded, ID: 90
+0|site       | [MediaSoupRecording/FinalizeServer] CallRecording created, ID: 17
 0|site       | [MediaSoupRecording/FinalizeServer] Cleaned up recording file
-2|mediasoup  | [RecordingController] Finalized video segment appointment_5-1787497750304
-
-
-
-
+2|mediasoup  | [RecordingController] Finalized video segment appointment_5-1787500155249
