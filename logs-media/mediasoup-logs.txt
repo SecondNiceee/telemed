@@ -1,225 +1,49 @@
+/root/.pm2/logs/mediasoup-out.log last 15 lines:
+2|mediasou | [Room] Created room appointment_5
+2|mediasou | [MediaSoup] joined socket=cR8LmxIZQI7DSi6rAAAF room=appointment_5 peer=doctor-27 repeat=false
+2|mediasou | [MediaSoup] joined socket=f-ll5stHluL2xb9fAAAH room=appointment_5 peer=patient-2 repeat=false
+2|mediasou | [Recorder] Starting FFmpeg: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 10M -probesize 10M -buffer_size 8388608 -max_delay 5000000 -reorder_queue_size 4096 -thread_queue_size 8192 -i /tmp/mediasoup-recordings/appointment_5-1787462226201.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787462226201.raw.mkv
+2|mediasou | [Recorder] Started video segment appointment_5-1787462226201 for room appointment_5
 
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [aost#0:3/copy @ 0x60947a17c380] Non-monotonic DTS; previous: 420, current: 368; changing to 420. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:3/copy @ 0x60947a17c380] Non-monotonic DTS; previous: 420, current: 388; changing to 420. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [aost#0:3/copy @ 0x60947a17c380] Non-monotonic DTS; previous: 420, current: 408; changing to 420. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [vost#0:1/copy @ 0x60947aa78640] Non-monotonic DTS; previous: 7577, current: 7543; changing to 7577. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21494 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21495 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21496 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21497 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21498 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21499 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21500 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21501 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [aost#0:3/copy @ 0x60947a17c380] Non-monotonic DTS; previous: 31379, current: 31357; changing to 31379. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21223 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21224 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21225 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21226 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21227 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21228 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21229 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21230 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21255 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21256 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21257 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21258 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21259 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21260 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21261 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 21262 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8994 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8995 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8996 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8997 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8998 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8999 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] RTP: missed 9000 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 9001 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8635 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8636 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8637 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8638 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8639 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8640 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8641 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8642 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8643 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8644 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8645 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8646 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8647 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8648 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8649 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8650 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8540 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8541 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8542 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8543 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8544 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8545 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8546 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8546 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8547 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8548 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8549 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8550 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8551 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8552 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8553 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 8554 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 1 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7909 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7910 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7911 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7912 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7913 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7914 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7915 packets
-2|mediasoup  | [sdp @ 0x60947a054fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x60947a054fc0] RTP: missed 7916 packets
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: [vost#0:1/copy @ 0x60947aa78640]
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683]: Non-monotonic DTS; previous: 65698, current: 65631; changing to 65698. This may result in incorrect timestamps in the output file.
-2|mediasoup  | [MediaSoup] removed socket=tFzzgv5PcauR-6ndAAAH room=appointment_5 peer=patient-2 reason=participant-ended removed=true
-2|mediasoup  | [MediaSoup] disconnect grace socket=55G16FjYHwXgui-FAAAF room=appointment_5 peer=doctor-27 timeout=10000
-0|site       | [LkMedChatPage] Doctor found: 27 Врач Ниокоалай 2
-1|socket     | [Socket] Client connected: 3xSUuTQTTXVw_rntAAAX, type: user, id: 2
-1|socket     | [Socket] Checking pending calls for user:2
-1|socket     | [Socket] Found 0 pending calls
-1|socket     | [Socket] Client connected: WrlTvKWevNm5m-h6AAAZ, type: doctor, id: 27
-1|socket     | [Socket] Checking pending calls for doctor:27
-1|socket     | [Socket] Found 0 pending calls
-1|socket     | [Socket] user:2 joined room appointment:4
-1|socket     | [Socket] user:2 joined room appointment:5
-1|socket     | [Socket] doctor:27 joined room appointment:5
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683] did not exit, killing
-2|mediasoup  | [Recorder] Composing: ffmpeg -loglevel warning -nostdin -i /tmp/mediasoup-recordings/appointment_5-1787445871683.raw.mkv -filter_complex [0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,pad=1280:480:0:0:color=black[base];[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];[0:a:0][0:a:1]amix=inputs=2:duration=longest[a] -map [v] -map [a] -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_5-1787445871683.webm
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787445871683] exited with code null
-2|mediasoup  | [Recorder] Compose [appointment_5-1787445871683]: [libopus @ 0x5d646e45b180] Queue input is backward in time
-2|mediasoup  | [Recorder] Compose [appointment_5-1787445871683]: [matroska,webm @ 0x5d646e3cb280] File ended prematurely
-2|mediasoup  | [opus @ 0x5d646e3d6680] Error parsing Opus packet header.
-2|mediasoup  | [opus @ 0x5d646e3d6f80] Error parsing Opus packet header.
-2|mediasoup  | [Recorder] Stopped segment appointment_5-1787445871683 (69s, completed)
-0|site       | [MediaSoupRecording/FinalizeServer] Starting server-side finalization
-0|site       | [MediaSoupRecording/FinalizeServer] Request data: {
-0|site       |   appointmentId: 5,
-0|site       |   sessionId: 'appointment_5-1787445871683',
-0|site       |   durationSeconds: 69,
-0|site       |   recordingType: 'video'
-0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Looking for recording at: /tmp/mediasoup-recordings/appointment_5-1787445871683.webm
-0|site       | [MediaSoupRecording/FinalizeServer] Recording file found, size: 6707064
-0|site       | [MediaSoupRecording/FinalizeServer] Read recording buffer, size: 6707064
-0|site       | [MediaSoupRecording/FinalizeServer] Uploading to media via Payload...
-0|site       | [media] create incoming {
-0|site       |   filename: 'consultation-5-1787445950667-mt5362fg2ls49q.webm',
-0|site       |   mimeType: 'video/webm',
-0|site       |   size: 6707064
-0|site       | }
-0|site       | [media] afterChange {
-0|site       |   operation: 'create',
-0|site       |   id: 82,
-0|site       |   filename: 'consultation-5-1787445950667-mt5362fg2ls49q.webm',
-0|site       |   mimeType: 'video/webm',
-0|site       |   filesize: 6707064
-0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Media uploaded, ID: 82
-0|site       | [MediaSoupRecording/FinalizeServer] CallRecording created, ID: 9
-0|site       | [MediaSoupRecording/FinalizeServer] Cleaned up recording file
-2|mediasoup  | [RecordingController] Finalized video segment appointment_5-1787445871683
-2|mediasoup  | [MediaSoup] removed socket=55G16FjYHwXgui-FAAAF room=appointment_5 peer=doctor-27 reason=participant-disconnected removed=true
-
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 152; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 352, current: 161; changing to 352. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 174; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 172; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 194; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 192; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 214; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 212; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 234; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 232; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 254; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 252; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 274; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 294; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 272; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 314; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 332; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 334; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 354; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 352, current: 225; changing to 352. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 352; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 352, current: 273; changing to 352. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 374; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 372; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 394; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 392; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 420, current: 414; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 352, current: 340; changing to 352. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:2/copy @ 0x584ff6cd72c0] Non-monotonic DTS; previous: 420, current: 412; changing to 420. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [sdp @ 0x584ff6bd9f80] max delay reached. need to consume packet
+2|mediasoup  | [sdp @ 0x584ff6bd9f80] RTP: missed 1 packets
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 13083, current: 13047; changing to 13083. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 20954, current: 20902; changing to 20954. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 20954, current: 20922; changing to 20954. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 20954, current: 20942; changing to 20954. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 29573, current: 29435; changing to 29573. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 29573, current: 29499; changing to 29573. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 29573, current: 29565; changing to 29573. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [aost#0:3/copy @ 0x584ff6cd4340] Non-monotonic DTS; previous: 35873, current: 35859; changing to 35873. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 42213, current: 42046; changing to 42213. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 42213, current: 42094; changing to 42213. This may result in incorrect timestamps in the output file.
+2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787462226201]: [vost#0:1/copy @ 0x584ff6c9e340] Non-monotonic DTS; previous: 42213, current: 42161; changing to 42213. This may result in incorrect timestamps in the output file.
