@@ -1,18 +1,35 @@
 /**
  * MediaSoup Recorder
  *
- * Server-side recording using PlainTransport + FFmpeg.
- * Records BOTH participants of a call into a single WebM file:
- * - video call: two windows side by side (hstack) + mixed audio (amix)
- * - audio call: mixed audio only (amix)
+ * Серверная запись через PlainTransport + FFmpeg. Записывает ОБОИХ участников
+ * звонка в один WebM:
+ * - видеозвонок: два окна рядом + смикшированное аудио
+ * - аудиозвонок: только смикшированное аудио
  *
- * Each recording session corresponds to one "call segment": it starts when
- * both participants have published their tracks and stops when one of them
- * leaves. Multiple calls within one appointment produce multiple files.
+ * АРХИТЕКТУРА (важно для понимания правок).
+ *
+ * Раньше все 4 RTP-потока (2 видео + 2 аудио) отдавались ОДНОМУ процессу
+ * FFmpeg через общий SDP. Это и было корнем всех проблем: SDP-демуксер
+ * пытался свести четыре независимые RTP-таймлинии в один контейнер, зажимал
+ * "немонотонные" DTS, выбрасывал интервалы, и дорожки неизбежно разъезжались
+ * (чёрный экран в начале, звук короче видео, рассинхрон).
+ *
+ * Теперь: ОДИН ПОТОК = ОДИН ПРОЦЕСС FFmpeg = ОДИН ФАЙЛ.
+ *
+ * Этап 1 (во время звонка): 4 независимых FFmpeg, у каждого свой SDP ровно с
+ * одной m=-секцией. Задача каждого тривиальна - принять один поток и писать
+ * его в файл с -c copy. Межпотоковой синхронизации внутри FFmpeg нет вообще,
+ * поэтому ломаться нечему. Node при этом фиксирует момент старта каждой
+ * дорожки (mediasoup trace: первый RTP-пакет для аудио, первый ключевой кадр
+ * для видео - именно с него FFmpeg начинает писать видеофайл).
+ *
+ * Этап 2 (после звонка): офлайн-склейка. Мы САМИ задаём смещения дорожек
+ * через -itsoffset на основе замеров этапа 1. Синхронизация становится
+ * детерминированной: ею управляем мы, а не демуксер FFmpeg.
  */
 
 import { spawn, ChildProcess, execSync } from 'child_process'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, statSync } from 'fs'
 import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
 import type { types as mediasoupTypes } from 'mediasoup'
@@ -23,14 +40,29 @@ type Producer = mediasoupTypes.Producer
 type PlainTransport = mediasoupTypes.PlainTransport
 type Consumer = mediasoupTypes.Consumer
 
-/** Media input of one participant that FFmpeg receives over RTP */
+/** Один медиапоток одного участника: свой порт, свой SDP, свой FFmpeg, свой файл */
 interface RecordingInput {
   producerId: string
   kind: 'audio' | 'video'
+  /** Читаемая метка для логов и раскладки: a-video, b-video, a-audio, b-audio */
+  label: string
+  /** Порядок участника: 0 - левое окно, 1 - правое окно */
+  slot: 0 | 1
   transport: PlainTransport
   consumer: Consumer
   rtpPort: number
   rtcpPort: number
+  sdpPath: string
+  rawPath: string
+  ffmpeg: ChildProcess | null
+  /**
+   * Момент начала медиа этой дорожки по часам mediasoup-воркера (мс).
+   * Все дорожки замеряются одним и тем же клоком, поэтому разности
+   * корректны - именно они превращаются в -itsoffset на этапе склейки.
+   */
+  startTs: number | null
+  /** Резервный замер по часам Node, если trace не дал timestamp */
+  startTsFallback: number | null
 }
 
 /** Producers of one participant to include in a segment */
@@ -48,11 +80,7 @@ export interface RecordingSession {
   startedAt: Date
   status: 'starting' | 'recording' | 'stopping' | 'composing' | 'completed' | 'failed'
   filePath: string
-  /** Промежуточный файл этапа 1: все дорожки скопированы без перекодирования */
-  rawPath: string
-  sdpPath: string
   durationSeconds: number
-  ffmpegProcess: ChildProcess | null
   inputs: RecordingInput[]
   keyFrameTimer: NodeJS.Timeout | null
   error?: string
@@ -60,6 +88,9 @@ export interface RecordingSession {
 
 const PORT_RANGE_START = 5000
 const PORT_RANGE_END = 5998
+
+/** Файл меньше этого размера считаем пустым (FFmpeg не получил медиа) */
+const MIN_USABLE_FILE_BYTES = 2048
 
 class Recorder {
   private readonly sessions = new Map<string, RecordingSession>()
@@ -95,12 +126,43 @@ class Recorder {
   }
 
   /**
+   * Замер момента старта дорожки через mediasoup trace.
+   *
+   * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
+   * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
+   * начинается с keyframe, и именно его надо брать за ноль дорожки.
+   * После замера trace отключаем, чтобы не грузить воркер.
+   */
+  private trackMediaStart(input: RecordingInput): void {
+    const traceType = input.kind === 'video' ? 'keyframe' : 'rtp'
+
+    input.consumer.on('trace', (trace: { type: string; timestamp?: number }) => {
+      if (input.startTs !== null) return
+      if (trace.type !== traceType) return
+
+      input.startTs = typeof trace.timestamp === 'number' && trace.timestamp > 0 ? trace.timestamp : null
+      input.startTsFallback = Date.now()
+      console.log(`[Recorder] ${input.label} media start captured (${traceType})`)
+
+      // Больше trace не нужен.
+      input.consumer.enableTraceEvent([]).catch(() => {})
+    })
+
+    input.consumer.enableTraceEvent([traceType]).catch((error) => {
+      console.warn(`[Recorder] Cannot enable trace for ${input.label}:`, error)
+    })
+  }
+
+  /**
    * Pipe one producer to FFmpeg: PlainTransport consumes the producer and
    * sends RTP to 127.0.0.1:<rtpPort> where FFmpeg is listening (per SDP).
-   * The transport binds its own port from the worker RTC range - it must NOT
-   * bind the FFmpeg port, otherwise FFmpeg cannot listen on it.
    */
-  private async createInput(router: Router, producer: Producer): Promise<RecordingInput> {
+  private async createInput(
+    session: RecordingSession,
+    router: Router,
+    producer: Producer,
+    slot: 0 | 1,
+  ): Promise<RecordingInput> {
     const { rtpPort, rtcpPort } = this.allocatePortPair()
     const transport = await router.createPlainTransport({
       ...plainTransportOptions,
@@ -110,11 +172,10 @@ class Recorder {
     try {
       await transport.connect({ ip: '127.0.0.1', port: rtpPort, rtcpPort })
 
-      // КРИТИЧНО: консюмим с "очищенными" capabilities - без RTX-кодеков и
-      // без rtcpFeedback (nack/transport-cc/goog-remb). Иначе mediasoup шлёт
-      // в тот же порт ретрансмиссии и probation-пакеты со СВОИМИ sequence
-      // номерами, ffmpeg считает их "RTP: missed 20000+ packets" и портит
-      // дорожки (в т.ч. "Error parsing Opus packet header").
+      // Консюмим с "очищенными" capabilities - без RTX-кодеков и без
+      // rtcpFeedback (nack/transport-cc/goog-remb). Иначе mediasoup шлёт в тот
+      // же порт ретрансмиссии и probation-пакеты со СВОИМИ sequence номерами,
+      // и FFmpeg считает их "RTP: missed 20000+ packets", портя дорожку.
       const recordingRtpCapabilities = {
         ...router.rtpCapabilities,
         codecs: (router.rtpCapabilities.codecs ?? [])
@@ -129,8 +190,7 @@ class Recorder {
       })
 
       // Фиксируем верхний simulcast-слой: иначе mediasoup переключает слои по
-      // ходу звонка, разрешение меняется на лету и фильтр-граф FFmpeg встаёт.
-      // mediasoup сам ограничит номер слоя, если их меньше.
+      // ходу звонка и разрешение меняется на лету.
       if (producer.kind === 'video') {
         try {
           await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 })
@@ -139,7 +199,25 @@ class Recorder {
         }
       }
 
-      return { producerId: producer.id, kind: producer.kind, transport, consumer, rtpPort, rtcpPort }
+      const label = `${slot === 0 ? 'a' : 'b'}-${producer.kind}`
+      const input: RecordingInput = {
+        producerId: producer.id,
+        kind: producer.kind,
+        label,
+        slot,
+        transport,
+        consumer,
+        rtpPort,
+        rtcpPort,
+        sdpPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.sdp`),
+        rawPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.mkv`),
+        ffmpeg: null,
+        startTs: null,
+        startTsFallback: null,
+      }
+
+      this.trackMediaStart(input)
+      return input
     } catch (error) {
       this.usedPorts.delete(rtpPort)
       transport.close()
@@ -147,12 +225,16 @@ class Recorder {
     }
   }
 
-  /** SDP media section for one RTP input consumed from mediasoup. */
-  private sdpMediaSection(input: RecordingInput): string[] {
+  /**
+   * SDP ровно с ОДНОЙ m=-секцией. Это ключ к новой схеме: у процесса FFmpeg
+   * нет второго потока, с которым надо что-то синхронизировать.
+   */
+  private generateSdp(input: RecordingInput): string {
     const codec = input.consumer.rtpParameters.codecs[0]
     const payloadType = codec.payloadType
     const codecName = codec.mimeType.split('/')[1]
-    const lines: string[] = []
+
+    const lines = ['v=0', 'o=- 0 0 IN IP4 127.0.0.1', 's=MediaSoup Recording', 'c=IN IP4 127.0.0.1', 't=0 0']
 
     if (input.kind === 'video') {
       lines.push(`m=video ${input.rtpPort} RTP/AVP ${payloadType}`)
@@ -168,121 +250,193 @@ class Recorder {
     if (fmtp) lines.push(`a=fmtp:${payloadType} ${fmtp}`)
     lines.push(`a=rtcp:${input.rtcpPort}`)
     lines.push('a=recvonly')
-    return lines
-  }
 
-  private generateSdp(inputs: RecordingInput[]): string {
-    const lines = ['v=0', 'o=- 0 0 IN IP4 127.0.0.1', 's=MediaSoup Recording', 'c=IN IP4 127.0.0.1', 't=0 0']
-    for (const input of inputs) lines.push(...this.sdpMediaSection(input))
     return lines.join('\r\n') + '\r\n'
   }
 
   /**
-   * ЭТАП 1 (во время звонка): FFmpeg только принимает RTP и копирует все
-   * дорожки в один MKV БЕЗ перекодирования (-c copy). Это принципиально:
-   * live-декодирование + фильтры + энко��ер не успевали за реальным временем,
-   * буферы переполнялись, пакеты терялись - отсюда прерывистое видео и
-   * рассинхрон. Копирование почти не ест CPU, а единый контейнер сохраняет
-   * относительные смещения дорожек (RTCP-синхронизацию демуксера).
+   * ЭТАП 1: приём одного потока и запись в файл без перекодирования.
+   *
+   * -use_wallclock_as_timestamps ставит метки по времени прихода пакетов. Для
+   * ОДНОГО потока это идеально: метки монотонны, длительность файла равна
+   * реальному времени, и никакие RTP-таймстампы уже ничего не портят.
+   * Без -nostdin: остановка идёт командой "q" через stdin - только так FFmpeg
+   * гарантированно финализирует контейнер.
    */
-  private buildFfmpegArgs(session: RecordingSession): string[] {
-    // Без -nostdin: остановка делается командой "q" через stdin - это
-    // единственный способ, при котором ffmpeg гарантированно финал��зирует
-    // MKV. SIGTERM он может не обработать, пока заблокирован в чтении UDP
-    // (в логах было "did not exit, killing" -> "File ended prematurely").
+  private buildInputFfmpegArgs(input: RecordingInput): string[] {
     return [
       '-loglevel', 'warning',
       '-protocol_whitelist', 'file,rtp,udp',
-      '-analyzeduration', '10M',
-      '-probesize', '10M',
+      '-analyzeduration', '5M',
+      '-probesize', '5M',
       '-buffer_size', '8388608',
-      // max_delay уменьшен до 1 с: при 5 с демуксер держал пакеты слишком
-      // долго и отдавал их уже "просроченными" - отсюда non-monotonic DTS.
       '-max_delay', '1000000',
       '-reorder_queue_size', '2048',
       '-thread_queue_size', '8192',
-      // Единая часовая шкала для ВСЕХ дорожек. RTP-таймстампы каждого
-      // потока живут в своей системе отсчёта, и при -c copy их DTS
-      // разъезжались и зажимались ("changing to ..."), из-за чего аудио
-      // укорачивалось и уходило от видео. Wallclock-метки монотонны и
-      // общие для всех четырёх дорожек, поэтому взаимный сдвиг сохраняется.
       '-use_wallclock_as_timestamps', '1',
-      '-i', session.sdpPath,
+      '-i', input.sdpPath,
       '-map', '0',
       '-c', 'copy',
-      // copyts сохраняет проставленные wallclock-метки без пересчёта,
-      // vsync passthrough запрещает ffmpeg дублировать/выбрасывать кадры.
-      '-copyts',
-      '-fps_mode', 'passthrough',
-      '-max_interleave_delta', '0',
       '-f', 'matroska',
-      '-y', session.rawPath,
+      '-y', input.rawPath,
     ]
   }
 
-  /**
-   * ЭТАП 2 (после остановки сегмента): офлайн-склейка из MKV в итоговый WebM.
-   * Здесь нет реального времени: FFmpeg обрабатывает файл с той скоростью,
-   * с которой успевает, поэтому кадры не теряются, а дорожки уже лежат на
-   * общей таймлинии контейнера - синхрон гарантирован.
-   */
-  private buildComposeArgs(session: RecordingSession): string[] {
-    const hasVideo = session.recordingType === 'video'
-    // БЕЗ -copyts: MKV после этапа 1 уже хранит взаимные сдвиги дорожек на
-    // общей шкале. С -copyts абсолютные wallclock-метки (сотни секунд от
-    // старта системы) конфликтовали с aresample first_pts=0, который сбрасывал
-    // аудио в нуль - на выходе DTS падал с 1814 до 24, ffmpeg зажимал ВСЮ
-    // аудиодорожку в одну точку ("changing to 1814") и звук ехал относительно
-    // видео. Обычные относительные метки контейнера работают корректно.
-    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-i', session.rawPath]
+  private startInputFfmpeg(session: RecordingSession, input: RecordingInput): ChildProcess {
+    const args = this.buildInputFfmpegArgs(input)
+    console.log(`[Recorder] Starting FFmpeg [${input.label}]:`, recordingConfig.ffmpegPath, args.join(' '))
 
-    if (hasVideo) {
+    const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
+
+    ffmpeg.stderr?.on('data', (data: Buffer) => {
+      const text = data.toString().trim()
+      if (text) console.log(`[Recorder] FFmpeg [${session.id}/${input.label}]: ${text}`)
+    })
+
+    ffmpeg.on('close', (code) => {
+      console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] exited with code ${code}`)
+    })
+
+    ffmpeg.on('error', (error) => {
+      console.error(`[Recorder] FFmpeg [${session.id}/${input.label}] error:`, error)
+    })
+
+    return ffmpeg
+  }
+
+  /** Дорожка пригодна для склейки, только если FFmpeg реально что-то записал */
+  private hasUsableData(input: RecordingInput): boolean {
+    try {
+      return existsSync(input.rawPath) && statSync(input.rawPath).size >= MIN_USABLE_FILE_BYTES
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Смещения дорожек в секундах относительно самой ранней из них.
+   * Используем trace-часы mediasoup, если они есть у ВСЕХ дорожек (иначе
+   * единицы измерения смешались бы), иначе часы Node, иначе нули.
+   */
+  private computeOffsets(inputs: RecordingInput[]): Map<RecordingInput, number> {
+    const offsets = new Map<RecordingInput, number>()
+
+    const pickClock = (): ((input: RecordingInput) => number) | null => {
+      if (inputs.every((i) => i.startTs !== null)) return (i) => i.startTs as number
+      if (inputs.every((i) => i.startTsFallback !== null)) return (i) => i.startTsFallback as number
+      return null
+    }
+
+    const clock = pickClock()
+    if (!clock) {
+      console.warn('[Recorder] No common clock for all tracks - composing without offsets')
+      for (const input of inputs) offsets.set(input, 0)
+      return offsets
+    }
+
+    const base = Math.min(...inputs.map(clock))
+    for (const input of inputs) {
+      // Отрицательных смещений быть не может: base - минимум.
+      const offsetSeconds = Math.max(0, (clock(input) - base) / 1000)
+      offsets.set(input, Number(offsetSeconds.toFixed(3)))
+    }
+    return offsets
+  }
+
+  /**
+   * ЭТАП 2: офлайн-склейка отдельных файлов в итоговый WebM.
+   *
+   * Каждый файл подключается со своим -itsoffset, поэтому дорожки встают на
+   * общую таймлинию ровно так, как они шли в реальности. Чёрный канвас задаёт
+   * геометрию кадра и живёт всю запись, поэтому пауза или обрыв одного видео
+   * не роняет картинку целиком. Здесь нет реального времени: FFmpeg считает
+   * столько, сколько нужно, и кадры не теряются.
+   */
+  private buildComposeArgs(session: RecordingSession, usable: RecordingInput[]): string[] {
+    const videos = usable.filter((i) => i.kind === 'video').sort((a, b) => a.slot - b.slot)
+    const audios = usable.filter((i) => i.kind === 'audio').sort((a, b) => a.slot - b.slot)
+    const withVideo = videos.length > 0
+    const offsets = this.computeOffsets(usable)
+
+    const args: string[] = ['-loglevel', 'warning', '-nostdin']
+    const streamIndex = new Map<RecordingInput, number>()
+    let nextIndex = 0
+
+    if (withVideo) {
+      args.push('-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
+      nextIndex = 1
+    }
+
+    for (const input of [...videos, ...audios]) {
+      const offset = offsets.get(input) ?? 0
+      if (offset > 0) args.push('-itsoffset', String(offset))
+      args.push('-i', input.rawPath)
+      streamIndex.set(input, nextIndex)
+      nextIndex += 1
+    }
+
+    const filters: string[] = []
+    const windowChain = (index: number, name: string) =>
+      `[${index}:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,` +
+      `pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[${name}]`
+
+    if (withVideo) {
+      // Каждое видео кладём на канвас. eof_action=pass + repeatlast=0: когда
+      // поток участника заканчивается, его половина просто становится чёрной,
+      // а запись продолжается (раньше конец одного потока обрезал всё видео).
+      let base = '[0:v]'
+      videos.forEach((input, position) => {
+        const name = position === 0 ? 'w0' : 'w1'
+        filters.push(windowChain(streamIndex.get(input) as number, name))
+        const x = input.slot === 0 ? 0 : 640
+        const isLast = position === videos.length - 1
+        const out = isLast ? '[v]' : `[b${position}]`
+        const tail = isLast ? ',format=yuv420p' : ''
+        filters.push(`${base}[${name}]overlay=x=${x}:y=0:eof_action=pass:repeatlast=0${tail}${out}`)
+        base = out
+      })
+    }
+
+    if (audios.length === 2) {
+      const [first, second] = audios
+      filters.push(`[${streamIndex.get(first)}:a]aresample=async=1000[a0]`)
+      filters.push(`[${streamIndex.get(second)}:a]aresample=async=1000[a1]`)
+      filters.push(`[a0][a1]amix=inputs=2:duration=longest${withVideo ? ',apad' : ''}[a]`)
+    } else if (audios.length === 1) {
+      filters.push(`[${streamIndex.get(audios[0])}:a]aresample=async=1000${withVideo ? ',apad' : ''}[a]`)
+    }
+
+    args.push('-filter_complex', filters.join(';'))
+
+    if (withVideo) args.push('-map', '[v]')
+    if (audios.length > 0) args.push('-map', '[a]')
+
+    if (withVideo) {
       args.push(
-        '-filter_complex',
-        // aresample=async=1:first_pts=0 - выравнивает аудио по общей шкале и
-        // вставляет тишину там, где пакеты потерялись (раньше эти пропуски
-        // просто "сжимались", из-за чего звук кончался раньше видео).
-        // apad + shortest=1 гарантируют, что аудио доходит ровно до конца видео.
-        '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
-          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,' +
-          'pad=1280:480:0:0:color=black[base];' +
-          '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
-          'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
-          '[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];' +
-          '[0:a:0]aresample=async=1000[a0];' +
-          '[0:a:1]aresample=async=1000[a1];' +
-          '[a0][a1]amix=inputs=2:duration=longest,apad[a]',
-        '-map', '[v]',
-        '-map', '[a]',
-        // shortest обрезает добавленную apad-тишину точно по концу видео.
-        '-shortest',
-        '-avoid_negative_ts', 'make_zero',
+        // Канвас бесконечен, а apad добавляет тишину - длительность задаём сами
+        // по реальному времени сегмента.
+        '-t', String(session.durationSeconds),
         '-c:v', recordingConfig.videoCodec,
-        // Офлайн можно кодировать качественнее, но cpu-used 4 держит скорость
-        // выше реального времени даже на слабом сервере.
         '-deadline', 'good',
         '-cpu-used', '4',
         '-b:v', '1500k',
         '-g', '60',
       )
-    } else {
-      args.push(
-        '-filter_complex',
-        '[0:a:0]aresample=async=1000[a0];' +
-          '[0:a:1]aresample=async=1000[a1];' +
-          '[a0][a1]amix=inputs=2:duration=longest[a]',
-        '-map', '[a]',
-        '-avoid_negative_ts', 'make_zero',
-      )
     }
 
-    args.push('-c:a', recordingConfig.audioCodec, '-b:a', '128k', '-f', recordingConfig.format, '-y', session.filePath)
+    args.push(
+      '-avoid_negative_ts', 'make_zero',
+      '-c:a', recordingConfig.audioCodec,
+      '-b:a', '128k',
+      '-f', recordingConfig.format,
+      '-y', session.filePath,
+    )
     return args
   }
 
   /** Запускает офлайн-склейку и ждёт её завершения. */
-  private composeSegment(session: RecordingSession): Promise<void> {
-    const args = this.buildComposeArgs(session)
+  private composeSegment(session: RecordingSession, usable: RecordingInput[]): Promise<void> {
+    const args = this.buildComposeArgs(session, usable)
     console.log('[Recorder] Composing:', recordingConfig.ffmpegPath, args.join(' '))
 
     return new Promise<void>((resolve, reject) => {
@@ -309,34 +463,6 @@ class Recorder {
         else reject(new Error(`Compose FFmpeg exited with code ${code}`))
       })
     })
-  }
-
-  private startFfmpeg(session: RecordingSession): ChildProcess {
-    const args = this.buildFfmpegArgs(session)
-    console.log('[Recorder] Starting FFmpeg:', recordingConfig.ffmpegPath, args.join(' '))
-
-    const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
-
-    ffmpeg.stderr?.on('data', (data: Buffer) => {
-      const text = data.toString().trim()
-      if (text) console.log(`[Recorder] FFmpeg [${session.id}]: ${text}`)
-    })
-
-    ffmpeg.on('close', (code) => {
-      console.log(`[Recorder] FFmpeg [${session.id}] exited with code ${code}`)
-      if (session.status === 'recording' || session.status === 'starting') {
-        session.status = code === 0 ? 'completed' : 'failed'
-        if (code !== 0) session.error = `FFmpeg exited with code ${code}`
-      }
-    })
-
-    ffmpeg.on('error', (error) => {
-      console.error(`[Recorder] FFmpeg [${session.id}] error:`, error)
-      session.status = 'failed'
-      session.error = error.message
-    })
-
-    return ffmpeg
   }
 
   /**
@@ -371,36 +497,40 @@ class Recorder {
       startedAt: new Date(),
       status: 'starting',
       filePath: path.join(recordingConfig.outputDir, `${sessionId}.${recordingConfig.format}`),
-      rawPath: path.join(recordingConfig.outputDir, `${sessionId}.raw.mkv`),
-      sdpPath: path.join(recordingConfig.outputDir, `${sessionId}.sdp`),
       durationSeconds: 0,
-      ffmpegProcess: null,
       inputs: [],
       keyFrameTimer: null,
     }
     this.sessions.set(sessionId, session)
 
     try {
-      // Input order defines SDP stream order: video A, video B, audio A, audio B.
       if (withVideo) {
-        session.inputs.push(await this.createInput(router, participantA.video!))
-        session.inputs.push(await this.createInput(router, participantB.video!))
+        session.inputs.push(await this.createInput(session, router, participantA.video!, 0))
+        session.inputs.push(await this.createInput(session, router, participantB.video!, 1))
       }
-      session.inputs.push(await this.createInput(router, participantA.audio))
-      session.inputs.push(await this.createInput(router, participantB.audio))
+      session.inputs.push(await this.createInput(session, router, participantA.audio, 0))
+      session.inputs.push(await this.createInput(session, router, participantB.audio, 1))
 
-      await writeFile(session.sdpPath, this.generateSdp(session.inputs))
-      session.ffmpegProcess = this.startFfmpeg(session)
+      // Каждому потоку - свой SDP и свой процесс FFmpeg.
+      for (const input of session.inputs) {
+        await writeFile(input.sdpPath, this.generateSdp(input))
+        input.ffmpeg = this.startInputFfmpeg(session, input)
+      }
+
       session.status = 'recording'
 
-      // FFmpeg needs a keyframe to start decoding each video stream.
+      // FFmpeg начинает писать видео только с ключевого кадра.
       if (withVideo) this.scheduleKeyFrameRequests(session)
 
-      console.log(`[Recorder] Started ${session.recordingType} segment ${sessionId} for room ${roomId}`)
+      console.log(
+        `[Recorder] Started ${session.recordingType} segment ${sessionId} for room ${roomId} ` +
+          `(${session.inputs.length} independent FFmpeg processes)`,
+      )
       return session
     } catch (error) {
       session.status = 'failed'
       session.error = error instanceof Error ? error.message : 'Unknown error'
+      await this.stopInputProcesses(session)
       this.closeInputs(session)
       this.releasePorts(session)
       console.error('[Recorder] Failed to start segment:', error)
@@ -419,12 +549,12 @@ class Recorder {
   /**
    * Ключевые кадры нужно запрашивать ВСЮ запись, а не только на старте.
    * FFmpeg не умеет присылать PLI/FIR через RTCP, поэтому после любой потери
-   * пакета декодер остаётся без опорного кадра и картинка "застывает"
-   * навсегда. Регулярный requestKeyFrame восстанавливает видео за пару секунд.
+   * пакета декодер остаётся без опорного кадра и картинка "застывает".
    */
   private scheduleKeyFrameRequests(session: RecordingSession): void {
-    // Стартовые запросы: покрывают время запуска FFmpeg.
-    for (const delayMs of [500, 1500, 3000]) {
+    // Стартовые запросы: чем раньше придёт keyframe, тем короче чёрный
+    // участок в начале видеодорожки.
+    for (const delayMs of [200, 600, 1500, 3000]) {
       const timer = setTimeout(() => {
         if (session.status !== 'recording') return
         this.requestKeyFrames(session)
@@ -450,6 +580,66 @@ class Recorder {
     }
   }
 
+  /**
+   * Останавливает процесс FFmpeg одной дорожки эскалацией "q" -> SIGTERM ->
+   * SIGKILL. Команда "q" через stdin - единственный способ, при котором
+   * FFmpeg дописывает контейнер (иначе файл остаётся битым).
+   */
+  private stopInputProcess(session: RecordingSession, input: RecordingInput): Promise<void> {
+    const ffmpeg = input.ffmpeg
+    if (!ffmpeg || ffmpeg.exitCode !== null) return Promise.resolve()
+
+    return new Promise<void>((resolve) => {
+      const termTimer = setTimeout(() => {
+        if (ffmpeg.exitCode === null) {
+          console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] ignored "q", sending SIGTERM`)
+          ffmpeg.kill('SIGTERM')
+        }
+      }, 4000)
+      termTimer.unref()
+
+      const killTimer = setTimeout(() => {
+        if (ffmpeg.exitCode === null) {
+          console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] did not exit, killing`)
+          ffmpeg.kill('SIGKILL')
+        }
+        resolve()
+      }, 8000)
+      killTimer.unref()
+
+      ffmpeg.once('close', () => {
+        clearTimeout(termTimer)
+        clearTimeout(killTimer)
+        resolve()
+      })
+
+      try {
+        if (ffmpeg.stdin && ffmpeg.stdin.writable) {
+          ffmpeg.stdin.write('q')
+          ffmpeg.stdin.end()
+        } else {
+          ffmpeg.kill('SIGTERM')
+        }
+      } catch {
+        ffmpeg.kill('SIGTERM')
+      }
+    })
+  }
+
+  /** Все дорожки останавливаем параллельно, пока RTP ещё идёт. */
+  private async stopInputProcesses(session: RecordingSession): Promise<void> {
+    await Promise.all(session.inputs.map((input) => this.stopInputProcess(session, input)))
+  }
+
+  private async cleanupTempFiles(session: RecordingSession): Promise<void> {
+    await Promise.all(
+      session.inputs.flatMap((input) => [
+        unlink(input.rawPath).catch(() => {}),
+        unlink(input.sdpPath).catch(() => {}),
+      ]),
+    )
+  }
+
   async stopSegment(sessionId: string): Promise<RecordingSession> {
     const session = this.sessions.get(sessionId)
     if (!session) throw new Error(`Recording session ${sessionId} not found`)
@@ -463,60 +653,37 @@ class Recorder {
       session.keyFrameTimer = null
     }
 
-    // ВАЖЕН ПОРЯДОК: сначала останавливаем FFmpeg, и только потом закрываем
-    // консюмеры. Раньше было наоборот - поток пакетов обрывался, FFmpeg
-    // навсегда блокировался в recvfrom() на UDP-сокете и не успевал прочитать
-    // "q" со stdin ("ignored q" -> SIGKILL -> недописанный MKV).
-    const ffmpeg = session.ffmpegProcess
-    if (ffmpeg && ffmpeg.exitCode === null) {
-      await new Promise<void>((resolve) => {
-        // Эскалация: "q" -> SIGTERM -> SIGKILL. Команда "q" через stdin -
-        // единственный способ, при котором ffmpeg дописывает индекс и
-        // корректно финализирует MKV (иначе - "File ended prematurely").
-        const termTimer = setTimeout(() => {
-          if (ffmpeg.exitCode === null) {
-            console.log(`[Recorder] FFmpeg [${session.id}] ignored "q", sending SIGTERM`)
-            ffmpeg.kill('SIGTERM')
-          }
-        }, 4000)
-        termTimer.unref()
-
-        const killTimer = setTimeout(() => {
-          if (ffmpeg.exitCode === null) {
-            console.log(`[Recorder] FFmpeg [${session.id}] did not exit, killing`)
-            ffmpeg.kill('SIGKILL')
-          }
-          resolve()
-        }, 8000)
-        killTimer.unref()
-
-        ffmpeg.once('close', () => {
-          clearTimeout(termTimer)
-          clearTimeout(killTimer)
-          resolve()
-        })
-
-        try {
-          if (ffmpeg.stdin && ffmpeg.stdin.writable) {
-            ffmpeg.stdin.write('q')
-            ffmpeg.stdin.end()
-          } else {
-            ffmpeg.kill('SIGTERM')
-          }
-        } catch {
-          ffmpeg.kill('SIGTERM')
-        }
-      })
-    }
-
-    // Теперь RTP больше не нужен - освобождаем ресурсы mediasoup.
+    // ВАЖЕН ПОРЯДОК: сначала останавливаем FFmpeg (пакеты ещё идут, поэтому
+    // процесс не заблокирован в recvfrom и сразу читает "q"), и только потом
+    // закрываем консюмеры mediasoup.
+    await this.stopInputProcesses(session)
     this.closeInputs(session)
     this.releasePorts(session)
 
-    // Этап 2: офлайн-склейка сырого MKV в итоговый WebM.
+    const usable = session.inputs.filter((input) => this.hasUsableData(input))
+    const skipped = session.inputs.filter((input) => !usable.includes(input))
+    if (skipped.length > 0) {
+      console.warn(`[Recorder] Skipping empty tracks: ${skipped.map((i) => i.label).join(', ')}`)
+    }
+
+    if (usable.length === 0) {
+      session.status = 'failed'
+      session.error = 'No usable tracks were recorded'
+      await this.cleanupTempFiles(session)
+      console.error(`[Recorder] Segment ${sessionId} has no usable tracks`)
+      return session
+    }
+
+    // Если ни одно видео не записалось, отдаём аудиозапись - это честнее,
+    // чем ронять весь сегмент.
+    if (session.recordingType === 'video' && !usable.some((i) => i.kind === 'video')) {
+      console.warn(`[Recorder] Segment ${sessionId} has no video tracks, saving as audio`)
+      session.recordingType = 'audio'
+    }
+
     try {
       session.status = 'composing'
-      await this.composeSegment(session)
+      await this.composeSegment(session, usable)
       session.status = 'completed'
     } catch (error) {
       session.status = 'failed'
@@ -524,11 +691,8 @@ class Recorder {
       console.error(`[Recorder] Compose failed for ${sessionId}:`, error)
     }
 
-    // Временные файлы больше не нужны (raw оставляем при ошибке для отладки).
-    if (session.status === 'completed') {
-      void unlink(session.rawPath).catch(() => {})
-      void unlink(session.sdpPath).catch(() => {})
-    }
+    // При ошибке оставляем сырые дорожки для отладки.
+    if (session.status === 'completed') await this.cleanupTempFiles(session)
 
     console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s, ${session.status})`)
     return session
