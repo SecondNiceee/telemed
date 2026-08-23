@@ -187,7 +187,7 @@ class Recorder {
    */
   private buildFfmpegArgs(session: RecordingSession): string[] {
     // Без -nostdin: остановка делается командой "q" через stdin - это
-    // единственный способ, при котором ffmpeg гарантированно финализирует
+    // единственный способ, при котором ffmpeg гарантированно финал��зирует
     // MKV. SIGTERM он может не обработать, пока заблокирован в чтении UDP
     // (в логах было "did not exit, killing" -> "File ended prematurely").
     return [
@@ -196,12 +196,25 @@ class Recorder {
       '-analyzeduration', '10M',
       '-probesize', '10M',
       '-buffer_size', '8388608',
-      '-max_delay', '5000000',
-      '-reorder_queue_size', '4096',
+      // max_delay уменьшен до 1 с: при 5 с демуксер держал пакеты слишком
+      // долго и отдавал их уже "просроченными" - отсюда non-monotonic DTS.
+      '-max_delay', '1000000',
+      '-reorder_queue_size', '2048',
       '-thread_queue_size', '8192',
+      // Единая часовая шкала для ВСЕХ дорожек. RTP-таймстампы каждого
+      // потока живут в своей системе отсчёта, и при -c copy их DTS
+      // разъезжались и зажимались ("changing to ..."), из-за чего аудио
+      // укорачивалось и уходило от видео. Wallclock-метки монотонны и
+      // общие для всех четырёх дорожек, поэтому взаимный сдвиг сохраняется.
+      '-use_wallclock_as_timestamps', '1',
       '-i', session.sdpPath,
       '-map', '0',
       '-c', 'copy',
+      // copyts сохраняет проставленные wallclock-метки без пересчёта,
+      // vsync passthrough запрещает ffmpeg дублировать/выбрасывать кадры.
+      '-copyts',
+      '-vsync', 'passthrough',
+      '-max_interleave_delta', '0',
       '-f', 'matroska',
       '-y', session.rawPath,
     ]
@@ -215,20 +228,34 @@ class Recorder {
    */
   private buildComposeArgs(session: RecordingSession): string[] {
     const hasVideo = session.recordingType === 'video'
-    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-i', session.rawPath]
+    // -copyts на входе: сохраняем абсолютные wallclock-метки из этапа 1,
+    // чтобы взаимные сдвиги дорожек не потерялись при декодировании.
+    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-copyts', '-i', session.rawPath]
 
     if (hasVideo) {
       args.push(
         '-filter_complex',
+        // aresample=async=1:first_pts=0 - выравнивает аудио по общей шкале и
+        // вставляет тишину там, где пакеты потерялись (раньше эти пропуски
+        // просто "сжимались", из-за чего звук кончался раньше видео).
+        // apad + shortest=1 гарантируют, что аудио доходит ровно до конца видео.
         '[0:v:0]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p,' +
           'pad=1280:480:0:0:color=black[base];' +
           '[0:v:1]fps=15,scale=640:480:force_original_aspect_ratio=decrease,' +
           'pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[right];' +
           '[base][right]overlay=x=640:y=0:eof_action=pass:repeatlast=1,format=yuv420p[v];' +
-          '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
+          '[0:a:0]aresample=async=1:first_pts=0[a0];' +
+          '[0:a:1]aresample=async=1:first_pts=0[a1];' +
+          '[a0][a1]amix=inputs=2:duration=longest,apad[a]',
         '-map', '[v]',
         '-map', '[a]',
+        // shortest обрезает добавленную apad-тишину точно по концу видео.
+        '-shortest',
+        // Итоговый файл должен начинаться с нуля, иначе плеер покажет
+        // многосекундную "пустоту" в начале.
+        '-start_at_zero',
+        '-avoid_negative_ts', 'make_zero',
         '-c:v', recordingConfig.videoCodec,
         // Офлайн можно кодировать качественнее, но cpu-used 4 держит скорость
         // выше реального времени даже на слабом сервере.
@@ -239,8 +266,13 @@ class Recorder {
       )
     } else {
       args.push(
-        '-filter_complex', '[0:a:0][0:a:1]amix=inputs=2:duration=longest[a]',
+        '-filter_complex',
+        '[0:a:0]aresample=async=1:first_pts=0[a0];' +
+          '[0:a:1]aresample=async=1:first_pts=0[a1];' +
+          '[a0][a1]amix=inputs=2:duration=longest[a]',
         '-map', '[a]',
+        '-start_at_zero',
+        '-avoid_negative_ts', 'make_zero',
       )
     }
 
