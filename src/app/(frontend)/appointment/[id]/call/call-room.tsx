@@ -96,6 +96,7 @@ export function CallRoom({
   const needsRestoreCheck = isCaller && Boolean(callId) && knownStatus === undefined
   const [restoredStatus, setRestoredStatus] = useState<'waiting' | 'answered' | 'closed' | null>(null)
   const [socketGraceElapsed, setSocketGraceElapsed] = useState(false)
+  const [emptyRoomTimedOut, setEmptyRoomTimedOut] = useState(false)
 
   const invitationStatus: 'resolving' | 'waiting' | 'answered' | 'rejected' | 'closed' = !callId
     ? 'answered'
@@ -104,9 +105,10 @@ export function CallRoom({
   const isCallActive = invitationStatus === 'answered'
   const isWaitingForPatient = invitationStatus === 'waiting'
   const isResolving = invitationStatus === 'resolving'
-  const isRoomClosed = invitationStatus === 'closed'
+  const isRoomClosed = invitationStatus === 'closed' || emptyRoomTimedOut
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
+  const callLeave = call.leave
   const handledEndReasonRef = useRef(false)
   const handledRejectionRef = useRef(false)
   const handledClosedRoomRef = useRef(false)
@@ -188,12 +190,29 @@ export function CallRoom({
     }
   }, [appointmentId, callId, getCallState, isConnected, needsRestoreCheck, socketGraceElapsed])
 
+  // Подстраховка изнутри комнаты. HTTP-проверка выше доступна не всегда (запрос
+  // к медиасерверу может не дойти), и тогда мы входим в звонок «на всякий
+  // случай». Медиасервер при входе сообщает, есть ли живой собеседник: если его
+  // нет и он не появляется, звонок закончен - уходим, а не ждём бесконечно.
+  useEffect(() => {
+    // Обрыв уже в середине звонка обрабатывается отдельно (там своё сообщение),
+    // иначе пользователь увидел бы два уведомления подряд.
+    if (!isCallActive || call.endReason || call.remotePresence !== 'absent') return
+    // Вернувшемуся по старой ссылке ждать почти нечего, а в только что принятом
+    // звонке собеседнику нужно время на вход - там срок заметно больше.
+    const timer = window.setTimeout(() => setEmptyRoomTimedOut(true), needsRestoreCheck ? 12000 : 40000)
+    return () => window.clearTimeout(timer)
+  }, [call.endReason, call.remotePresence, isCallActive, needsRestoreCheck])
+
   useEffect(() => {
     if (!isRoomClosed || handledClosedRoomRef.current) return
     handledClosedRoomRef.current = true
+    // Могли успеть войти в комнату и включить камеру: отпускаем устройства и
+    // дописываем запись, иначе микрофон останется занятым после ухода.
+    callLeave()
     toast.info('Комната уже закрыта — звонок завершён', { position: 'top-center' })
-    router.replace(`${chatPath}?appointment=${appointmentId}`)
-  }, [appointmentId, chatPath, isRoomClosed, router])
+    void stopRecording().finally(() => router.replace(`${chatPath}?appointment=${appointmentId}`))
+  }, [appointmentId, callLeave, chatPath, isRoomClosed, router, stopRecording])
 
   // В комнату чата входим на всё время звонка, даже когда панель закрыта:
   // иначе `new-message` не дойдёт и счётчик непрочитанных останется пустым.
@@ -295,7 +314,7 @@ export function CallRoom({
         {call.error ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive" role="alert">
             <span>{call.error}</span>
-            <Button variant="outline" size="sm" onClick={() => void call.connect()}><RefreshCw data-icon="inline-start" />Повторить</Button>
+            <Button variant="outline" size="sm" onClick={() => void call.connect()}><RefreshCw data-icon="inline-start" />Повтори��ь</Button>
           </div>
         ) : null}
 

@@ -47,7 +47,7 @@ function handle<T extends object>(ack: Ack<T>, operation: () => Promise<T> | T):
 }
 
 export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
-  socket.on('joinRoom', (data: { token?: string; roomId?: string; peerId?: string }, ack: Ack<{ routerRtpCapabilities: RtpCapabilities }>) => {
+  socket.on('joinRoom', (data: { token?: string; roomId?: string; peerId?: string }, ack: Ack<{ routerRtpCapabilities: RtpCapabilities; otherPeersOnline: number }>) => {
     handle(ack, async () => {
       if (!data?.token || !data.roomId || !data.peerId) throw new Error('token, roomId and peerId are required')
       if (socket.data.roomId && socket.data.roomId !== data.roomId) throw new Error('Socket has already joined another room')
@@ -79,7 +79,12 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
         socket.to(claims.roomId).emit('peerJoined', { peerId: claims.peerId, peerName: claims.peerName, role: claims.role })
       }
       console.log(`[MediaSoup] joined socket=${socket.id} room=${claims.roomId} peer=${claims.peerId} repeat=${isSameSocketJoin}`)
-      return { routerRtpCapabilities: roomManager.getRouterRtpCapabilities(room) }
+      // Сообщаем, есть ли в комнате живой собеседник. Это единственный надёжный
+      // источник: он идёт по тому же каналу, что и сам звонок, поэтому работает
+      // и там, где HTTP-проверка состояния комнаты недоступна.
+      const otherPeersOnline = [...room.peers.entries()]
+        .filter(([peerId, peer]) => peerId !== claims.peerId && peer.isOnline).length
+      return { routerRtpCapabilities: roomManager.getRouterRtpCapabilities(room), otherPeersOnline }
     })
   })
 

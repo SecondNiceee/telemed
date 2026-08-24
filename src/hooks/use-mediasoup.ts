@@ -7,6 +7,7 @@ import { getStableMicrophone, type MicrophoneGate } from '@/lib/mediasoup/mic-ga
 
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 export type CallEndReason = 'participant-ended' | 'participant-disconnected'
+export type RemotePresence = 'unknown' | 'present' | 'absent'
 type Ack<T = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
 interface TokenData {
   token: string
@@ -58,6 +59,8 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [remoteCameraEnabled, setRemoteCameraEnabled] = useState(true)
   const [online, setOnline] = useState(true)
   const [endReason, setEndReason] = useState<CallEndReason | null>(null)
+  // Есть ли в комнате второй участник. 'unknown' - пока не вошли и не спросили.
+  const [remotePresence, setRemotePresence] = useState<RemotePresence>('unknown')
 
   const socketRef = useRef<Socket | null>(null)
   const tokenRef = useRef<TokenData | null>(null)
@@ -280,11 +283,14 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         closeMediaSession()
 
         try {
-          const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities }>(socket, 'joinRoom', token)
+          const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities; otherPeersOnline?: number }>(socket, 'joinRoom', token)
           if (!socket.connected || socket.id !== socketId || socketRef.current !== socket) {
             pendingJoinRef.current = true
             continue
           }
+          // Сервер сразу говорит, есть ли в комнате живой собеседник. Без этого
+          // нельзя отличить «жду, пока он войдёт» от «звонок давно закончился».
+          setRemotePresence(joined.otherPeersOnline === undefined ? 'unknown' : joined.otherPeersOnline > 0 ? 'present' : 'absent')
 
           joinedSocketIdRef.current = socketId
           const { Device } = await import('mediasoup-client')
@@ -419,9 +425,14 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         // The joining peer has default state; re-send ours so both UIs stay in sync.
         setRemoteMicEnabled(true)
         setRemoteCameraEnabled(true)
+        setRemotePresence('present')
         void broadcastMediaState()
       })
-      socket.on('peerLeft', ({ peerId }) => { remoteStreamsRef.current.delete(peerId); setRemoteMedia(null) })
+      socket.on('peerLeft', ({ peerId }) => {
+        remoteStreamsRef.current.delete(peerId)
+        setRemoteMedia(null)
+        setRemotePresence('absent')
+      })
       socket.on('participantEnded', () => {
         if (leftRef.current) return
         setEndReason('participant-ended')
@@ -491,5 +502,5 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
   }, [leave, restartIce])
 
-  return { status, error, endReason, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
+  return { status, error, endReason, remotePresence, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }

@@ -81,7 +81,11 @@ export async function POST(request: NextRequest) {
       peerName: (role === 'doctor' ? appointment.doctorName : appointment.userName) || (role === 'doctor' ? 'Врач' : 'Пациент'),
     })
 
-    const baseUrl = (process.env.NEXT_PUBLIC_MEDIASOUP_URL || 'http://localhost:3002').replace(/\/$/, '')
+    // Обращаемся к медиасерверу напрямую, а НЕ по публичному
+    // NEXT_PUBLIC_MEDIASOUP_URL: снаружи обратный прокси пропускает только путь
+    // socket.io, поэтому публичный запрос на /rooms/... до медиасервера не
+    // доходит и проверка всегда падала бы в ошибку.
+    const baseUrl = (process.env.MEDIASOUP_INTERNAL_URL || `http://127.0.0.1:${process.env.MEDIASOUP_PORT || '3002'}`).replace(/\/$/, '')
     const response = await fetch(`${baseUrl}/rooms/${roomId}/state`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
