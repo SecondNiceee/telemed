@@ -29,6 +29,8 @@ interface SocketContextValue {
   answerCall: (appointmentId: number, callId: string, answerPeerId: string) => void
   rejectCall: (appointmentId: number, callId: string) => void
   endCall: (appointmentId: number, callId?: string) => void
+  /** Активно ли ещё приглашение. null - сервер не ответил. */
+  getCallState: (appointmentId: number, callId: string) => Promise<{ pending: boolean } | null>
   // Callback for when remote party ends call (before store is updated)
   // Callback can be async - socket-provider will await it before updating store
   onRemoteCallEnded: (callback: (appointmentId: number) => void | Promise<void>) => () => void
@@ -463,6 +465,30 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       socket.emit('call-end', { appointmentId, callId })
     }
   }, [socket])
+
+  // Спрашивает сервер, «звонит» ли приглашение до сих пор. Нужно звонящему
+  // после перезагрузки страницы: локальный outgoingCallStatuses тогда пуст, и
+  // без этого запроса нельзя отличить неотвеченный звонок от давно закрытого.
+  // null - ответа нет (нет сокета или таймаут), решение принимает вызывающий.
+  const getCallState = useCallback((appointmentId: number, callId: string) => {
+    return new Promise<{ pending: boolean } | null>((resolve) => {
+      if (!socket?.connected) {
+        resolve(null)
+        return
+      }
+      let settled = false
+      const finish = (result: { pending: boolean } | null) => {
+        if (settled) return
+        settled = true
+        window.clearTimeout(timer)
+        resolve(result)
+      }
+      const timer = window.setTimeout(() => finish(null), 5000)
+      socket.emit('call-state', { appointmentId, callId }, (response: { pending?: boolean } | undefined) => {
+        finish(typeof response?.pending === 'boolean' ? { pending: response.pending } : null)
+      })
+    })
+  }, [socket])
   
   // Register a callback to be called when remote party ends the call
   // Callback can be async - it will be awaited before store is updated
@@ -526,6 +552,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     answerCall,
     rejectCall,
     endCall: endCallSignal,
+    getCallState,
     onRemoteCallEnded,
     startConsultation,
     endConsultation,

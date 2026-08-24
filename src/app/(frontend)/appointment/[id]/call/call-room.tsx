@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
+import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, PhoneOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCallRecorder } from '@/hooks/use-call-recorder'
@@ -83,15 +83,34 @@ export function CallRoom({
   const audioOnly = searchParams.get('audio') === '1'
   const isCaller = searchParams.get('caller') === '1'
   const callId = searchParams.get('callId')
-  const { outgoingCallStatuses, endCall: endCallSignal, isConnected, joinRoom, leaveRoom } = useSocket()
+  const { outgoingCallStatuses, endCall: endCallSignal, getCallState, isConnected, joinRoom, leaveRoom } = useSocket()
   const [isChatOpen, setIsChatOpen] = useState(false)
   const unreadCount = useChatStore((state) => state.unreadCounts[appointmentId] ?? 0)
-  const invitationStatus = callId ? outgoingCallStatuses[callId] ?? (isCaller ? 'waiting' : 'answered') : 'answered'
-  const isWaitingForPatient = isCaller && invitationStatus === 'waiting'
+
+  // Звонящий попадает сюда через router.push, поэтому у только что начатого
+  // звонка статус приглашения в памяти всегда есть. Его отсутствие означает,
+  // что страницу открыли заново по старой ссылке (например, после закрытия
+  // браузера) - тогда ждать пациента нельзя, сначала надо выяснить, идёт ли
+  // ещё звонок, иначе экран «Ждём пациента…» зависает навсегда.
+  const knownStatus = callId ? outgoingCallStatuses[callId] : undefined
+  const needsRestoreCheck = isCaller && Boolean(callId) && knownStatus === undefined
+  const [restoredStatus, setRestoredStatus] = useState<'waiting' | 'answered' | 'closed' | null>(null)
+  const [socketGraceElapsed, setSocketGraceElapsed] = useState(false)
+
+  const invitationStatus: 'resolving' | 'waiting' | 'answered' | 'rejected' | 'closed' = !callId
+    ? 'answered'
+    : knownStatus ?? (needsRestoreCheck ? restoredStatus ?? 'resolving' : 'answered')
+
+  const isCallActive = invitationStatus === 'answered'
+  const isWaitingForPatient = invitationStatus === 'waiting'
+  const isResolving = invitationStatus === 'resolving'
+  const isRoomClosed = invitationStatus === 'closed'
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
   const handledEndReasonRef = useRef(false)
   const handledRejectionRef = useRef(false)
+  const handledClosedRoomRef = useRef(false)
+  const restoreCheckStartedRef = useRef(false)
   const recorder = useCallRecorder({
     enabled: recordingDoctorId !== null,
     appointmentId,
@@ -105,6 +124,75 @@ export function CallRoom({
   useEffect(() => {
     if (invitationStatus === 'answered') void connect()
   }, [connect, invitationStatus])
+
+  // Сокет после перезагрузки поднимается не мгновенно. Ждём его недолго, но не
+  // бесконечно: если связи нет, проверку всё равно нужно довести до конца.
+  useEffect(() => {
+    if (!needsRestoreCheck) return
+    const timer = window.setTimeout(() => setSocketGraceElapsed(true), 5000)
+    return () => window.clearTimeout(timer)
+  }, [needsRestoreCheck])
+
+  useEffect(() => {
+    if (!needsRestoreCheck || !callId) return
+    if (!isConnected && !socketGraceElapsed) return
+    if (restoreCheckStartedRef.current) return
+    restoreCheckStartedRef.current = true
+
+    let cancelled = false
+    void (async () => {
+      // Сервер помнит только те приглашения, на которые ещё не ответили.
+      const state = await getCallState(appointmentId, callId)
+      if (cancelled) return
+      if (state?.pending) {
+        setRestoredStatus('waiting')
+        return
+      }
+
+      // На приглашение ответили или оно истекло. Живой звонок отличаем от
+      // закрытого по присутствию второго участника в комнате медиасервера.
+      // Опрашиваем несколько раз: собеседник мог принять звонок за мгновение
+      // до нашего возвращения и ещё не успеть войти в комнату.
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2000))
+        if (cancelled) return
+        try {
+          const response = await fetch('/api/mediasoup/room-state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ appointmentId }),
+          })
+          const data = await response.json() as { success?: boolean; otherPeerPresent?: boolean }
+          if (cancelled) return
+          if (!response.ok || data.success !== true) {
+            // Состояние выяснить не удалось. Подключаемся: понятная ошибка
+            // соединения лучше ложного «комната закрыта».
+            setRestoredStatus('answered')
+            return
+          }
+          if (data.otherPeerPresent) {
+            setRestoredStatus('answered')
+            return
+          }
+        } catch {
+          if (!cancelled) setRestoredStatus('answered')
+          return
+        }
+      }
+      if (!cancelled) setRestoredStatus('closed')
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [appointmentId, callId, getCallState, isConnected, needsRestoreCheck, socketGraceElapsed])
+
+  useEffect(() => {
+    if (!isRoomClosed || handledClosedRoomRef.current) return
+    handledClosedRoomRef.current = true
+    toast.info('Комната уже закрыта — звонок завершён', { position: 'top-center' })
+    router.replace(`${chatPath}?appointment=${appointmentId}`)
+  }, [appointmentId, chatPath, isRoomClosed, router])
 
   // В комнату чата входим на всё время звонка, даже когда панель закрыта:
   // иначе `new-message` не дойдёт и счётчик непрочитанных останется пустым.
@@ -148,7 +236,9 @@ export function CallRoom({
     // Запись останавливаем до разрыва медиа: иначе треки уйдут из-под
     // MediaRecorder и хвост сегмента потеряется.
     await stopRecording()
-    if (isWaitingForPatient) {
+    // Без установленного соединения нечего разрывать: достаточно снять
+    // приглашение, если оно ещё висит на сервере.
+    if (!isCallActive) {
       endCallSignal(appointmentId, callId ?? undefined)
       call.leave()
     } else {
@@ -181,8 +271,22 @@ export function CallRoom({
               </span>
             ) : null}
             <div className="flex items-center gap-2" role="status" aria-live="polite">
-              {!call.online ? <WifiOff aria-hidden="true" /> : !isWaitingForPatient && call.status === 'reconnecting' ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
-              <span>{isWaitingForPatient ? 'Ждём пациента…' : !call.online ? 'Нет сети' : call.status === 'connected' ? 'Соединение установлено' : call.status === 'failed' ? 'Ошибка соединения' : 'Подключение…'}</span>
+              {!call.online ? <WifiOff aria-hidden="true" /> : isResolving || (isCallActive && call.status === 'reconnecting') ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
+              <span>
+                {isResolving
+                  ? 'Проверяем звонок…'
+                  : isRoomClosed
+                    ? 'Комната закрыта'
+                    : isWaitingForPatient
+                      ? 'Ждём пациента…'
+                      : !call.online
+                        ? 'Нет сети'
+                        : call.status === 'connected'
+                          ? 'Соединение установлено'
+                          : call.status === 'failed'
+                            ? 'Ошибка соединения'
+                            : 'Подключение…'}
+              </span>
             </div>
           </div>
         </header>
@@ -196,13 +300,28 @@ export function CallRoom({
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            {isWaitingForPatient ? (
+            {!isCallActive ? (
               <section className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-sm" role="status" aria-live="polite">
-                <span className="size-3 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                {isRoomClosed ? (
+                  <PhoneOff className="size-8 text-muted-foreground" aria-hidden="true" />
+                ) : (
+                  <span className="size-3 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                )}
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-balance text-2xl font-semibold">Ждём пациента…</h2>
-                  <p className="text-pretty text-sm leading-6 text-muted-foreground">Подключение к защищённой комнате начнётся после принятия звонка.</p>
+                  <h2 className="text-balance text-2xl font-semibold">
+                    {isRoomClosed ? 'Комната уже закрыта' : isResolving ? 'Проверяем состояние звонка…' : 'Ждём пациента…'}
+                  </h2>
+                  <p className="text-pretty text-sm leading-6 text-muted-foreground">
+                    {isRoomClosed
+                      ? 'Звонок завершён, участников в комнате нет. Открываем чат консультации.'
+                      : isResolving
+                        ? 'Выясняем, идёт ли ещё эта консультация.'
+                        : 'Подключение к защищённой комнате начнётся после принятия звонка.'}
+                  </p>
                 </div>
+                {isRoomClosed ? (
+                  <Button variant="outline" onClick={() => router.replace(`${chatPath}?appointment=${appointmentId}`)}>Перейти в чат</Button>
+                ) : null}
               </section>
             ) : (
               <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
@@ -231,7 +350,7 @@ export function CallRoom({
         </div>
 
         <footer className="flex flex-wrap items-center justify-center gap-3 pt-5">
-          {!isWaitingForPatient ? (
+          {isCallActive ? (
             <>
               <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.micEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleMicrophone()} aria-label={call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}>{call.micEnabled ? <Mic /> : <MicOff />}</Button></TooltipTrigger><TooltipContent>{call.micEnabled ? 'Выключить микрофон' : 'Включить микрофон'}</TooltipContent></Tooltip>
               {!audioOnly ? <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip> : null}
