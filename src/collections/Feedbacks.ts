@@ -2,6 +2,11 @@ import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth'
+import {
+  recalculateDoctorRating,
+  recalculateDoctorRatings,
+  toDoctorId,
+} from './helpers/doctor-rating'
 
 export const Feedbacks: CollectionConfig = {
   slug: 'feedbacks',
@@ -112,6 +117,26 @@ export const Feedbacks: CollectionConfig = {
           }
         }
         return data
+      },
+    ],
+    /**
+     * Любое изменение отзыва меняет средний балл врача — пересчитываем сразу.
+     * Именно afterChange/afterDelete: в beforeChange отзыва в выборке ещё нет
+     * (или он ещё старый), и агрегат посчитался бы по предыдущему состоянию.
+     */
+    afterChange: [
+      async ({ doc, previousDoc, req }) => {
+        // Админ может перевесить отзыв на другого врача — тогда пересчёт нужен
+        // обоим: прежний теряет оценку, новый получает.
+        await recalculateDoctorRatings({
+          req,
+          doctorIds: [toDoctorId(doc?.doctor), toDoctorId(previousDoc?.doctor)],
+        })
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        await recalculateDoctorRating({ req, doctorId: toDoctorId(doc?.doctor) })
       },
     ],
   },

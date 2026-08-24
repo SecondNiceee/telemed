@@ -20,8 +20,8 @@ import {
   DEFAULT_SORT,
   SORT_OPTIONS,
   SORT_STORAGE_KEY,
+  getDoctorRating,
   isDoctorSortOption,
-  type DoctorRatingsMap,
   type DoctorSortOption,
 } from "@/lib/utils/doctor-rating";
 
@@ -30,13 +30,11 @@ const DOCTORS_PER_PAGE = 6;
 
 interface CategoryPageClientProps {
   doctors: ApiDoctor[];
-  ratings: DoctorRatingsMap;
   initialSelectedDate?: string;
 }
 
 export function CategoryPageClient ({ 
   doctors, 
-  ratings,
   initialSelectedDate 
 }: CategoryPageClientProps) {
   const router = useRouter();
@@ -85,12 +83,18 @@ export function CategoryPageClient ({
 
     if (sortBy === "rating") {
       return result.sort((a, b) => {
-        const aRating = ratings[a.id];
-        const bRating = ratings[b.id];
-        const byAverage = (bRating?.average ?? 0) - (aRating?.average ?? 0);
+        // Рейтинг лежит на самом враче: хуки отзывов держат его актуальным.
+        const aRating = getDoctorRating(a);
+        const bRating = getDoctorRating(b);
+        // Врачи без отзывов идут в конец, а не считаются нулём: иначе они
+        // смешались бы с теми, кому реально ставили низкие оценки.
+        if (!aRating && !bRating) return byName(a, b);
+        if (!aRating) return 1;
+        if (!bRating) return -1;
+        const byAverage = bRating.average - aRating.average;
         if (byAverage !== 0) return byAverage;
         // При равном балле выше тот, у кого он подтверждён большим числом отзывов
-        const byCount = (bRating?.count ?? 0) - (aRating?.count ?? 0);
+        const byCount = bRating.count - aRating.count;
         return byCount !== 0 ? byCount : byName(a, b);
       });
     }
@@ -104,7 +108,7 @@ export function CategoryPageClient ({
       if (b.price == null) return -1;
       return a.price === b.price ? byName(a, b) : (a.price - b.price) * direction;
     });
-  }, [doctors, ratings, sortBy]);
+  }, [doctors, sortBy]);
 
   // Filter doctors by search query and selected date
   const filteredDoctors = useMemo(() => {
@@ -259,11 +263,7 @@ export function CategoryPageClient ({
         <div ref={listRef} className="scroll-mt-28">
           <div className="grid gap-3">
             {visibleDoctors.map((doctor) => (
-              <DoctorCard
-                key={doctor.id}
-                doctor={doctor}
-                rating={ratings[doctor.id] ?? null}
-              />
+              <DoctorCard key={doctor.id} doctor={doctor} />
             ))}
           </div>
 

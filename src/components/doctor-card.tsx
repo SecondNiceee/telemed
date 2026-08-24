@@ -10,16 +10,16 @@ import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
 import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
 import { toOptimizableMediaSrc } from "@/lib/utils/media";
-import type { DoctorRating } from "@/lib/utils/doctor-rating";
+import { getDoctorRating } from "@/lib/utils/doctor-rating";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;
-  /** Средний балл по отзывам. null — отзывов ещё нет. */
-  rating?: DoctorRating | null;
 }
 
-export function DoctorCard({ doctor, rating }: DoctorCardProps) {
+export function DoctorCard({ doctor }: DoctorCardProps) {
   const specialty = getDoctorSpecialty(doctor);
+  // Рейтинг лежит на самом враче — прокидывать его пропом больше не нужно.
+  const rating = getDoctorRating(doctor);
   const router = useRouter();
   // null, если у врача нет ни одного слота — тогда длительность не показываем.
   const consultationDuration = getConsultationDurationLabel(doctor);

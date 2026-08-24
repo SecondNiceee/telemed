@@ -219,6 +219,14 @@ export interface Doctor {
   degree?: string | null;
   price?: number | null;
   /**
+   * Средний балл по отзывам. Считается автоматически, пусто — отзывов нет.
+   */
+  rating?: number | null;
+  /**
+   * Сколько отзывов участвует в среднем балле. Считается автоматически.
+   */
+  reviewsCount?: number | null;
+  /**
    * Обрезанный квадрат — именно он показывается во всём приложении. Не меняйте вручную: загружайте фото через кабинет организации.
    */
   photo?: (number | null) | Media;
@@ -674,6 +682,8 @@ export interface DoctorsSelect<T extends boolean = true> {
   experience?: T;
   degree?: T;
   price?: T;
+  rating?: T;
+  reviewsCount?: T;
   photo?: T;
   photoOriginal?: T;
   photoCrop?:

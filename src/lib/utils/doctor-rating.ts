@@ -1,17 +1,32 @@
+import type { ApiDoctor } from '@/lib/api/types'
+
 /**
- * Агрегат по отзывам одного врача. Считается на сервере (см.
- * `@/lib/server/doctor-ratings`) и передаётся в клиентские компоненты —
- * поэтому типы живут отдельно от серверного модуля.
+ * Рейтинг врача — это уже готовые поля `rating` и `reviewsCount` на самом
+ * враче: их пишут хуки коллекции отзывов (см. collections/helpers/doctor-rating).
+ * Поэтому здесь нет ни запросов, ни агрегации — только чтение и нормализация.
  */
 export interface DoctorRating {
-  /** Средний балл 1–5. Врачи без отзывов в карту не попадают вообще. */
+  /** Средний балл 1–5. */
   average: number
   /** Сколько отзывов участвовало в среднем. */
   count: number
 }
 
-/** doctorId -> агрегат. Врача без отзывов в карте нет. */
-export type DoctorRatingsMap = Record<number, DoctorRating>
+/**
+ * Достаёт рейтинг из врача. null — отзывов нет (или значение битое).
+ *
+ * Проверяем count, а не только rating: врач без отзывов приходит с NULL, а из
+ * postgres `numeric` попадает строкой при некоторых путях сериализации —
+ * поэтому оба поля приводим к числу и отбрасываем нечисловое.
+ */
+export function getDoctorRating(doctor: Pick<ApiDoctor, 'rating' | 'reviewsCount'>): DoctorRating | null {
+  const average = Number(doctor.rating)
+  const count = Number(doctor.reviewsCount)
+
+  if (!Number.isFinite(average) || !Number.isFinite(count) || count <= 0) return null
+
+  return { average, count }
+}
 
 export const SORT_OPTIONS = [
   { id: 'rating', label: 'По рейтингу' },
