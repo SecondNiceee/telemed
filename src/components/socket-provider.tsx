@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { ApiMessage } from '@/lib/api/messages'
 import { getSenderType, getSenderId } from '@/lib/api/messages'
-import { getCallChatOpener } from '@/lib/chat/call-chat-bridge'
+import { isInCallRoom } from '@/lib/chat/call-chat-bridge'
 
 type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
 
@@ -203,10 +203,12 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       const isInActiveChat = chatStoreRef.current.activeAppointmentId === appointmentId
       if (isInActiveChat && isTabVisible) return
 
-      // Если пользователь сейчас в звонке по этой консультации, открываем
-      // панель чата справа. Переход по ссылке перезагрузил бы страницу и
-      // выбросил бы человека из комнаты прямо посреди разговора.
-      const openInCallChat = getCallChatOpener(appointmentId)
+      // В звонке по этой же консультации тост не показываем вообще: единственное
+      // его действие - переход на страницу чата, а это полная перезагрузка,
+      // которая выбрасывает человека из комнаты посреди разговора. Сообщение не
+      // теряется: чат доступен прямо в звонке (панель справа), а на кнопке чата
+      // горит счётчик непрочитанных.
+      if (isInCallRoom(appointmentId)) return
 
       const chatUrl = recipientType === 'doctor'
         ? `/lk-med/chat?appointment=${appointmentId}`
@@ -220,14 +222,8 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         position: 'bottom-right',
         duration: 8000,
         action: {
-          label: openInCallChat ? 'Открыть чат' : 'Перейти',
-          onClick: () => {
-            if (openInCallChat) {
-              openInCallChat()
-              return
-            }
-            window.location.assign(chatUrl)
-          },
+          label: 'Перейти',
+          onClick: () => window.location.assign(chatUrl),
         },
       })
     })
