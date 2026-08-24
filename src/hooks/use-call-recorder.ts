@@ -71,56 +71,6 @@ function drawPane(
   )
 }
 
-/**
- * Тикер, который продолжает идти в свёрнутом окне.
- *
- * Chrome душит таймеры скрытой вкладки: сначала до 1 вызова в секунду, а после
- * ~5 минут в фоне включает intensive throttling - 1 вызов в МИНУТУ. Обычный
- * setInterval для отрисовки канваса означал бы, что у врача, свернувшего окно
- * посреди консультации, видео превращается в слайд-шоу, а затем и вовсе
- * замирает на одном кадре при живом звуке.
- *
- * Таймеры внутри Worker под intensive throttling не попадают, поэтому тики
- * генерирует воркер, а рисует по-прежнему основной поток. Если воркер создать
- * не удалось (CSP, старый браузер) - откатываемся на setInterval: пусть в фоне
- * будет рвано, но запись не остановится.
- */
-const TICKER_WORKER_SOURCE = `
-let timerId = null
-self.onmessage = (event) => {
-  if (event.data && event.data.type === 'start') {
-    if (timerId !== null) clearInterval(timerId)
-    timerId = setInterval(() => self.postMessage('tick'), event.data.intervalMs)
-  } else {
-    if (timerId !== null) clearInterval(timerId)
-    timerId = null
-  }
-}
-`
-
-function startTicker(intervalMs: number, onTick: () => void): () => void {
-  if (typeof Worker !== 'undefined' && typeof URL.createObjectURL === 'function') {
-    try {
-      const objectUrl = URL.createObjectURL(
-        new Blob([TICKER_WORKER_SOURCE], { type: 'application/javascript' }),
-      )
-      const worker = new Worker(objectUrl)
-      worker.onmessage = () => onTick()
-      worker.postMessage({ type: 'start', intervalMs })
-      return () => {
-        worker.postMessage({ type: 'stop' })
-        worker.terminate()
-        URL.revokeObjectURL(objectUrl)
-      }
-    } catch (error) {
-      console.warn('[CallRecorder] Worker ticker unavailable, falling back to setInterval', error)
-    }
-  }
-
-  const timerId = setInterval(onTick, intervalMs)
-  return () => clearInterval(timerId)
-}
-
 interface UseCallRecorderOptions {
   /** Запись включается только в браузере врача. */
   enabled: boolean
@@ -151,8 +101,7 @@ export function useCallRecorder({
    */
   const audioSourcesRef = useRef(new Map<string, MediaStreamAudioSourceNode>())
   const audioSyncRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  /** Функция остановки тикера канваса (воркер или setInterval). */
-  const tickerRef = useRef<(() => void) | null>(null)
+  const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const videoElementsRef = useRef<HTMLVideoElement[]>([])
   const canvasStreamRef = useRef<MediaStream | null>(null)
 
@@ -243,8 +192,10 @@ export function useCallRecorder({
 
   /** Освобождает канвас, аудиограф и скрытые video-элементы. */
   const teardown = useCallback(() => {
-    tickerRef.current?.()
-    tickerRef.current = null
+    if (tickerRef.current) {
+      clearInterval(tickerRef.current)
+      tickerRef.current = null
+    }
     if (audioSyncRef.current) {
       clearInterval(audioSyncRef.current)
       audioSyncRef.current = null
@@ -354,12 +305,12 @@ export function useCallRecorder({
       const localVideo = createHiddenVideo(localStream)
       videoElementsRef.current = [remoteVideo, localVideo]
 
-      tickerRef.current = startTicker(Math.round(1000 / FPS), () => {
+      tickerRef.current = setInterval(() => {
         context.fillStyle = '#000000'
         context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
         drawPane(context, remoteVideo, 0)
         drawPane(context, localVideo, PANE_WIDTH)
-      })
+      }, Math.round(1000 / FPS))
 
       const canvasStream = canvas.captureStream(FPS)
       canvasStreamRef.current = canvasStream
@@ -395,24 +346,6 @@ export function useCallRecorder({
     setIsRecording(true)
     console.log('[CallRecorder] Recording started', { appointmentId, mimeType })
   }, [enabled, doctorId, localStream, remoteStream, audioOnly, appointmentId, enqueueChunk, teardown, syncAudioSources])
-
-  /**
-   * Возврат из свёрнутого окна. Периодическая сверка аудиографа живёт на
-   * setInterval и в фоне сама заторможена до одного вызова в минуту, поэтому
-   * на неё нельзя рассчитывать: браузер мог усыпить AudioContext, и без
-   * немедленного resume в записи появилась бы дыра по звуку на минуту.
-   */
-  useEffect(() => {
-    if (!enabled) return
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) return
-      syncAudioSources()
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [enabled, syncAudioSources])
 
   // Аварийное закрытие вкладки: чанки уже на сервере, просим финализировать
   // то, что успело дойти. sendBeacon переживает выгрузку страницы.
