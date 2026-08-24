@@ -12,6 +12,8 @@ import {
   type ApiCategory,
 } from "@/lib/api/index";
 import { CategoryPageClient } from "./category-client";
+import { fetchDoctorRatings } from "@/lib/server/doctor-ratings";
+import type { DoctorRatingsMap } from "@/lib/utils/doctor-rating";
 import { BackButton } from "@/components/back-button";
 import { BackgroundDecor } from "@/components/background-decor";
 import { SectionBadge } from "@/components/section-badge";
@@ -44,6 +46,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   let category: ApiCategory | null = null;
   let doctors: ApiDoctor[] = [];
+  let ratings: DoctorRatingsMap = {};
   let error: string | null = null;
 
   try {
@@ -52,6 +55,9 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       notFound();
     }
     doctors = await fetchDoctorsByCategory(category.id);
+    // Один запрос на всю страницу: сортировка и пагинация дальше живут
+    // на клиенте и не дёргают сервер повторно.
+    ratings = await fetchDoctorRatings(doctors.map((doctor) => doctor.id));
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
       notFound();
@@ -112,6 +118,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
           <CategoryPageClient 
             doctors={doctors} 
+            ratings={ratings}
             initialSelectedDate={selectedDate}
           />
         </div>
