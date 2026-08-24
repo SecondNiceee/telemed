@@ -115,14 +115,21 @@ async function releaseLock(sessionId: string): Promise<void> {
   await fs.unlink(lockPathFor(sessionId)).catch(() => {})
 }
 
-/** Удалить чанки, метаданные и lock сессии. */
+/**
+ * Удалить чанки, метаданные и lock сессии.
+ *
+ * Метаданные сносим ПЕРВЫМИ: пока файл на месте, сборщик считает сессию живой.
+ * Если процесс упадёт между удалением чанков и удалением меты, сборщик потом
+ * попытается склеить сессию заново и создаст дубль записи. Обратный порядок
+ * такого окна не оставляет: без меты сессии для сборщика не существует.
+ */
 export async function cleanupSession(sessionId: string, chunks: number[]): Promise<void> {
+  await fs.unlink(metaPathFor(sessionId)).catch(() => {})
   await Promise.all(
     chunks.map((index) =>
       fs.unlink(path.join(CHUNKS_DIR, `${sessionId}_${index}.webm`)).catch(() => {}),
     ),
   )
-  await fs.unlink(metaPathFor(sessionId)).catch(() => {})
   await releaseLock(sessionId)
 }
 
@@ -155,7 +162,15 @@ export async function finalizeRecordingSession({
   const sessionId = getSessionId(appointmentId, doctorId)
 
   const meta = await readSessionMeta(sessionId)
-  if (!meta || meta.chunks.length === 0) return { status: 'no-chunks' }
+  if (!meta || meta.chunks.length === 0) {
+    // Раньше этот выход был полностью молчаливым, и «запись не появилась»
+    // выглядело в логах ровно так же, как успех.
+    console.warn('[RecordingChunks] No chunks to finalize:', sessionId, {
+      hasMeta: Boolean(meta),
+      chunks: meta?.chunks.length ?? 0,
+    })
+    return { status: 'no-chunks' }
+  }
 
   if (!(await acquireLock(sessionId))) {
     console.log('[RecordingChunks] Session already being finalized:', sessionId)
@@ -163,25 +178,24 @@ export async function finalizeRecordingSession({
   }
 
   try {
-    // Метаданные могли обновиться, пока брали lock (успел дойти ещё чанк).
-    const fresh = (await readSessionMeta(sessionId)) ?? meta
-
-    // Повторная защита от дубля: запись этой консультации уже могла быть
-    // создана предыдущим вызовом, который не успел убрать за собой файлы.
-    const payload = await getPayload({ config })
-    const existing = await payload.find({
-      collection: 'call-recordings',
-      where: {
-        and: [{ appointment: { equals: appointmentId } }, { doctor: { equals: doctorId } }],
-      },
-      limit: 1,
-      depth: 0,
-    })
-    if (existing.totalDocs > 0) {
-      console.log('[RecordingChunks] Recording already exists, cleaning up:', sessionId)
-      await cleanupSession(sessionId, fresh.chunks)
+    /**
+     * Метаданные могли измениться, пока брали lock.
+     *
+     * Если файл меты исчез - сессию уже забрал и собрал другой вызов
+     * (cleanupSession сносит мету первой), и продолжать нельзя: получился бы
+     * дубль. Раньше на этом месте стояла проверка «есть ли уже запись у этой
+     * консультации», и она удаляла чанки ЛЮБОГО повторного звонка по той же
+     * консультации - второй созвон (например, после обрыва связи) молча
+     * пропадал. Lock + отсутствие меты дают ту же защиту от дублей, но не
+     * теряют данные.
+     */
+    const fresh = await readSessionMeta(sessionId)
+    if (!fresh || fresh.chunks.length === 0) {
+      console.log('[RecordingChunks] Session vanished while acquiring lock:', sessionId)
       return { status: 'already-exists' }
     }
+
+    const payload = await getPayload({ config })
 
     const buffers: Buffer[] = []
     for (const index of fresh.chunks) {
@@ -199,31 +213,61 @@ export async function finalizeRecordingSession({
     const resolvedType: 'video' | 'audio' =
       recordingType ?? (mimeType.startsWith('audio/') ? 'audio' : 'video')
 
-    const mediaDoc = await payload.create({
-      collection: 'media',
-      data: { alt: `Запись консультации #${appointmentId}` },
-      file: {
-        data: combined,
-        mimetype: mimeType,
-        name: `consultation-${appointmentId}-${Date.now()}.webm`,
-        size: combined.length,
-      },
-    })
+    // Два create разделены собственными catch: раньше любая ошибка тут
+    // всплывала одним безликим «Failed to finalize recording», и было не
+    // видно, упала загрузка файла или запись в БД.
+    let mediaDoc: { id: number }
+    try {
+      mediaDoc = await payload.create({
+        collection: 'media',
+        data: { alt: `Запись консультации #${appointmentId}` },
+        file: {
+          data: combined,
+          mimetype: mimeType,
+          name: `consultation-${appointmentId}-${Date.now()}.webm`,
+          size: combined.length,
+        },
+      })
+    } catch (error) {
+      console.error('[RecordingChunks] MEDIA create failed', {
+        sessionId,
+        mimeType,
+        bytes: combined.length,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      })
+      throw error
+    }
 
-    const recording = await payload.create({
-      collection: 'call-recordings',
-      data: {
-        appointment: appointmentId,
-        doctor: doctorId,
-        video: mediaDoc.id,
-        // Клиент не успел прислать точную длительность (умер внезапно) -
-        // оцениваем по количеству чанков, погрешность в пределах одного шага.
-        durationSeconds:
-          durationSeconds ?? Math.max(1, Math.round((fresh.chunks.length * CHUNK_INTERVAL_MS) / 1000)),
-        recordedAt: new Date().toISOString(),
-        recordingType: resolvedType,
-      },
-    })
+    let recording: { id: number }
+    try {
+      recording = await payload.create({
+        collection: 'call-recordings',
+        data: {
+          appointment: appointmentId,
+          doctor: doctorId,
+          video: mediaDoc.id,
+          // Клиент не успел прислать точную длительность (умер внезапно) -
+          // оцениваем по количеству чанков, погрешность в пределах одного шага.
+          durationSeconds:
+            durationSeconds ??
+            Math.max(1, Math.round((fresh.chunks.length * CHUNK_INTERVAL_MS) / 1000)),
+          recordedAt: new Date().toISOString(),
+          recordingType: resolvedType,
+        },
+      })
+    } catch (error) {
+      // Самая частая причина здесь - таблицы call_recordings (или колонки
+      // recording_type) нет в проде: postgresAdapter делает авто-push схемы
+      // ТОЛЬКО при NODE_ENV !== 'production', а миграции на этот случай в
+      // src/migrations нет. Файл при этом уже загружен и лежит в media.
+      console.error('[RecordingChunks] CALL-RECORDING create failed', {
+        sessionId,
+        mediaId: mediaDoc.id,
+        hint: 'проверьте pnpm migrate:status и наличие таблицы call_recordings',
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      })
+      throw error
+    }
 
     console.log('[RecordingChunks] Recording created:', {
       sessionId,
