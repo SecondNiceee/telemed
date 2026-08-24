@@ -261,6 +261,9 @@ export function OrgConsultationView({
                           <VideoPlayer
                             src={videoUrl}
                             title="Запись консультации"
+                            // Точная длительность из БД: сам WebM от MediaRecorder
+                            // её не содержит, и без подсказки плеер показывал 0:00.
+                            durationHint={recording.durationSeconds ?? undefined}
                             onDownload={() => {
                               const link = document.createElement('a')
                               link.href = videoUrl
@@ -325,6 +328,7 @@ export function OrgConsultationView({
                           <AudioPlayer
                             src={audioUrl}
                             title="Аудиозапись консультации"
+                            durationHint={recording.durationSeconds ?? undefined}
                             onDownload={() => {
                               const link = document.createElement('a')
                               link.href = audioUrl

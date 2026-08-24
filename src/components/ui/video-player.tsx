@@ -12,6 +12,13 @@ interface VideoPlayerProps {
   poster?: string
   className?: string
   onDownload?: () => void
+  /**
+   * Известная длительность в секундах (например, из БД). Записи MediaRecorder
+   * - потоковый WebM без длительности в заголовке: браузер отдаёт
+   * duration = Infinity, и без подсказки плеер показывает 0:00, а перемотка
+   * не работает, пока файл не досмотрен до конца.
+   */
+  durationHint?: number
 }
 
 function formatTime(seconds: number): string {
@@ -21,76 +28,110 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-export function VideoPlayer({ src, title, poster, className, onDownload }: VideoPlayerProps) {
+export function VideoPlayer({ src, title, poster, className, onDownload, durationHint }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  // durationHint из БД делает плеер рабочим сразу, не дожидаясь метаданных.
+  const [duration, setDuration] = useState(durationHint && durationHint > 0 ? durationHint : 0)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Флаг «идёт зондирование длительности»: во время принудительной перемотки
+  // в конец timeupdate не должен дёргать ползунок.
+  const probingRef = useRef(false)
 
-  // Update time
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
 
+    const applyDuration = () => {
+      if (video.duration && isFinite(video.duration)) {
+        setDuration(video.duration)
+        return true
+      }
+      return false
+    }
+
+    /**
+     * Потоковый WebM от MediaRecorder не содержит длительности в заголовке:
+     * duration === Infinity. Единственный способ заставить браузер вычислить
+     * её (и построить индекс для перемотки) - прыгнуть на "бесконечную"
+     * позицию: Chrome/Firefox дочитывают файл, публикуют настоящую duration
+     * через durationchange и корректно возвращаются. Без этого перемотка
+     * по записи лагает или не работает вовсе.
+     */
+    const probeInfiniteDuration = () => {
+      if (probingRef.current || isFinite(video.duration)) return
+      probingRef.current = true
+      const onDurationChange = () => {
+        if (!isFinite(video.duration)) return
+        video.removeEventListener('durationchange', onDurationChange)
+        applyDuration()
+        video.currentTime = 0
+        probingRef.current = false
+      }
+      video.addEventListener('durationchange', onDurationChange)
+      try {
+        video.currentTime = Number.MAX_SAFE_INTEGER
+      } catch {
+        video.removeEventListener('durationchange', onDurationChange)
+        probingRef.current = false
+      }
+    }
+
     const handleTimeUpdate = () => {
+      if (probingRef.current) return
       setCurrentTime(video.currentTime)
+      // Fallback-прогресс: если известной длительности всё ещё нет, тянем её
+      // вверх за текущей позицией, чтобы ползунок не «упирался».
+      if (!isFinite(video.duration) && video.currentTime > 0) {
+        setDuration((prev) => Math.max(prev, video.currentTime))
+      }
     }
 
     const handleLoadedMetadata = () => {
-      if (video.duration && isFinite(video.duration)) {
-        setDuration(video.duration)
-      }
       setIsLoaded(true)
+      if (!applyDuration()) probeInfiniteDuration()
     }
 
     const handleDurationChange = () => {
-      if (video.duration && isFinite(video.duration)) {
-        setDuration(video.duration)
-      }
+      applyDuration()
     }
 
     const handleEnded = () => {
       setIsPlaying(false)
+      // Реальная длительность точно известна в момент окончания.
+      if (video.currentTime > 0) setDuration((prev) => Math.max(prev, video.currentTime))
     }
 
     const handleCanPlay = () => {
       setIsLoaded(true)
-      // Also try to get duration on canplay
-      if (video.duration && isFinite(video.duration)) {
-        setDuration(video.duration)
-      }
+      applyDuration()
     }
 
-    // Also handle loadeddata for webm files which may not fire loadedmetadata reliably
     const handleLoadedData = () => {
       setIsLoaded(true)
-      if (video.duration && isFinite(video.duration)) {
-        setDuration(video.duration)
-      }
+      applyDuration()
     }
 
-    // Handle progress event - duration may become available during buffering
-    const handleProgress = () => {
-      if (video.duration && isFinite(video.duration) && duration === 0) {
-        setDuration(video.duration)
-      }
-    }
+    // isPlaying синхронизируется с реальными событиями элемента, а не с
+    // оптимистичным флагом: iOS/автопауза при сворачивании больше не
+    // рассинхронизируют кнопку.
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
 
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement)
     }
 
-    // Check if metadata is already loaded
-    if (video.readyState >= 1 && video.duration && isFinite(video.duration)) {
-      setDuration(video.duration)
+    if (video.readyState >= 1) {
       setIsLoaded(true)
+      if (!applyDuration()) probeInfiniteDuration()
     }
 
     video.addEventListener('timeupdate', handleTimeUpdate)
@@ -99,7 +140,8 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
     video.addEventListener('ended', handleEnded)
     video.addEventListener('canplay', handleCanPlay)
     video.addEventListener('loadeddata', handleLoadedData)
-    video.addEventListener('progress', handleProgress)
+    video.addEventListener('play', handlePlay)
+    video.addEventListener('pause', handlePause)
     document.addEventListener('fullscreenchange', handleFullscreenChange)
 
     return () => {
@@ -109,10 +151,11 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
       video.removeEventListener('ended', handleEnded)
       video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('loadeddata', handleLoadedData)
-      video.removeEventListener('progress', handleProgress)
+      video.removeEventListener('play', handlePlay)
+      video.removeEventListener('pause', handlePause)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
-  }, [duration])
+  }, [])
 
   // Auto-hide controls
   const resetControlsTimeout = useCallback(() => {
@@ -139,30 +182,32 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
     const video = videoRef.current
     if (!video) return
 
-    if (isPlaying) {
-      video.pause()
+    // Состояние обновят события play/pause; здесь только команда.
+    if (video.paused || video.ended) {
+      void video.play().catch(() => {})
     } else {
-      video.play()
+      video.pause()
     }
-    setIsPlaying(!isPlaying)
     resetControlsTimeout()
-  }, [isPlaying, resetControlsTimeout])
+  }, [resetControlsTimeout])
 
   const handleSeek = useCallback((value: number[]) => {
     const video = videoRef.current
     if (!video || !isLoaded) return
 
     const newTime = value[0]
+    if (!isFinite(newTime) || newTime < 0) return
     try {
-      // Only seek if the value is valid
-      if (isFinite(newTime) && newTime >= 0 && newTime <= (video.duration || 0)) {
-        video.currentTime = newTime
-        setCurrentTime(newTime)
-      }
+      // Верхняя граница - НАШЕ знание длительности (duration из state), а не
+      // video.duration: у записей MediaRecorder оно Infinity, и старая
+      // проверка `newTime <= (video.duration || 0)` блокировала перемотку.
+      const upperBound = isFinite(video.duration) ? video.duration : duration || newTime
+      video.currentTime = Math.min(newTime, upperBound)
+      setCurrentTime(video.currentTime)
     } catch (e) {
       console.error('Error seeking video:', e)
     }
-  }, [isLoaded])
+  }, [isLoaded, duration])
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const video = videoRef.current
@@ -212,7 +257,8 @@ export function VideoPlayer({ src, title, poster, className, onDownload }: Video
     const video = videoRef.current
     if (!video || !isLoaded) return
     try {
-      video.currentTime = Math.min(duration, video.currentTime + 10)
+      const upperBound = isFinite(video.duration) ? video.duration : duration || video.currentTime + 10
+      video.currentTime = Math.min(upperBound, video.currentTime + 10)
     } catch (e) {
       console.error('Error skipping forward:', e)
     }
