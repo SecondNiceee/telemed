@@ -287,7 +287,15 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         console.log('[Socket] All async callbacks completed')
       }
       
-      setIncomingCall((current) => !callId || current?.callId === callId ? null : current)
+      // Гасим попап только если событие относится ИМЕННО к этому звонку.
+      // Раньше `!callId` обнуляло любой входящий звонок, поэтому отголосок
+      // call-end от предыдущего созвона мог погасить только что показанный
+      // попап нового.
+      setIncomingCall((current) => {
+        if (!current) return current
+        if (callId) return current.callId === callId ? null : current
+        return current.appointmentId === appointmentId ? null : current
+      })
       if (callId) {
         setOutgoingCallStatuses((statuses) => {
           const nextStatuses = { ...statuses }
@@ -535,8 +543,18 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   return (
     <SocketContext.Provider value={value}>
       {children}
-      <Dialog open={Boolean(incomingCall)} onOpenChange={(open) => { if (!open) rejectIncomingCall() }}>
-        <DialogContent>
+      {/*
+        Входящий звонок закрывается ТОЛЬКО кнопками «Принять» / «Отклонить»:
+        случайный клик по затемнению или Esc не должны отменять звонок.
+        onOpenChange намеренно пустой - состоянием управляет только код ниже.
+      */}
+      <Dialog open={Boolean(incomingCall)}>
+        <DialogContent
+          showCloseButton={false}
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Входящий {incomingCall?.isAudioOnly ? 'аудиозвонок' : 'видеозвонок'}</DialogTitle>
             <DialogDescription>{incomingCall?.callerName || 'Участник консультации'} приглашает вас в защищённую комнату.</DialogDescription>
