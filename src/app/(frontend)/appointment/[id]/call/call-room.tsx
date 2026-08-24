@@ -11,7 +11,7 @@ import { useMediasoup } from '@/hooks/use-mediasoup'
 import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
 import { useChatStore } from '@/stores/chat-store'
-import { registerCallChatOpener } from '@/lib/chat/call-chat-bridge'
+import { registerOpenCallRoom } from '@/lib/chat/call-chat-bridge'
 import { cn } from '@/lib/utils'
 import { CallChatPanel } from './call-chat-panel'
 
@@ -115,11 +115,11 @@ export function CallRoom({
     return () => leaveRoom(appointmentId)
   }, [appointmentId, isConnected, joinRoom, leaveRoom])
 
-  // Пока комната открыта, кнопка в тосте о новом сообщении должна открывать
-  // панель справа, а не уводить на страницу чата: переход перезагружал бы
-  // страницу и выбрасывал человека из звонка.
+  // Отмечаем, что комната открыта: пока мы здесь, глобальный тост о новом
+  // сообщении по этой консультации не показывается. Его кнопка «Перейти» вела
+  // на страницу чата через полную перезагрузку и выбрасывала из звонка.
   useEffect(() => {
-    return registerCallChatOpener(appointmentId, () => setIsChatOpen(true))
+    return registerOpenCallRoom(appointmentId)
   }, [appointmentId])
 
   useEffect(() => {
