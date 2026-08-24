@@ -151,10 +151,11 @@ export function CallRoom({
 
       // На приглашение ответили или оно истекло. Живой звонок отличаем от
       // закрытого по присутствию второго участника в комнате медиасервера.
-      // Опрашиваем несколько раз: собеседник мог принять звонок за мгновение
-      // до нашего возвращения и ещё не успеть войти в комнату.
-      for (let attempt = 0; attempt < 4; attempt += 1) {
-        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Пары попыток достаточно: сервер считает только участников с живым
+      // соединением, а собеседник мог принять звонок за мгновение до нашего
+      // возвращения и ещё не успеть войти в комнату.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500))
         if (cancelled) return
         try {
           const response = await fetch('/api/mediasoup/room-state', {

@@ -48,13 +48,17 @@ async function main() {
         if (roomActionMatch[2] === 'state') {
           // Сама комната живёт ещё 30 секунд после выхода последнего участника,
           // поэтому её существование ни о чём не говорит - смотрим именно на
-          // присутствие второго участника.
-          const peerIds = room ? [...room.peers.keys()] : []
+          // присутствие второго участника. Причём только ЖИВОГО: после обрыва
+          // сокета участник висит в комнате ещё 10 секунд на случай
+          // переподключения, и такого нельзя принимать за собеседника - иначе
+          // вернувшийся врач заходил бы в мёртвый звонок и через мгновение
+          // вылетал с «соединение потеряно».
+          const peers = room ? [...room.peers.entries()] : []
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({
             success: true,
             roomExists: room !== undefined,
-            otherPeerPresent: peerIds.some((peerId) => peerId !== claims.peerId),
+            otherPeerPresent: peers.some(([peerId, peer]) => peerId !== claims.peerId && peer.isOnline),
           }))
           return
         }

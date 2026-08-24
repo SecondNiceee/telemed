@@ -65,6 +65,9 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
       if (!isSameSocketJoin) {
         await roomManager.addPeer(room, claims.peerId, claims.peerName, claims.role)
       }
+      // Участник снова на связи: снимаем пометку, оставленную обрывом сокета,
+      // иначе он до конца звонка считался бы офлайн.
+      room.peers.get(claims.peerId)?.markConnected()
 
       socket.data.peerId = claims.peerId
       socket.data.peerName = claims.peerName
@@ -212,6 +215,10 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
     if (peerSocketOwners.get(ownerKey) !== socket.id) return
 
     cancelDisconnectTimer(ownerKey)
+    // Пока идёт льготный период, участник ещё числится в комнате, но связи с
+    // ним нет. Помечаем это, чтобы проверка состояния комнаты не приняла
+    // «мёртвого» участника за живого собеседника.
+    roomManager.getRoom(roomId)?.peers.get(peerId)?.markDisconnected()
     const timer = setTimeout(() => {
       peerDisconnectTimers.delete(ownerKey)
       removeOwnedPeer('participant-disconnected')

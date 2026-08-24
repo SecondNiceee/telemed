@@ -9,6 +9,12 @@ export class Peer {
   readonly consumers = new Map<string, Consumer>()
   rtpCapabilities?: RtpCapabilities
   private closed = false
+  /**
+   * Момент, когда сокет участника отключился. Участник остаётся в комнате ещё
+   * несколько секунд (льготный период на переподключение), поэтому наличие
+   * записи в room.peers не означает, что человек на самом деле в звонке.
+   */
+  private disconnectedAt: number | null = null
 
   constructor(
     readonly id: string,
@@ -18,6 +24,19 @@ export class Peer {
 
   get isClosed(): boolean {
     return this.closed
+  }
+
+  /** Есть ли у участника живое соединение с сервером. */
+  get isOnline(): boolean {
+    return !this.closed && this.disconnectedAt === null
+  }
+
+  markDisconnected(): void {
+    if (this.disconnectedAt === null) this.disconnectedAt = Date.now()
+  }
+
+  markConnected(): void {
+    this.disconnectedAt = null
   }
 
   replaceTransport(transport: Transport, direction: 'send' | 'recv'): void {
