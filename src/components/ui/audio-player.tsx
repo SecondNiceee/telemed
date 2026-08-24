@@ -11,6 +11,12 @@ interface AudioPlayerProps {
   title?: string
   className?: string
   onDownload?: () => void
+  /**
+   * Известная длительность в секундах (например, из БД). Записи MediaRecorder
+   * - потоковый WebM без длительности в заголовке (duration = Infinity),
+   * без подсказки плеер показывает 0:00 и не даёт перематывать.
+   */
+  durationHint?: number
 }
 
 function formatTime(seconds: number): string {
@@ -20,35 +26,69 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerProps) {
+export function AudioPlayer({ src, title, className, onDownload, durationHint }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
+  // durationHint из БД делает плеер рабочим сразу, не дожидаясь метаданных.
+  const [duration, setDuration] = useState(durationHint && durationHint > 0 ? durationHint : 0)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  // Флаг «идёт зондирование длительности» - см. probeInfiniteDuration.
+  const probingRef = useRef(false)
 
-  // Update time
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
+    const applyDuration = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration)
+        return true
+      }
+      return false
+    }
+
+    /**
+     * Потоковый WebM от MediaRecorder отдаёт duration = Infinity. Прыжок на
+     * "бесконечную" позицию заставляет браузер дочитать файл, вычислить
+     * настоящую длительность и построить индекс для перемотки.
+     */
+    const probeInfiniteDuration = () => {
+      if (probingRef.current || isFinite(audio.duration)) return
+      probingRef.current = true
+      const onDurationChange = () => {
+        if (!isFinite(audio.duration)) return
+        audio.removeEventListener('durationchange', onDurationChange)
+        applyDuration()
+        audio.currentTime = 0
+        probingRef.current = false
+      }
+      audio.addEventListener('durationchange', onDurationChange)
+      try {
+        audio.currentTime = Number.MAX_SAFE_INTEGER
+      } catch {
+        audio.removeEventListener('durationchange', onDurationChange)
+        probingRef.current = false
+      }
+    }
+
     const handleTimeUpdate = () => {
+      if (probingRef.current) return
       setCurrentTime(audio.currentTime)
+      if (!isFinite(audio.duration) && audio.currentTime > 0) {
+        setDuration((prev) => Math.max(prev, audio.currentTime))
+      }
     }
 
     const handleLoadedMetadata = () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        setDuration(audio.duration)
-      }
       setIsLoaded(true)
+      if (!applyDuration()) probeInfiniteDuration()
     }
 
     const handleDurationChange = () => {
-      if (audio.duration && isFinite(audio.duration)) {
-        setDuration(audio.duration)
-      }
+      applyDuration()
     }
 
     const handleEnded = () => {
@@ -58,16 +98,16 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
 
     const handleCanPlay = () => {
       setIsLoaded(true)
-      // Also try to get duration on canplay
-      if (audio.duration && isFinite(audio.duration)) {
-        setDuration(audio.duration)
-      }
+      applyDuration()
     }
 
-    // Check if metadata is already loaded
-    if (audio.readyState >= 1 && audio.duration && isFinite(audio.duration)) {
-      setDuration(audio.duration)
+    // isPlaying синхронизируется с реальными событиями элемента.
+    const handlePlay = () => setIsPlaying(true)
+    const handlePause = () => setIsPlaying(false)
+
+    if (audio.readyState >= 1) {
       setIsLoaded(true)
+      if (!applyDuration()) probeInfiniteDuration()
     }
 
     audio.addEventListener('timeupdate', handleTimeUpdate)
@@ -75,6 +115,8 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
     audio.addEventListener('durationchange', handleDurationChange)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('canplay', handleCanPlay)
+    audio.addEventListener('play', handlePlay)
+    audio.addEventListener('pause', handlePause)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -82,6 +124,8 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
       audio.removeEventListener('durationchange', handleDurationChange)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('canplay', handleCanPlay)
+      audio.removeEventListener('play', handlePlay)
+      audio.removeEventListener('pause', handlePause)
     }
   }, [])
 
@@ -89,29 +133,31 @@ export function AudioPlayer({ src, title, className, onDownload }: AudioPlayerPr
     const audio = audioRef.current
     if (!audio) return
 
-    if (isPlaying) {
-      audio.pause()
+    // Состояние обновят события play/pause; здесь только команда.
+    if (audio.paused || audio.ended) {
+      void audio.play().catch(() => {})
     } else {
-      audio.play()
+      audio.pause()
     }
-    setIsPlaying(!isPlaying)
-  }, [isPlaying])
+  }, [])
 
   const handleSeek = useCallback((value: number[]) => {
     const audio = audioRef.current
     if (!audio || !isLoaded) return
 
     const newTime = value[0]
+    if (!isFinite(newTime) || newTime < 0) return
     try {
-      // Only seek if the value is valid
-      if (isFinite(newTime) && newTime >= 0 && newTime <= (audio.duration || 0)) {
-        audio.currentTime = newTime
-        setCurrentTime(newTime)
-      }
+      // Верхняя граница - наше знание длительности, а не audio.duration:
+      // у записей MediaRecorder оно Infinity, и старая проверка блокировала
+      // перемотку полностью.
+      const upperBound = isFinite(audio.duration) ? audio.duration : duration || newTime
+      audio.currentTime = Math.min(newTime, upperBound)
+      setCurrentTime(audio.currentTime)
     } catch (e) {
       console.error('Error seeking audio:', e)
     }
-  }, [isLoaded])
+  }, [isLoaded, duration])
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const audio = audioRef.current
