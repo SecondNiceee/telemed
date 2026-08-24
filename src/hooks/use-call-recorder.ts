@@ -93,6 +93,14 @@ export function useCallRecorder({
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
+  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null)
+  /**
+   * Ссылки на source-узлы ОБЯЗАТЕЛЬНЫ. Если узел никуда не сохранён, сборщик
+   * мусора Chrome уничтожает его вместе со звуком - именно поэтому запись
+   * получалась полностью беззвучной.
+   */
+  const audioSourcesRef = useRef(new Map<string, MediaStreamAudioSourceNode>())
+  const audioSyncRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const videoElementsRef = useRef<HTMLVideoElement[]>([])
   const canvasStreamRef = useRef<MediaStream | null>(null)
@@ -108,6 +116,47 @@ export function useCallRecorder({
   // безопасно вызывать из обработчиков выхода и эффекта размонтирования.
   const metaRef = useRef({ appointmentId, doctorId, audioOnly })
   metaRef.current = { appointmentId, doctorId, audioOnly }
+
+  // Актуальные потоки для периодической сверки аудиографа: дорожки могут
+  // появляться и заменяться уже после старта записи.
+  const streamsRef = useRef({ localStream, remoteStream })
+  streamsRef.current = { localStream, remoteStream }
+
+  /**
+   * Идемпотентно подключает к микшеру все живые аудиодорожки обоих участников
+   * и отбрасывает умершие. Вызывается и при старте, и периодически, потому что
+   * дорожка собеседника нередко приходит позже видео, а микрофон врача
+   * пересоздаётся при смене сети - в обоих случаях запись иначе теряет звук.
+   */
+  const syncAudioSources = useCallback(() => {
+    const context = audioContextRef.current
+    const destination = audioDestinationRef.current
+    if (!context || !destination) return
+
+    if (context.state === 'suspended') void context.resume().catch(() => {})
+
+    const sources = audioSourcesRef.current
+    const liveTrackIds = new Set<string>()
+
+    for (const stream of [streamsRef.current.localStream, streamsRef.current.remoteStream]) {
+      if (!stream) continue
+      for (const track of stream.getAudioTracks()) {
+        if (track.readyState !== 'live') continue
+        liveTrackIds.add(track.id)
+        if (sources.has(track.id)) continue
+        const source = context.createMediaStreamSource(new MediaStream([track]))
+        source.connect(destination)
+        sources.set(track.id, source)
+        console.log('[CallRecorder] Audio track connected', track.id)
+      }
+    }
+
+    for (const [trackId, source] of sources) {
+      if (liveTrackIds.has(trackId)) continue
+      source.disconnect()
+      sources.delete(trackId)
+    }
+  }, [])
 
   /** Ставит чанк в очередь: порядок загрузки должен совпадать с порядком записи. */
   const enqueueChunk = useCallback((blob: Blob, isLast: boolean) => {
@@ -147,12 +196,19 @@ export function useCallRecorder({
       clearInterval(tickerRef.current)
       tickerRef.current = null
     }
+    if (audioSyncRef.current) {
+      clearInterval(audioSyncRef.current)
+      audioSyncRef.current = null
+    }
     canvasStreamRef.current?.getTracks().forEach((track) => track.stop())
     canvasStreamRef.current = null
     videoElementsRef.current.forEach((element) => {
       element.srcObject = null
     })
     videoElementsRef.current = []
+    audioSourcesRef.current.forEach((source) => source.disconnect())
+    audioSourcesRef.current.clear()
+    audioDestinationRef.current = null
     void audioContextRef.current?.close().catch(() => {})
     audioContextRef.current = null
     recorderRef.current = null
@@ -223,13 +279,13 @@ export function useCallRecorder({
 
     const audioContext = new AudioContext()
     const destination = audioContext.createMediaStreamDestination()
-    for (const stream of [localStream, remoteStream]) {
-      const audioTracks = stream.getAudioTracks()
-      if (audioTracks.length === 0) continue
-      audioContext.createMediaStreamSource(new MediaStream(audioTracks)).connect(destination)
-    }
-    void audioContext.resume().catch(() => {})
     audioContextRef.current = audioContext
+    audioDestinationRef.current = destination
+    void audioContext.resume().catch(() => {})
+    syncAudioSources()
+    // Сверка раз в секунду: подхватывает аудио собеседника, если оно пришло
+    // позже видео, и заменённый микрофон после переподключения сети.
+    audioSyncRef.current = setInterval(syncAudioSources, 1000)
 
     const recordedTracks: MediaStreamTrack[] = [...destination.stream.getAudioTracks()]
 
@@ -240,7 +296,7 @@ export function useCallRecorder({
       const context = canvas.getContext('2d')
       if (!context) {
         console.error('[CallRecorder] Canvas 2D context is unavailable')
-        void audioContext.close().catch(() => {})
+        teardown()
         return
       }
 
@@ -289,7 +345,7 @@ export function useCallRecorder({
     recorder.start(CHUNK_INTERVAL_MS)
     setIsRecording(true)
     console.log('[CallRecorder] Recording started', { appointmentId, mimeType })
-  }, [enabled, doctorId, localStream, remoteStream, audioOnly, appointmentId, enqueueChunk, teardown])
+  }, [enabled, doctorId, localStream, remoteStream, audioOnly, appointmentId, enqueueChunk, teardown, syncAudioSources])
 
   // Аварийное закрытие вкладки: чанки уже на сервере, просим финализировать
   // то, что успело дойти. sendBeacon переживает выгрузку страницы.
