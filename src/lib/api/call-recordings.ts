@@ -22,8 +22,11 @@ export class CallRecordingsApi {
     appointmentId: number,
     options: { cookie?: string } = {}
   ): Promise<ApiCallRecording[]> {
+    // limit обязателен: по умолчанию Payload отдаёт только 10 документов, из-за
+    // чего на консультации с большим числом созвонов часть записей просто
+    // не доходила до страницы.
     const data = await serverApiFetch<PayloadListResponse<ApiCallRecording>>(
-      `/api/call-recordings?where[appointment][equals]=${appointmentId}&depth=1&sort=-createdAt`,
+      `/api/call-recordings?where[appointment][equals]=${appointmentId}&depth=1&sort=-createdAt&limit=100`,
       { ...options, cache: 'no-store' }
     )
     return data.docs
