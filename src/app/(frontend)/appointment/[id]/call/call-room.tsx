@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Camera, CameraOff, LogOut, Mic, MicOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useCallRecorder } from '@/hooks/use-call-recorder'
 import { useMediasoup } from '@/hooks/use-mediasoup'
 import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
@@ -55,9 +56,11 @@ interface CallRoomProps {
   chatPath: '/lk/chat' | '/lk-med/chat'
   localParticipantName: string
   remoteParticipantName: string
+  /** id врача, если звонок открыт врачом. Пациент получает null и не пишет. */
+  recordingDoctorId: number | null
 }
 
-export function CallRoom({ appointmentId, chatPath, localParticipantName, remoteParticipantName }: CallRoomProps) {
+export function CallRoom({ appointmentId, chatPath, localParticipantName, remoteParticipantName, recordingDoctorId }: CallRoomProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
@@ -70,6 +73,15 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
   const connect = call.connect
   const handledEndReasonRef = useRef(false)
   const handledRejectionRef = useRef(false)
+  const recorder = useCallRecorder({
+    enabled: recordingDoctorId !== null,
+    appointmentId,
+    doctorId: recordingDoctorId,
+    localStream: call.localStream,
+    remoteStream: call.remoteMedia?.stream ?? null,
+    audioOnly,
+  })
+  const stopRecording = recorder.stop
 
   useEffect(() => {
     if (invitationStatus === 'answered') void connect()
@@ -92,10 +104,15 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
         : `Соединение с ${remoteParticipantName} потеряно`,
       { position: 'top-center' },
     )
-    router.replace(`${chatPath}?appointment=${appointmentId}`)
-  }, [appointmentId, call.endReason, chatPath, remoteParticipantName, router])
+    // Сначала дописываем и финализируем запись, только потом уходим со
+    // страницы: после размонтирования загрузка хвоста уже не гарантирована.
+    void stopRecording().finally(() => router.replace(`${chatPath}?appointment=${appointmentId}`))
+  }, [appointmentId, call.endReason, chatPath, remoteParticipantName, router, stopRecording])
 
   const leave = async () => {
+    // Запись останавливаем до разрыва медиа: иначе треки уйдут из-под
+    // MediaRecorder и хвост сегмента потеряется.
+    await stopRecording()
     if (isWaitingForPatient) {
       endCallSignal(appointmentId, callId ?? undefined)
       call.leave()
@@ -116,9 +133,17 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
             </div>
             <p className="text-sm text-muted-foreground">Консультация №{appointmentId} · медиа передаётся через SFU</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
-            {!call.online ? <WifiOff aria-hidden="true" /> : !isWaitingForPatient && call.status === 'reconnecting' ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
-            <span>{isWaitingForPatient ? 'Ждём пациента…' : !call.online ? 'Нет сети' : call.status === 'connected' ? 'Соединение установлено' : call.status === 'failed' ? 'Ошибка соединения' : 'Подключение…'}</span>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {recorder.isRecording ? (
+              <span className="flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 font-medium text-destructive" role="status" aria-live="polite">
+                <span className="size-2 animate-pulse rounded-full bg-destructive" aria-hidden="true" />
+                Идёт запись
+              </span>
+            ) : null}
+            <div className="flex items-center gap-2" role="status" aria-live="polite">
+              {!call.online ? <WifiOff aria-hidden="true" /> : !isWaitingForPatient && call.status === 'reconnecting' ? <RefreshCw className="animate-spin" aria-hidden="true" /> : null}
+              <span>{isWaitingForPatient ? 'Ждём пациента…' : !call.online ? 'Нет сети' : call.status === 'connected' ? 'Соединение установлено' : call.status === 'failed' ? 'Ошибка соединения' : 'Подключение…'}</span>
+            </div>
           </div>
         </header>
 

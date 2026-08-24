@@ -102,5 +102,20 @@ export default buildConfig({
     } catch (err) {
       console.error('[holds-sweeper] failed to start:', err)
     }
+
+    // Доборка записей звонков, которые браузер врача не успел финализировать
+    // (краш, потеря питания, force quit). Без неё чанки оставались бы в /tmp,
+    // а запись не появлялась в системе вовсе.
+    try {
+      const { startOrphanedRecordingsSweeper } = await import('./lib/server/recording-chunks')
+      const stop = startOrphanedRecordingsSweeper()
+
+      console.log('[recordings-sweeper] started')
+
+      process.once('SIGTERM', stop)
+      process.once('SIGINT', stop)
+    } catch (err) {
+      console.error('[recordings-sweeper] failed to start:', err)
+    }
   },
 })

@@ -170,6 +170,13 @@ export const serverConfig = {
  * You can override with RECORDING_OUTPUT_DIR env variable.
  */
 export const recordingConfig = {
+  // Серверная запись (PlainTransport + FFmpeg) ОТКЛЮЧЕНА: запись ведётся в
+  // браузере врача (src/hooks/use-call-recorder.ts). Причина - FFmpeg-схема
+  // требовала синхронизировать 4 независимых RTP-потока, и любой обрыв
+  // (выход участника, выключенная камера) ломал контейнер или уводил
+  // дорожки в рассинхрон. Включить обратно: RECORDING_SERVER_SIDE=1
+  // (тогда на одну консультацию появятся ДВЕ записи).
+  enabled: process.env.RECORDING_SERVER_SIDE === '1',
   // Directory to store temporary recordings (before upload to Payload).
   // Must match the default in app/api/mediasoup-recording/finalize-server.
   outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',

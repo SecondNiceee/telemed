@@ -10,7 +10,7 @@
  */
 
 import type { Producer } from 'mediasoup/types'
-import { recordingFinalizeConfig } from './config'
+import { recordingConfig, recordingFinalizeConfig } from './config'
 import { recorder, type ParticipantProducers, type RecordingSession } from './recorder'
 import type { Room } from './room'
 
@@ -45,6 +45,10 @@ class RecordingController {
    * audio and video producers (published back to back) land in one segment.
    */
   onProducersChanged(room: Room): void {
+    // По умолчанию выключено: запись ведёт браузер врача. Остановка и
+    // финализация ниже намеренно работают всегда - если сегмент всё же был
+    // запущен (флаг включали на ходу), его нужно корректно закрыть.
+    if (!recordingConfig.enabled) return
     if (recorder.getActiveRecordingForRoom(room.id)) return
     if (!recorder.checkFfmpegAvailable()) return
 

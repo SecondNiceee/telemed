@@ -134,10 +134,24 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     })
     const consumer = await recv.consume(response.consumer)
     consumersRef.current.set(consumer.id, consumer)
-    const previous = remoteStreamsRef.current.get(producerPeerId)
-    const stream = new MediaStream(previous?.getTracks().filter((track) => track.kind !== consumer.kind) ?? [])
+
+    // Мутируем ОДИН постоянный MediaStream на пира вместо создания нового.
+    // Раньше audio- и video-консюмеры из getProducers приходили через
+    // Promise.all параллельно, оба читали previous как undefined и каждый
+    // создавал поток только со своей дорожкой - побеждал последний. Из-за
+    // этого в remoteMedia часто оставалось только видео, и запись уходила
+    // без звука собеседника. Стабильная ссылка на поток также позволяет
+    // <video> и рекордеру подхватывать дорожки, добавленные позже.
+    let stream = remoteStreamsRef.current.get(producerPeerId)
+    if (!stream) {
+      stream = new MediaStream()
+      remoteStreamsRef.current.set(producerPeerId, stream)
+    }
+    for (const track of stream.getTracks()) {
+      if (track.kind === consumer.track.kind) stream.removeTrack(track)
+    }
     stream.addTrack(consumer.track)
-    remoteStreamsRef.current.set(producerPeerId, stream)
+    // Новый объект-обёртка нужен, чтобы React увидел изменение.
     setRemoteMedia({ peerId: producerPeerId, stream })
     consumer.on('transportclose', () => consumersRef.current.delete(consumer.id))
     consumer.on('trackended', () => consumersRef.current.delete(consumer.id))

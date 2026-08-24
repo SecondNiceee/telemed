@@ -70,6 +70,8 @@ export default async function AppointmentCallPage({ params }: { params: Promise<
       chatPath={isDoctor ? '/lk-med/chat' : '/lk/chat'}
       localParticipantName={isDoctor ? doctorName : patientName}
       remoteParticipantName={isDoctor ? patientName : doctorName}
+      // Запись ведётся только в браузере врача, поэтому пациент id не получает.
+      recordingDoctorId={isDoctor ? Number(relationshipId(appointment.doctor)) : null}
     />
   )
 }
