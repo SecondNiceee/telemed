@@ -51,6 +51,8 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
     if (!category) {
       notFound();
     }
+    // Рейтинг приходит вместе с врачом (поля rating/reviewsCount), поэтому
+    // отдельного запроса под сортировку по баллу больше не нужно.
     doctors = await fetchDoctorsByCategory(category.id);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {

@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, Timer, User } from "lucide-react";
+import { Clock, Star, Timer, User } from "lucide-react";
 import { ApiDoctor, getDoctorSpecialty } from "@/lib/api/index";
 import { Media } from "@/payload-types";
 import { useRouter } from "next/navigation";
 import { getConsultationDurationLabel } from "@/lib/utils/consultation-duration";
 import { toOptimizableMediaSrc } from "@/lib/utils/media";
+import { getDoctorRating } from "@/lib/utils/doctor-rating";
 
 interface DoctorCardProps {
   doctor: ApiDoctor;
@@ -17,6 +18,8 @@ interface DoctorCardProps {
 
 export function DoctorCard({ doctor }: DoctorCardProps) {
   const specialty = getDoctorSpecialty(doctor);
+  // Рейтинг лежит на самом враче — прокидывать его пропом больше не нужно.
+  const rating = getDoctorRating(doctor);
   const router = useRouter();
   // null, если у врача нет ни одного слота — тогда длительность не показываем.
   const consultationDuration = getConsultationDurationLabel(doctor);
@@ -65,6 +68,30 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                       </p>
                     )}
                   </div>
+
+                  {/* Рейтинг виден рядом с именем: иначе сортировка по нему
+                      меняет порядок без видимой причины. */}
+                  {rating ? (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-teal/10 px-2.5 py-1"
+                      aria-label={`Рейтинг ${rating.average.toFixed(1)} из 5, отзывов: ${rating.count}`}
+                    >
+                      <Star
+                        className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400"
+                        aria-hidden="true"
+                      />
+                      <span className="text-sm font-semibold leading-none tabular-nums text-teal">
+                        {rating.average.toFixed(1)}
+                      </span>
+                      <span className="text-xs leading-none text-muted-foreground tabular-nums">
+                        {rating.count}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-xs leading-none text-muted-foreground">
+                      Нет отзывов
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">

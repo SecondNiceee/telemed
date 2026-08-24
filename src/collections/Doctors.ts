@@ -385,6 +385,47 @@ export const Doctors: CollectionConfig = {
       type: 'number',
       label: 'Цена консультации (руб.)',
     },
+    /**
+     * Рейтинг и число отзывов — денормализованный агрегат по коллекции
+     * feedbacks. Пересчитывается хуками отзывов (см. collections/Feedbacks.ts),
+     * чтобы список врачей мог сортироваться по баллу без прохода по всем
+     * отзывам на каждый рендер.
+     *
+     * Оба поля закрыты на запись через API: `update` у врача разрешён самому
+     * врачу и его организации, так что без этого запрета врач мог бы PATCH-ем
+     * поставить себе 5.0. Хук пишет их через local API с overrideAccess,
+     * который field-level access не проверяет.
+     */
+    {
+      name: 'rating',
+      type: 'number',
+      label: 'Рейтинг',
+      index: true,
+      access: {
+        create: () => false,
+        update: () => false,
+      },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Средний балл по отзывам. Считается автоматически, пусто — отзывов нет.',
+      },
+    },
+    {
+      name: 'reviewsCount',
+      type: 'number',
+      label: 'Отзывов',
+      defaultValue: 0,
+      access: {
+        create: () => false,
+        update: () => false,
+      },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'Сколько отзывов участвует в среднем балле. Считается автоматически.',
+      },
+    },
     {
       name: 'photo',
       type: 'upload',

@@ -59,6 +59,13 @@ export interface ApiDoctor {
   experience?: number | null
   degree?: string | null
   price?: number | null
+  /**
+   * Средний балл по отзывам. Считается хуками коллекции отзывов и лежит на
+   * самом враче, поэтому доступен всюду, где загружен врач. null — отзывов нет.
+   */
+  rating?: number | null
+  /** Сколько отзывов участвует в среднем балле. */
+  reviewsCount?: number | null
   /** Обрезанный квадрат — показывается везде. */
   photo?: ApiMedia | number | null
   /** Необрезанный оригинал, нужен только редактору области. */

@@ -9,6 +9,21 @@ import { Search, X } from "lucide-react";
 import type { ApiDoctor } from "@/lib/api/types";
 import { DateFilter } from "@/components/date-filter";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DEFAULT_SORT,
+  SORT_OPTIONS,
+  SORT_STORAGE_KEY,
+  getDoctorRating,
+  isDoctorSortOption,
+  type DoctorSortOption,
+} from "@/lib/utils/doctor-rating";
 
 /** Сколько врачей показываем на одной странице */
 const DOCTORS_PER_PAGE = 6;
@@ -18,7 +33,7 @@ interface CategoryPageClientProps {
   initialSelectedDate?: string;
 }
 
-export function CategoryPageClient({ 
+export function CategoryPageClient ({ 
   doctors, 
   initialSelectedDate 
 }: CategoryPageClientProps) {
@@ -29,7 +44,22 @@ export function CategoryPageClient({
     initialSelectedDate ?? null,
   );
   const [page, setPage] = useState(1);
+  // Стартуем с дефолта, а сохранённый выбор подхватываем уже в эффекте:
+  // читать localStorage в инициализаторе нельзя — на сервере его нет,
+  // и разметка разошлась бы с клиентской при гидратации.
+  const [sortBy, setSortBy] = useState<DoctorSortOption>(DEFAULT_SORT);
   const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SORT_STORAGE_KEY);
+    if (isDoctorSortOption(saved)) setSortBy(saved);
+  }, []);
+
+  const changeSort = useCallback((value: string) => {
+    if (!isDoctorSortOption(value)) return;
+    setSortBy(value);
+    window.localStorage.setItem(SORT_STORAGE_KEY, value);
+  }, []);
 
   // Дата живёт в state (фильтруем на клиенте), но дублируем её в URL, чтобы
   // ссылку можно было переслать и чтобы переход из /appointment с ?date= работал.
@@ -42,9 +72,47 @@ export function CategoryPageClient({
     [pathname, router],
   );
 
+  // Сортируем один раз по всему списку — до фильтров. Поиск и дата только
+  // выкидывают элементы, порядок не меняя, поэтому набор текста в поиске
+  // не запускает пересортировку.
+  const sortedDoctors = useMemo(() => {
+    const byName = (a: ApiDoctor, b: ApiDoctor) =>
+      (a.name ?? "").localeCompare(b.name ?? "", "ru");
+
+    const result = [...doctors];
+
+    if (sortBy === "rating") {
+      return result.sort((a, b) => {
+        // Рейтинг лежит на самом враче: хуки отзывов держат его актуальным.
+        const aRating = getDoctorRating(a);
+        const bRating = getDoctorRating(b);
+        // Врачи без отзывов идут в конец, а не считаются нулём: иначе они
+        // смешались бы с теми, кому реально ставили низкие оценки.
+        if (!aRating && !bRating) return byName(a, b);
+        if (!aRating) return 1;
+        if (!bRating) return -1;
+        const byAverage = bRating.average - aRating.average;
+        if (byAverage !== 0) return byAverage;
+        // При равном балле выше тот, у кого он подтверждён большим числом отзывов
+        const byCount = bRating.count - aRating.count;
+        return byCount !== 0 ? byCount : byName(a, b);
+      });
+    }
+
+    const direction = sortBy === "price-asc" ? 1 : -1;
+    return result.sort((a, b) => {
+      // Врачи без цены всегда в конце — в обоих направлениях, иначе при
+      // сортировке «сначала дороже» список начинался бы с пустых цен.
+      if (a.price == null && b.price == null) return byName(a, b);
+      if (a.price == null) return 1;
+      if (b.price == null) return -1;
+      return a.price === b.price ? byName(a, b) : (a.price - b.price) * direction;
+    });
+  }, [doctors, sortBy]);
+
   // Filter doctors by search query and selected date
   const filteredDoctors = useMemo(() => {
-    let result = doctors;
+    let result = sortedDoctors;
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -77,7 +145,7 @@ export function CategoryPageClient({
     }
 
     return result;
-  }, [doctors, searchQuery, selectedDate]);
+  }, [sortedDoctors, searchQuery, selectedDate]);
 
   const totalPages = Math.max(1, Math.ceil(filteredDoctors.length / DOCTORS_PER_PAGE));
   const currentPage = Math.min(page, totalPages);
@@ -89,9 +157,11 @@ export function CategoryPageClient({
 
   // Смена фильтров всегда возвращает к первой странице: иначе после сужения
   // выборки пользователь остаётся на странице, которой в новой выдаче нет.
+  // Сортировка тоже сбрасывает — порядок меняется целиком, и «шестая страница»
+  // прежнего списка ничего общего с новым не имеет.
   useEffect(() => {
     setPage(1);
-  }, [searchQuery, selectedDate]);
+  }, [searchQuery, selectedDate, sortBy]);
 
   const visibleDoctors = useMemo(() => {
     const start = (currentPage - 1) * DOCTORS_PER_PAGE;
@@ -152,14 +222,40 @@ export function CategoryPageClient({
           </p>
         )}
 
-        {/* Count */}
-        <p className="text-sm text-muted-foreground">
-          Найдено врачей:{" "}
-          <span className="inline-flex items-center rounded-full bg-teal/10 px-2.5 py-0.5 font-semibold text-teal">
-            {filteredDoctors.length}
-          </span>
-          {searchQuery && ` по запросу "${searchQuery}"`}
-        </p>
+        {/* Count + sort */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <p className="text-sm text-muted-foreground">
+            Найдено врачей:{" "}
+            <span className="inline-flex items-center rounded-full bg-teal/10 px-2.5 py-0.5 font-semibold text-teal">
+              {filteredDoctors.length}
+            </span>
+            {searchQuery && ` по запросу "${searchQuery}"`}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <label
+              htmlFor="doctors-sort"
+              className="text-sm text-muted-foreground whitespace-nowrap"
+            >
+              Сортировка
+            </label>
+            <Select value={sortBy} onValueChange={changeSort}>
+              <SelectTrigger
+                id="doctors-sort"
+                className="h-10 w-[218px] rounded-full border-teal/30 bg-card/80 focus-visible:border-teal focus-visible:ring-teal/20"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Doctors list */}
