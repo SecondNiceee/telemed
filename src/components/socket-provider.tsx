@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { ApiMessage } from '@/lib/api/messages'
 import { getSenderType, getSenderId } from '@/lib/api/messages'
+import { getCallChatOpener } from '@/lib/chat/call-chat-bridge'
 
 type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
 
@@ -202,6 +203,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       const isInActiveChat = chatStoreRef.current.activeAppointmentId === appointmentId
       if (isInActiveChat && isTabVisible) return
 
+      // Если пользователь сейчас в звонке по этой консультации, открываем
+      // панель чата справа. Переход по ссылке перезагрузил бы страницу и
+      // выбросил бы человека из комнаты прямо посреди разговора.
+      const openInCallChat = getCallChatOpener(appointmentId)
+
       const chatUrl = recipientType === 'doctor'
         ? `/lk-med/chat?appointment=${appointmentId}`
         : `/lk/chat?appointment=${appointmentId}`
@@ -214,8 +220,14 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         position: 'bottom-right',
         duration: 8000,
         action: {
-          label: 'Перейти',
-          onClick: () => window.location.assign(chatUrl),
+          label: openInCallChat ? 'Открыть чат' : 'Перейти',
+          onClick: () => {
+            if (openInCallChat) {
+              openInCallChat()
+              return
+            }
+            window.location.assign(chatUrl)
+          },
         },
       })
     })
