@@ -230,6 +230,28 @@ export function createCallRejectHandler(io: SocketIOServer) {
 }
 
 /**
+ * Отвечает, является ли приглашение всё ещё активным (телефон «звонит»).
+ *
+ * Нужно звонящему, который вернулся на страницу звонка по старой ссылке:
+ * после перезагрузки клиент не помнит статус приглашения, а сервер помнит
+ * только те вызовы, на которые ещё не ответили.
+ */
+export function createCallStateHandler() {
+  return (
+    socket: AuthenticatedSocket,
+    data: { appointmentId?: number; callId?: string },
+    ack?: (response: { pending: boolean }) => void,
+  ) => {
+    if (typeof ack !== 'function') return
+    const appointmentId = Number(data?.appointmentId)
+    const activeCall = Number.isInteger(appointmentId) ? getActiveCall(appointmentId) : undefined
+    const pending = activeCall !== undefined && activeCall.callId === data?.callId
+    console.log(`[Socket] Call state asked by ${socket.data.senderType}:${socket.data.senderId} for ${appointmentId}: pending=${pending}`)
+    ack({ pending })
+  }
+}
+
+/**
  * Handle call end
  */
 export function createCallEndHandler(io: SocketIOServer) {

@@ -21,8 +21,11 @@ async function main() {
       return
     }
 
-    const leaveMatch = req.method === 'POST' ? req.url?.match(/^\/rooms\/(appointment_\d+)\/leave$/) : null
-    if (!leaveMatch) {
+    // `state` отвечает, есть ли в комнате кто-то кроме запрашивающего. Нужно,
+    // чтобы участник, вернувшийся по старой ссылке звонка, понял: комната уже
+    // закрыта, ждать там некого.
+    const roomActionMatch = req.method === 'POST' ? req.url?.match(/^\/rooms\/(appointment_\d+)\/(leave|state)$/) : null
+    if (!roomActionMatch) {
       res.writeHead(404)
       res.end()
       return
@@ -38,9 +41,24 @@ async function main() {
       try {
         const body = JSON.parse(rawBody) as { token?: string; peerId?: string }
         if (!body.token || !body.peerId) throw new Error('token and peerId are required')
-        const roomId = leaveMatch[1]
+        const roomId = roomActionMatch[1]
         const claims = verifyRoomToken(body.token, { roomId, peerId: body.peerId })
         const room = roomManager.getRoom(roomId)
+
+        if (roomActionMatch[2] === 'state') {
+          // Сама комната живёт ещё 30 секунд после выхода последнего участника,
+          // поэтому её существование ни о чём не говорит - смотрим именно на
+          // присутствие второго участника.
+          const peerIds = room ? [...room.peers.keys()] : []
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({
+            success: true,
+            roomExists: room !== undefined,
+            otherPeerPresent: peerIds.some((peerId) => peerId !== claims.peerId),
+          }))
+          return
+        }
+
         const removed = room ? roomManager.removePeer(room, claims.peerId) : false
         if (removed) io.to(roomId).emit('peerLeft', { peerId: claims.peerId })
         res.writeHead(200, { 'Content-Type': 'application/json' })

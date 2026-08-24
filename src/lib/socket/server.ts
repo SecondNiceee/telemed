@@ -33,6 +33,7 @@ import {
   createCallEndHandler,
   createCallParticipantLeavingHandler,
   createCallParticipantRejoiningHandler,
+  createCallStateHandler,
   checkPendingCallsForSocket,
 } from './handlers/callHandler'
 import {
@@ -85,6 +86,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
   const callEndHandler = createCallEndHandler(io)
   const callParticipantLeavingHandler = createCallParticipantLeavingHandler(io)
   const callParticipantRejoiningHandler = createCallParticipantRejoiningHandler(io)
+  const callStateHandler = createCallStateHandler()
   const disconnectHandler = createDisconnectHandler(io)
 
   // Хэндлеры консультации
@@ -128,6 +130,7 @@ export function initializeSocketServer(io: SocketIOServer, payload: Payload) {
     socket.on('call-answer', (data: CallAnswerPayload) => callAnswerHandler(authSocket, data))
     socket.on('call-reject', (data: CallRejectPayload) => callRejectHandler(authSocket, data))
     socket.on('call-end', (data: CallEndPayload) => callEndHandler(authSocket, data))
+    socket.on('call-state', (data: { appointmentId?: number; callId?: string }, ack) => callStateHandler(authSocket, data, ack))
     
     // Participant reconnection events
     socket.on('call-participant-leaving', (data: CallParticipantLeavingPayload) => callParticipantLeavingHandler(authSocket, data))
