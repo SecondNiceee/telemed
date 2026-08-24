@@ -72,6 +72,10 @@ export default async function AppointmentCallPage({ params }: { params: Promise<
       remoteParticipantName={isDoctor ? patientName : doctorName}
       // Запись ведётся только в браузере врача, поэтому пациент id не получает.
       recordingDoctorId={isDoctor ? Number(relationshipId(appointment.doctor)) : null}
+      // Чат консультации доступен прямо в звонке, поэтому нужен автор сообщений.
+      currentSenderType={isDoctor ? 'doctor' : 'user'}
+      currentSenderId={Number(session.id)}
+      chatBlocked={appointment.chatBlocked === true}
     />
   )
 }

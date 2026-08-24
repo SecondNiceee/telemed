@@ -1,16 +1,18 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Camera, CameraOff, LogOut, Mic, MicOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
+import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCallRecorder } from '@/hooks/use-call-recorder'
 import { useMediasoup } from '@/hooks/use-mediasoup'
 import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
+import { useChatStore } from '@/stores/chat-store'
 import { cn } from '@/lib/utils'
+import { CallChatPanel } from './call-chat-panel'
 
 interface VideoSurfaceProps {
   stream: MediaStream | null
@@ -58,15 +60,31 @@ interface CallRoomProps {
   remoteParticipantName: string
   /** id врача, если звонок открыт врачом. Пациент получает null и не пишет. */
   recordingDoctorId: number | null
+  /** Кто смотрит на эту страницу - нужно чату, чтобы отличать свои сообщения. */
+  currentSenderType: 'user' | 'doctor'
+  currentSenderId: number
+  /** Врач заблокировал чат пациенту (значение на момент загрузки страницы). */
+  chatBlocked: boolean
 }
 
-export function CallRoom({ appointmentId, chatPath, localParticipantName, remoteParticipantName, recordingDoctorId }: CallRoomProps) {
+export function CallRoom({
+  appointmentId,
+  chatPath,
+  localParticipantName,
+  remoteParticipantName,
+  recordingDoctorId,
+  currentSenderType,
+  currentSenderId,
+  chatBlocked,
+}: CallRoomProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const audioOnly = searchParams.get('audio') === '1'
   const isCaller = searchParams.get('caller') === '1'
   const callId = searchParams.get('callId')
-  const { outgoingCallStatuses, endCall: endCallSignal } = useSocket()
+  const { outgoingCallStatuses, endCall: endCallSignal, isConnected, joinRoom, leaveRoom } = useSocket()
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const unreadCount = useChatStore((state) => state.unreadCounts[appointmentId] ?? 0)
   const invitationStatus = callId ? outgoingCallStatuses[callId] ?? (isCaller ? 'waiting' : 'answered') : 'answered'
   const isWaitingForPatient = isCaller && invitationStatus === 'waiting'
   const call = useMediasoup(appointmentId, audioOnly)
@@ -86,6 +104,15 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
   useEffect(() => {
     if (invitationStatus === 'answered') void connect()
   }, [connect, invitationStatus])
+
+  // В комнату чата входим на всё время звонка, даже когда панель закрыта:
+  // иначе `new-message` не дойдёт и счётчик непрочитанных останется пустым.
+  // isConnected в зависимостях - чтобы перезайти после реконнекта сокета.
+  useEffect(() => {
+    if (!isConnected) return
+    joinRoom(appointmentId)
+    return () => leaveRoom(appointmentId)
+  }, [appointmentId, isConnected, joinRoom, leaveRoom])
 
   useEffect(() => {
     if (!isCaller || invitationStatus !== 'rejected' || handledRejectionRef.current) return
@@ -124,7 +151,12 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
 
   return (
     <TooltipProvider>
-      <main className="flex min-h-dvh flex-col bg-background p-4 text-foreground md:p-6">
+      {/*
+        На больших экранах высота фиксируется по вьюпорту: чат рядом с видео
+        должен скроллиться внутри себя, а не растягивать страницу. На мобильных
+        поведение прежнее (min-h-dvh), там чат открывается оверлеем.
+      */}
+      <main className="flex min-h-dvh flex-col bg-background p-4 text-foreground md:p-6 lg:h-dvh lg:min-h-0 lg:overflow-hidden">
         <header className="flex flex-wrap items-center justify-between gap-4 pb-4">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
@@ -154,20 +186,41 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
           </div>
         ) : null}
 
-        {isWaitingForPatient ? (
-          <section className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-sm" role="status" aria-live="polite">
-            <span className="size-3 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-            <div className="flex flex-col gap-2">
-              <h2 className="text-balance text-2xl font-semibold">Ждём пациента…</h2>
-              <p className="text-pretty text-sm leading-6 text-muted-foreground">Подключение к защищённой комнате начнётся после принятия звонка.</p>
-            </div>
-          </section>
-        ) : (
-          <div className="grid flex-1 gap-4 md:grid-cols-2">
-            <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? remoteParticipantName : `Ожидаем: ${remoteParticipantName}`} audioOnly={audioOnly} cameraOff={!call.remoteCameraEnabled} micMuted={call.remoteMedia ? !call.remoteMicEnabled : false} />
-            <VideoSurface stream={call.localStream} muted label={localParticipantName} audioOnly={audioOnly} speakingEnabled={call.micEnabled} cameraOff={!call.cameraEnabled} micMuted={!call.micEnabled} />
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            {isWaitingForPatient ? (
+              <section className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-sm" role="status" aria-live="polite">
+                <span className="size-3 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-balance text-2xl font-semibold">Ждём пациента…</h2>
+                  <p className="text-pretty text-sm leading-6 text-muted-foreground">Подключение к защищённой комнате начнётся после принятия звонка.</p>
+                </div>
+              </section>
+            ) : (
+              <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+                <VideoSurface stream={call.remoteMedia?.stream ?? null} label={call.remoteMedia ? remoteParticipantName : `Ожидаем: ${remoteParticipantName}`} audioOnly={audioOnly} cameraOff={!call.remoteCameraEnabled} micMuted={call.remoteMedia ? !call.remoteMicEnabled : false} />
+                <VideoSurface stream={call.localStream} muted label={localParticipantName} audioOnly={audioOnly} speakingEnabled={call.micEnabled} cameraOff={!call.cameraEnabled} micMuted={!call.micEnabled} />
+              </div>
+            )}
           </div>
-        )}
+
+          {isChatOpen ? (
+            <>
+              {/* Затемнение только для мобильного оверлея: на десктопе чат стоит рядом. */}
+              <div className="fixed inset-0 z-30 bg-background/70 backdrop-blur-sm lg:hidden" onClick={() => setIsChatOpen(false)} aria-hidden="true" />
+              <div className="fixed inset-x-3 bottom-3 top-20 z-40 lg:static lg:inset-auto lg:z-auto lg:w-96 lg:shrink-0">
+                <CallChatPanel
+                  appointmentId={appointmentId}
+                  currentSenderType={currentSenderType}
+                  currentSenderId={currentSenderId}
+                  otherPartyName={remoteParticipantName}
+                  chatBlocked={chatBlocked}
+                  onClose={() => setIsChatOpen(false)}
+                />
+              </div>
+            </>
+          ) : null}
+        </div>
 
         <footer className="flex flex-wrap items-center justify-center gap-3 pt-5">
           {!isWaitingForPatient ? (
@@ -176,6 +229,27 @@ export function CallRoom({ appointmentId, chatPath, localParticipantName, remote
               {!audioOnly ? <Tooltip><TooltipTrigger asChild><Button size="icon-lg" variant={call.cameraEnabled ? 'secondary' : 'destructive'} onClick={() => void call.toggleCamera()} aria-label={call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}>{call.cameraEnabled ? <Camera /> : <CameraOff />}</Button></TooltipTrigger><TooltipContent>{call.cameraEnabled ? 'Выключить камеру' : 'Включить камеру'}</TooltipContent></Tooltip> : null}
             </>
           ) : null}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-lg"
+                variant={isChatOpen ? 'default' : 'secondary'}
+                className="relative"
+                onClick={() => setIsChatOpen((open) => !open)}
+                aria-label={isChatOpen ? 'Скрыть чат' : 'Открыть чат консультации'}
+                aria-expanded={isChatOpen}
+              >
+                <MessageSquare />
+                {!isChatOpen && unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-destructive px-1 text-xs font-semibold text-destructive-foreground">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                    <span className="sr-only">непрочитанных сообщений</span>
+                  </span>
+                ) : null}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{isChatOpen ? 'Скрыть чат' : 'Открыть чат консультации'}</TooltipContent>
+          </Tooltip>
           <Button variant="destructive" size="lg" onClick={() => void leave()}><LogOut data-icon="inline-start" />Завершить</Button>
         </footer>
       </main>
