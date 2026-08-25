@@ -124,10 +124,20 @@ function hasSettledPayment(appointment: { payment?: { status?: string | null } |
   return appointment.payment?.status === 'succeeded'
 }
 
-type AppointmentMoneyState = {
+export type AppointmentMoneyState = {
   paidAt?: string | null
   payment?: { status?: string | null; paymentId?: string | null; refundId?: string | null } | null
 }
+
+/**
+ * Почему запись нельзя удалить.
+ *
+ * `settled` / `refunded` — деньги реально двигались, это повод для внимания.
+ * `live_payment` — рутина: платёж создан и ещё может быть оплачен, запись просто
+ * ждёт сверки (`reconcileAbandonedPayments`). Разделение нужно, чтобы сверка,
+ * проходящая по таким записям раз в несколько минут, не засыпала лог warn'ами.
+ */
+type MoneyKeepReason = 'settled' | 'refunded' | 'live_payment'
 
 /**
  * С записью связаны деньги — уже прошедшие или ещё возможные. Удалять нельзя.
@@ -150,17 +160,21 @@ type AppointmentMoneyState = {
  * даже не нажал «Оплатить» — это абсолютное большинство брошенных броней) и
  * платёж окончательно мёртв (`canceled` — по нему ЮKassa денег уже не примет).
  */
-function mustKeepForMoney(appointment: AppointmentMoneyState): boolean {
-  if (appointment.paidAt) return true
+function moneyKeepReason(appointment: AppointmentMoneyState): MoneyKeepReason | null {
+  if (appointment.paidAt) return 'settled'
 
   const payment = appointment.payment
-  if (payment?.refundId) return true
+  if (payment?.refundId) return 'refunded'
 
   // Платежа не было — удалять безопасно.
-  if (!payment?.paymentId) return false
+  if (!payment?.paymentId) return null
 
   // Платёж есть: удаляем только если он уже не может быть оплачен.
-  return payment.status !== 'canceled'
+  if (payment.status === 'canceled') return null
+
+  return payment.status === 'succeeded' || payment.status === 'refunded'
+    ? 'settled'
+    : 'live_payment'
 }
 
 /**
@@ -178,18 +192,25 @@ function mustKeepForMoney(appointment: AppointmentMoneyState): boolean {
  *
  * @returns true, если запись удалена
  */
-async function deleteReleasedHold({
+export async function deleteReleasedHold({
   payload,
   appointment,
 }: {
   payload: PayloadInstance
   appointment: AppointmentMoneyState & { id: number }
 }): Promise<boolean> {
-  if (mustKeepForMoney(appointment)) {
-    console.warn('[v0][holds] с бронью связан платёж — оставляем запись отменённой', {
-      appointmentId: appointment.id,
-      paymentStatus: appointment.payment?.status ?? null,
-    })
+  const keepReason = moneyKeepReason(appointment)
+
+  if (keepReason) {
+    // Живой платёж — штатная ситуация, а не инцидент: его добьёт сверка
+    // `reconcileAbandonedPayments`, и запись удалится следующим проходом.
+    if (keepReason !== 'live_payment') {
+      console.warn('[v0][holds] с бронью связаны деньги — оставляем запись отменённой', {
+        appointmentId: appointment.id,
+        paymentStatus: appointment.payment?.status ?? null,
+        reason: keepReason,
+      })
+    }
     return false
   }
 
@@ -347,10 +368,10 @@ async function runSweep({
     // делает только чтобы посчитать totalDocs — он здесь не нужен.
     pagination: false,
     limit: maxBatch,
-    // Тянем ровно то, что нужно для восстановления слота, — без повторного
+    // Тянем ровно то, что нужно дл�� восстановления слота, — без повторного
     // findByID на каждую бронь. `payment` и `paidAt` нужны дважды: чтобы не
     // отменить бронь, деньги за которую уже получены, и чтобы решить, можно ли
-    // удалять запись или в ней остался след движения денег.
+    // удалять зап��сь или в ней остался след движения денег.
     select: {
       doctor: true,
       doctorName: true,
@@ -587,6 +608,16 @@ const PRUNE_INTERVAL_MS = 60 * 60 * 1000
 const BACKGROUND_SWEEP_MAX_PASSES = 5
 
 /**
+ * Как часто сверять платежи по уже отменённым броням.
+ *
+ * Реже, чем разбор броней: каждый такой шаг — сетевой запрос в ЮKassa, и
+ * торопиться некуда (слот врачу уже вернулся, речь только о судьбе денег и об
+ * уборке записи). Свой троттл есть и внутри `reconcileAbandonedPayments`, так
+ * что одна и та же запись не опрашивается на каждом проходе.
+ */
+const RECONCILE_INTERVAL_MS = 5 * 60 * 1000
+
+/**
  * Один тик фонового sweeper'а.
  *
  * Если просрочек больше лимита пачки, добираем остаток следующими проходами
@@ -628,6 +659,7 @@ async function backgroundSweepTick(): Promise<number> {
 export function startExpiredHoldsSweeper(): () => void {
   let running = false
   let lastPruneAt = 0
+  let lastReconcileAt = 0
 
   const tick = async () => {
     // Предыдущий тик ещё идёт (после простоя проход может быть долгим) — пропускаем.
@@ -638,6 +670,30 @@ export function startExpiredHoldsSweeper(): () => void {
       const released = await backgroundSweepTick()
       if (released > 0) {
         console.log(`[v0][holds-sweeper] released ${released} expired hold(s)`)
+      }
+
+      // Сверка платежей по отменённым броням: она решает судьбу денег (вернуть
+      // запоздавшую оплату) и убирает записи, чей платёж окончательно мёртв.
+      //
+      // Импорт динамический: appointment-payments статически импортирует этот
+      // модуль (releaseHold), и обычный import замкнул бы цикл — при загрузке
+      // одного из модулей второй оказался бы ещё не инициализирован.
+      if (Date.now() - lastReconcileAt >= RECONCILE_INTERVAL_MS) {
+        lastReconcileAt = Date.now()
+
+        try {
+          const { reconcileAbandonedPayments } = await import('./appointment-payments')
+          const { checked, refunded, deleted } = await reconcileAbandonedPayments()
+
+          if (checked > 0) {
+            console.log(
+              `[v0][holds-sweeper] reconciled ${checked} abandoned payment(s): ${refunded} refunded, ${deleted} record(s) removed`,
+            )
+          }
+        } catch (err) {
+          // Сверка не должна ронять основной проход по броням.
+          console.error('[v0][holds-sweeper] payment reconciliation failed:', err)
+        }
       }
 
       // Уборка прошедших свободных слотов — раз в час, не на каждом тике.
