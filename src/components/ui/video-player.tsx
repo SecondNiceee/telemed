@@ -21,6 +21,13 @@ interface VideoPlayerProps {
   durationHint?: number
 }
 
+/**
+ * Сколько ждать, пока браузер вычислит длительность потокового WebM.
+ * По истечении сдаёмся и возвращаем плеер в рабочее состояние: лучше
+ * приблизительная длительность, чем замерший на 0:00 таймер.
+ */
+const PROBE_TIMEOUT_MS = 3000
+
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || isNaN(seconds)) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -44,10 +51,16 @@ export function VideoPlayer({ src, title, poster, className, onDownload, duratio
   // Флаг «идёт зондирование длительности»: во время принудительной перемотки
   // в конец timeupdate не должен дёргать ползунок.
   const probingRef = useRef(false)
+  // Страховочный таймер зондирования. Без него probingRef мог остаться true
+  // навсегда — тогда timeupdate игнорировался, и таймер стоял на 0:00, пока
+  // видео на самом деле играло.
+  const probeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+
+    const hasDurationHint = !!durationHint && durationHint > 0
 
     const applyDuration = () => {
       if (video.duration && isFinite(video.duration)) {
@@ -59,28 +72,58 @@ export function VideoPlayer({ src, title, poster, className, onDownload, duratio
 
     /**
      * Потоковый WebM от MediaRecorder не содержит длительности в заголовке:
-     * duration === Infinity. Единственный способ заставить браузер вычислить
-     * её (и построить индекс для перемотки) - прыгнуть на "бесконечную"
-     * позицию: Chrome/Firefox дочитывают файл, публикуют настоящую duration
-     * через durationchange и корректно возвращаются. Без этого перемотка
-     * по записи лагает или не работает вовсе.
+     * duration === Infinity. Чтобы браузер её вычислил, приходится прыгнуть на
+     * "бесконечную" позицию — тогда он дочитывает файл и публикует настоящую
+     * duration через durationchange.
+     *
+     * Приём рискованный, поэтому применяем его только как последнее средство:
+     *
+     * 1. Если длительность известна из БД (durationHint), зондировать нечего.
+     *    На длинной записи прыжок в конец заставляет браузер тянуть весь файл —
+     *    отсюда и была пауза «видео не идёт» в начале просмотра.
+     * 2. Зондирование обязано завершиться. На больших WebM без индекса Cues
+     *    браузер может не опубликовать конечную duration вовсе, и без таймаута
+     *    probingRef оставался true навсегда: timeupdate игнорировался, время
+     *    замирало на 0:00, хотя видео шло.
      */
     const probeInfiniteDuration = () => {
+      if (hasDurationHint) return
       if (probingRef.current || isFinite(video.duration)) return
+
       probingRef.current = true
+      // Позиция, на которую вернёмся: пользователь мог успеть перемотать сам.
+      const resumeFrom = video.currentTime
+
+      const finishProbe = (restorePosition: boolean) => {
+        video.removeEventListener('durationchange', onDurationChange)
+        if (probeTimeoutRef.current) {
+          clearTimeout(probeTimeoutRef.current)
+          probeTimeoutRef.current = null
+        }
+        probingRef.current = false
+        if (restorePosition) {
+          try {
+            video.currentTime = resumeFrom
+          } catch {
+            // Перемотка могла не удасться — время подхватит следующий timeupdate.
+          }
+        }
+        setCurrentTime(video.currentTime)
+      }
+
       const onDurationChange = () => {
         if (!isFinite(video.duration)) return
-        video.removeEventListener('durationchange', onDurationChange)
         applyDuration()
-        video.currentTime = 0
-        probingRef.current = false
+        finishProbe(true)
       }
+
       video.addEventListener('durationchange', onDurationChange)
+      probeTimeoutRef.current = setTimeout(() => finishProbe(true), PROBE_TIMEOUT_MS)
+
       try {
         video.currentTime = Number.MAX_SAFE_INTEGER
       } catch {
-        video.removeEventListener('durationchange', onDurationChange)
-        probingRef.current = false
+        finishProbe(false)
       }
     }
 
@@ -154,8 +197,24 @@ export function VideoPlayer({ src, title, poster, className, onDownload, duratio
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      if (probeTimeoutRef.current) {
+        clearTimeout(probeTimeoutRef.current)
+        probeTimeoutRef.current = null
+      }
+      // Иначе следующий эффект решит, что зондирование всё ещё идёт.
+      probingRef.current = false
     }
-  }, [])
+  }, [durationHint])
+
+  // Подсказка из БД может приехать после монтирования (данные грузятся
+  // асинхронно) — подхватываем её, но не перетираем уже известную настоящую
+  // длительность, вычисленную самим браузером.
+  useEffect(() => {
+    if (!durationHint || durationHint <= 0) return
+    const video = videoRef.current
+    if (video && isFinite(video.duration)) return
+    setDuration((prev) => (prev > 0 ? prev : durationHint))
+  }, [durationHint])
 
   // Auto-hide controls
   const resetControlsTimeout = useCallback(() => {
