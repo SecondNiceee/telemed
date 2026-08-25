@@ -60,6 +60,13 @@ export interface MessagePage {
 
 const MESSAGE_PAGE_SIZE = 15
 
+/**
+ * Потолок выборки непрочитанных при подсчёте по кабинету. Индикатор — точка,
+ * а не число, поэтому точный счёт за этим потолком ни на что не влияет:
+ * важно лишь то, что непрочитанные есть.
+ */
+const UNREAD_SCAN_LIMIT = 200
+
 export class MessagesApi {
   /**
    * Fetch a page from newest to oldest, then normalize it for chronological UI rendering.
@@ -99,6 +106,47 @@ export class MessagesApi {
       { credentials: 'include' }
     )
     return data.docs[0] || null
+  }
+
+  /**
+   * Непрочитанные сообщения, адресованные текущему участнику, сгруппированные
+   * по консультации. Нужно кабинетам (/lk, /lk-med), чтобы показать точку
+   * «есть новое сообщение» сразу при загрузке страницы: счётчики в chat-store
+   * живут только в памяти и на свежей загрузке всегда пустые.
+   *
+   * Один запрос на весь кабинет вместо запроса на каждую консультацию:
+   * доступ к коллекции уже ограничен консультациями вызывающего
+   * (см. access.read в Messages), поэтому дополнительно фильтровать по списку
+   * id не требуется.
+   *
+   * Ошибку не пробрасываем: точка у чата не стоит того, чтобы из-за неё
+   * падал весь кабинет.
+   */
+  static async fetchUnreadCountsServer(
+    options: { cookie?: string; currentSenderType: 'user' | 'doctor' },
+  ): Promise<Record<number, number>> {
+    const { currentSenderType, ...requestOptions } = options
+    // Полиморфная связь: интересуют сообщения от противоположной стороны.
+    const otherRelationTo = currentSenderType === 'user' ? 'doctors' : 'users'
+
+    try {
+      const data = await serverApiFetch<PayloadListResponse<Pick<ApiMessage, 'appointment'>>>(
+        `/api/messages?where[sender.relationTo][equals]=${otherRelationTo}&where[read][equals]=false&limit=${UNREAD_SCAN_LIMIT}&depth=0&select[appointment]=true`,
+        { ...requestOptions, cache: 'no-store' },
+      )
+
+      const counts: Record<number, number> = {}
+      for (const message of data.docs) {
+        const appointmentId =
+          typeof message.appointment === 'object' ? message.appointment?.id : message.appointment
+        if (typeof appointmentId !== 'number') continue
+        counts[appointmentId] = (counts[appointmentId] ?? 0) + 1
+      }
+      return counts
+    } catch (err) {
+      console.error('[v0] Failed to load unread message counts:', err)
+      return {}
+    }
   }
 
   /**

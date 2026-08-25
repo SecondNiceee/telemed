@@ -4,7 +4,7 @@ import { LkContent } from "@/components/lk-content"
 import { BackgroundDecor } from "@/components/background-decor"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
-import { AuthApi, AppointmentsApi } from "@/lib/api/index"
+import { AuthApi, AppointmentsApi, MessagesApi } from "@/lib/api/index"
 import type { ApiAppointment } from "@/lib/api/types"
 import { releaseExpiredHolds } from "@/lib/server/appointment-holds"
 
@@ -13,6 +13,9 @@ export const dynamic = "force-dynamic"
 export default async function LkPage() {
   let user = null;
   let appointments: ApiAppointment[] = [];
+  // Непрочитанные из БД: без них точка «новое сообщение» не появлялась бы
+  // до прихода живого события сокета.
+  let unreadCounts: Record<number, number> = {};
   
   try {
     const hdrs = await headers()
@@ -39,6 +42,7 @@ export default async function LkPage() {
 
     // Fetch appointments on server - explicitly filter by user ID
     appointments = await AppointmentsApi.fetchMyAppointmentsServer({ cookie, userId: user.id })
+    unreadCounts = await MessagesApi.fetchUnreadCountsServer({ cookie, currentSenderType: "user" })
   } catch (e) {
     // redirect() throws a special Next.js error — rethrow it
     if (e && typeof e === "object" && "digest" in e) throw e
@@ -52,7 +56,7 @@ export default async function LkPage() {
           поэтому сетка/ЭКГ/водяной знак просвечивают сквозь них. */}
       <BackgroundDecor id="lk" position="fixed" ecg="bottom" />
       <Header />
-      <LkContent user={user} appointments={appointments} />
+      <LkContent user={user} appointments={appointments} initialUnreadCounts={unreadCounts} />
       <Footer />
     </div>
   )

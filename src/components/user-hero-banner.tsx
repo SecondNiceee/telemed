@@ -8,6 +8,7 @@ import { getInitials, getUpcomingAppointment } from "@/lib/utils/date"
 import type { ApiAppointment } from "@/lib/api/types"
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
 import { formatPhone } from "@/utils/phone"
+import { UnreadDot } from "@/components/unread-dot"
 
 interface UserHeroBannerProps {
   user: User
@@ -16,6 +17,8 @@ interface UserHeroBannerProps {
   completedCount: number
   onLogout: () => void
   appointments?: ApiAppointment[]
+  /** Есть непрочитанные хотя бы в одном чате — точка на кнопке «Сообщения». */
+  hasUnreadMessages?: boolean
 }
 
 /**
@@ -29,6 +32,7 @@ export function UserHeroBanner({
   completedCount,
   onLogout,
   appointments = [],
+  hasUnreadMessages = false,
 }: UserHeroBannerProps) {
   const upcomingAppointment = getUpcomingAppointment(appointments)
 
@@ -95,13 +99,17 @@ export function UserHeroBanner({
             <Button
               asChild
               size="sm"
-              className="gap-2 rounded-full bg-white/10 px-4 text-white hover:bg-white/20"
-            >
-              <Link href="/lk/chat">
-                <MessageSquare className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Сообщения</span>
-              </Link>
-            </Button>
+            className="relative gap-2 rounded-full bg-white/10 px-4 text-white hover:bg-white/20"
+          >
+            <Link href="/lk/chat">
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Сообщения</span>
+              {/* Обводка под тёмный баннер: ring-card дал бы светлый ореол. */}
+              {hasUnreadMessages && (
+                <UnreadDot className="bg-teal-on-dark ring-surface-dark" />
+              )}
+            </Link>
+          </Button>
             <Button
               size="sm"
               onClick={onLogout}
