@@ -124,8 +124,96 @@ function hasSettledPayment(appointment: { payment?: { status?: string | null } |
   return appointment.payment?.status === 'succeeded'
 }
 
+type AppointmentMoneyState = {
+  paidAt?: string | null
+  payment?: { status?: string | null; paymentId?: string | null; refundId?: string | null } | null
+}
+
 /**
- * Отменить неоплаченную бронь и вернуть слот врачу.
+ * С записью связаны деньги — уже прошедшие или ещё возможные. Удалять нельзя.
+ *
+ * Два разных повода сохранить запись:
+ *
+ * 1. Деньги уже двигались (`paidAt`, `refundId`, статус succeeded /
+ *    waiting_for_capture / refunded). Удалив запись, мы потеряли бы paymentId
+ *    и refundId — единственный след операции на нашей стороне.
+ *
+ * 2. Платёж создан и ещё жив (обычно статус `pending`). Пациент может оплатить
+ *    его уже ПОСЛЕ истечения брони — ссылка на оплату так и остаётся открытой
+ *    у него в браузере. Запись здесь единственная связь между платежом и
+ *    консультацией: `handleYooKassaNotification` ищет её по `payment.paymentId`,
+ *    и если не находит — просто пишет «уведомление о неизвестном платеже» и
+ *    выходит, НЕ возвращая деньги. То есть после удаления такой брони деньги
+ *    остаются у нас, а у пациента нет ни консультации, ни возврата.
+ *
+ * Удаляем поэтому только два безопасных случая: платежа не было вовсе (пациент
+ * даже не нажал «Оплатить» — это абсолютное большинство брошенных броней) и
+ * платёж окончательно мёртв (`canceled` — по нему ЮKassa денег уже не примет).
+ */
+function mustKeepForMoney(appointment: AppointmentMoneyState): boolean {
+  if (appointment.paidAt) return true
+
+  const payment = appointment.payment
+  if (payment?.refundId) return true
+
+  // Платежа не было — удалять безопасно.
+  if (!payment?.paymentId) return false
+
+  // Платёж есть: удаляем только если он уже не может быть оплачен.
+  return payment.status !== 'canceled'
+}
+
+/**
+ * Убрать снятую бронь из истории, если с ней не связан платёж.
+ *
+ * Неоплаченная бронь — это мусор, а не отмена консультации: пациент ничего
+ * не оплачивал, врач ничего не отменял. Поэтому такая запись удаляется, а не
+ * копится в личном кабинете под видом отменённой консультации.
+ *
+ * Вызывать ТОЛЬКО после того, как слот уже вернулся в расписание и транзакция
+ * закоммичена. Если удаление внутри транзакции упадёт (например, к записи
+ * успели привязать сообщение и FK не даёт её убрать), откатится и возврат
+ * слота — а потерять слот куда хуже, чем оставить лишнюю строку. При неудаче
+ * запись просто остаётся в статусе «Отменена», как было раньше.
+ *
+ * @returns true, если запись удалена
+ */
+async function deleteReleasedHold({
+  payload,
+  appointment,
+}: {
+  payload: PayloadInstance
+  appointment: AppointmentMoneyState & { id: number }
+}): Promise<boolean> {
+  if (mustKeepForMoney(appointment)) {
+    console.warn('[v0][holds] с бронью связан платёж — оставляем запись отменённой', {
+      appointmentId: appointment.id,
+      paymentStatus: appointment.payment?.status ?? null,
+    })
+    return false
+  }
+
+  try {
+    await payload.delete({
+      collection: 'appointments',
+      id: appointment.id,
+      overrideAccess: true,
+    })
+    return true
+  } catch (err) {
+    // Слот уже свободен, поэтому это не критично: запись останется «Отменена».
+    console.error('Failed to delete unpaid appointment hold', appointment.id, err)
+    return false
+  }
+}
+
+/**
+ * Снять неоплаченную бронь, вернуть слот врачу и убрать запись из истории.
+ *
+ * Запись удаляется, а не остаётся «Отменена»: истёкшая бронь означает, что
+ * пациент просто не довёл оплату до конца. Исключение — брони со связанным
+ * платежом (см. mustKeepForMoney): они остаются отменёнными.
+ *
  * Возвращает false, если запись уже не в статусе «Ожидает оплаты».
  */
 export async function releaseHold({
@@ -191,6 +279,14 @@ export async function releaseHold({
     throw err
   }
 
+  // Слот уже вернулся врачу — теперь убираем саму запись, чтобы неоплаченная
+  // бронь не осела в личном кабинете как «отменённая консультация».
+  // Строго после коммита: см. предупреждение в deleteReleasedHold.
+  await deleteReleasedHold({
+    payload,
+    appointment: appointment as AppointmentMoneyState & { id: number },
+  })
+
   return true
 }
 
@@ -201,7 +297,7 @@ export async function releaseHold({
  *
  * ВАЖНО: из-за троттла `releaseExpiredHolds()` возвращает 0 в двух разных
  * случаях — «освобождать было нечего» и «проход пропущен». Поэтому по нулю
- * НЕЛЬЗЯ судить о состоянии расписания (ровно на этом раньше ошибалась
+ * НЕЛЬЗЯ судить о состоянии рас��исания (ровно на этом раньше ошибалась
  * страница врача, отдавая расписание из кеш��).
  */
 const SWEEP_THROTTLE_MS = 10_000
@@ -252,8 +348,9 @@ async function runSweep({
     pagination: false,
     limit: maxBatch,
     // Тянем ровно то, что нужно для восстановления слота, — без повторного
-    // findByID на каждую бронь. `payment` нужен, чтобы не отменить бронь,
-    // деньги за которую уже получены.
+    // findByID на каждую бронь. `payment` и `paidAt` нужны дважды: чтобы не
+    // отменить бронь, деньги за которую уже получены, и чтобы решить, можно ли
+    // удалять запись или в ней остался след движения денег.
     select: {
       doctor: true,
       doctorName: true,
@@ -261,6 +358,7 @@ async function runSweep({
       userName: true,
       date: true,
       time: true,
+      paidAt: true,
       payment: true,
     },
     depth: 1,
@@ -345,15 +443,14 @@ async function runSweep({
       }
     }
 
-    try {
-      await payload.delete({
-        collection: 'appointments',
-        id: appointment.id,
-        overrideAccess: true,
-      })
-    } catch (err) {
-      console.error('Failed to delete expired unpaid appointment', err)
-    }
+    // Через тот же helper, что и releaseHold: иначе здесь удалилась бы и
+    // бронь, по которой деньги пришли поздно и уже были возвращены (её
+    // payment.status = 'refunded', и в батч она попадает), а вместе с ней —
+    // refundId, единственный наш след возврата.
+    await deleteReleasedHold({
+      payload,
+      appointment: appointment as AppointmentMoneyState & { id: number },
+    })
   }
 
   return cancelledIds.size
