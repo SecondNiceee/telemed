@@ -70,11 +70,12 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                   </div>
 
                   {/* Рейтинг виден рядом с именем: иначе сортировка по нему
-                      меняет порядок без видимой причины. */}
-                  {rating ? (
+                      меняет порядок без видимой причины. Без отзывов не
+                      показываем ничего — пустой балл только мешал бы. */}
+                  {rating && (
                     <span
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-teal/10 px-2.5 py-1"
-                      aria-label={`Рейтинг ${rating.average.toFixed(1)} из 5, отзывов: ${rating.count}`}
+                      aria-label={`Рейтинг ${rating.average.toFixed(1)} из 5`}
                     >
                       <Star
                         className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400"
@@ -83,13 +84,6 @@ export function DoctorCard({ doctor }: DoctorCardProps) {
                       <span className="text-sm font-semibold leading-none tabular-nums text-teal">
                         {rating.average.toFixed(1)}
                       </span>
-                      <span className="text-xs leading-none text-muted-foreground tabular-nums">
-                        {rating.count}
-                      </span>
-                    </span>
-                  ) : (
-                    <span className="shrink-0 text-xs leading-none text-muted-foreground">
-                      Нет отзывов
                     </span>
                   )}
                 </div>
