@@ -1,4 +1,4 @@
-import type { PayloadRequest } from 'payload'
+import { APIError, type PayloadRequest } from 'payload'
 import { getPaymentDeadline } from '@/lib/constants/payment'
 import { isScheduleSlotFuture, SLOT_UNAVAILABLE_MESSAGE } from '@/lib/schedule-time'
 
@@ -39,6 +39,23 @@ export const SLOT_TAKEN_MESSAGE = SLOT_UNAVAILABLE_MESSAGE
  * замороженный снимок схемы, они не должны меняться вслед за константой в коде.
  */
 export const SLOT_UNIQUE_INDEX = 'appointments_slot_unique'
+
+/**
+ * Ошибка валидации, текст которой дойдёт до пользователя.
+ *
+ * Обычный `new Error(...)` для этого не годится: у него нет ни `status`, ни
+ * `isPublic`, поэтому Payload считает его внутренней ошибкой и подменяет ответ
+ * на безликое «Something went wrong.» (см. utilities/routeError.js +
+ * utilities/isErrorPublic.js). Именно из-за этого второй пациент, пытавшийся
+ * занять уже забронированный слот, видел 500 вместо объяснения.
+ *
+ * `isPublic: true` разрешает отдать наш текст как есть — он для этого и написан,
+ * секретов в нём нет. Статус по умолчанию 409: почти все проверки здесь — это
+ * конфликт с текущим состоянием (слот занят, лимит броней исчерпан).
+ */
+export function bookingError(message: string, status = 409): APIError {
+  return new APIError(message, status, null, true)
+}
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -230,7 +247,7 @@ async function resolveUserName(req: PayloadRequest, userId: number): Promise<str
 /** Врач из БД или ошибка. */
 async function requireDoctor(req: PayloadRequest, raw: unknown) {
   const doctorId = toId(raw)
-  if (!Number.isFinite(doctorId) || doctorId <= 0) throw new Error('Врач не найден.')
+  if (!Number.isFinite(doctorId) || doctorId <= 0) throw bookingError('Врач не найден.', 404)
 
   const doctor = await req.payload.findByID({
     collection: 'doctors',
@@ -239,7 +256,7 @@ async function requireDoctor(req: PayloadRequest, raw: unknown) {
     overrideAccess: true,
   })
 
-  if (!doctor) throw new Error('Врач не найден.')
+  if (!doctor) throw bookingError('Врач не найден.', 404)
   return doctor
 }
 
@@ -265,12 +282,12 @@ export async function applyBookingGuards({
   // Всё остальное — внешний запрос. Аноним и не-пациентские токены
   // (врач, организация) записи не создают.
   if (!caller || caller.collection !== 'users') {
-    throw new Error('Создавать записи может только авторизованный пациент.')
+    throw bookingError('Создавать записи может только авторизованный пациент.', 403)
   }
 
   const callerId = Number(caller.id)
   if (!Number.isFinite(callerId) || callerId <= 0) {
-    throw new Error('Создавать записи может только авторизованный пациент.')
+    throw bookingError('Создавать записи может только авторизованный пациент.', 403)
   }
 
   const admin = await isVerifiedAdmin(req, callerId)
@@ -287,8 +304,8 @@ export async function applyBookingGuards({
   const date = typeof data.date === 'string' ? data.date : ''
   const time = typeof data.time === 'string' ? data.time : ''
 
-  if (!DATE_RE.test(date)) throw new Error('Некорректная дата записи.')
-  if (!TIME_RE.test(time)) throw new Error('Некорректное время записи.')
+  if (!DATE_RE.test(date)) throw bookingError('Некорректная дата записи.', 400)
+  if (!TIME_RE.test(time)) throw bookingError('Некорректное время записи.', 400)
 
   // Шаг 3 (всегда): врач должен существовать.
   const doctor = await requireDoctor(req, data.doctor)
@@ -300,7 +317,7 @@ export async function applyBookingGuards({
   if (data.connectionType === undefined || data.connectionType === null) {
     data.connectionType = 'chat'
   } else if (!CONNECTION_TYPES.has(data.connectionType as string)) {
-    throw new Error('Некорректный вид связи.')
+    throw bookingError('Некорректный вид связи.', 400)
   }
 
   data.specialty = sanitizeText(data.specialty) || ''
@@ -341,7 +358,7 @@ export async function applyUpdateGuards({
   // проверили права до вызова payload.update.
   if (!caller && req.payloadAPI === 'local') return data
 
-  if (!caller) throw new Error('Недостаточно прав для изменения записи.')
+  if (!caller) throw bookingError('Недостаточно прав для изменения записи.', 403)
 
   // --- Врач: узкий whitelist, статус только вперёд по ходу консультации.
   if (caller.collection === 'doctors') {
@@ -349,13 +366,13 @@ export async function applyUpdateGuards({
     const ownerId = toId(originalDoc?.doctor)
 
     if (!Number.isFinite(doctorId) || doctorId !== ownerId) {
-      throw new Error('Недостаточно прав для изменения записи.')
+      throw bookingError('Недостаточно прав для изменения записи.', 403)
     }
 
     const reverted = revertToOriginal(data, DOCTOR_UPDATABLE_FIELDS, originalDoc)
     if (reverted.length > 0) {
       console.warn(
-        `[appointments] отклоняю изменение полей от doctor ${doctorId}: ${reverted.join(', ')}`,
+        `[appointments] отклоняю изменение п��лей от doctor ${doctorId}: ${reverted.join(', ')}`,
       )
     }
 
@@ -363,10 +380,10 @@ export async function applyUpdateGuards({
       const currentStatus = String(originalDoc?.status ?? '')
 
       if (!DOCTOR_UPDATABLE_FROM_STATUSES.has(currentStatus)) {
-        throw new Error('Статус этой записи нельзя изменить.')
+        throw bookingError('Статус этой записи нельзя изменить.', 400)
       }
       if (!DOCTOR_ALLOWED_STATUSES.has(data.status as string)) {
-        throw new Error('Недопустимый статус записи.')
+        throw bookingError('Недопустимый статус записи.', 400)
       }
     }
 
@@ -380,7 +397,7 @@ export async function applyUpdateGuards({
     const callerId = Number(caller.id)
 
     if (!(await isVerifiedAdmin(req, callerId))) {
-      throw new Error('Недостаточно прав для изменения записи.')
+      throw bookingError('Недостаточно прав для изменения записи.', 403)
     }
 
     const reverted = revertToOriginal(data, ADMIN_UPDATABLE_FIELDS, originalDoc)
@@ -391,13 +408,13 @@ export async function applyUpdateGuards({
     }
 
     if ('status' in data && !STATUS_VALUES.has(data.status as string)) {
-      throw new Error('Недопустимый статус записи.')
+      throw bookingError('Недопустимый статус записи.', 400)
     }
 
     if ('price' in data) {
       const rawPrice = Number(data.price)
       if (!Number.isFinite(rawPrice) || rawPrice < 0) {
-        throw new Error('Некорректная стоимость.')
+        throw bookingError('Некорректная стоимость.', 400)
       }
       data.price = rawPrice
     }
@@ -411,7 +428,7 @@ export async function applyUpdateGuards({
     return data
   }
 
-  throw new Error('Недостаточно прав для изменения записи.')
+  throw bookingError('Недостаточно прав для изменения записи.', 403)
 }
 
 /**
@@ -461,14 +478,14 @@ async function applyAdminGuards({
   // Пациент обязателен и должен существовать.
   const userId = toId(data.user)
   if (!Number.isFinite(userId) || userId <= 0) {
-    throw new Error('Укажите пациента для записи.')
+    throw bookingError('Укажите пациента для записи.', 400)
   }
 
   const patient = await req.payload
     .findByID({ collection: 'users', id: userId, depth: 0, overrideAccess: true })
     .catch(() => null)
 
-  if (!patient) throw new Error('Пациент не найден.')
+  if (!patient) throw bookingError('Пациент не найден.', 404)
 
   data.user = patient.id
   data.userName = sanitizeText(data.userName) || patient.name || patient.email || 'Пациент'
@@ -517,7 +534,7 @@ async function applyPatientGuards({
   // Сервер повторно проверяет порог непосредственно перед созданием записи:
   // устаревшая вкладка не сможет забронировать слот, до которого осталось менее 30 минут.
   if (!isScheduleSlotFuture(date, time)) {
-    throw new Error(SLOT_TAKEN_MESSAGE)
+    throw bookingError(SLOT_TAKEN_MESSAGE)
   }
 
   // --- Владелец записи: всегда владелец токена, а не тот, кого прислал клиент.
@@ -531,7 +548,7 @@ async function applyPatientGuards({
   )
 
   if (!slotExists) {
-    throw new Error(SLOT_TAKEN_MESSAGE)
+    throw bookingError(SLOT_TAKEN_MESSAGE)
   }
 
   // --- Цена: только из карточки врача. Клиентское значение уже вырезано.
@@ -559,7 +576,7 @@ async function applyPatientGuards({
   })
 
   if (activeHolds.totalDocs >= MAX_ACTIVE_HOLDS) {
-    throw new Error(
+    throw bookingError(
       'У вас уже есть неоплаченные брони. Завершите или отмените их, прежде чем записываться снова.',
     )
   }

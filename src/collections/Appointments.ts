@@ -5,6 +5,7 @@ import { DecodedCaller, getCallerFromRequest } from './helpers/auth'
 import {
   applyBookingGuards,
   applyUpdateGuards,
+  bookingError,
   isSlotConflictError,
   SLOT_TAKEN_MESSAGE,
 } from './helpers/appointment-booking-guard'
@@ -197,7 +198,10 @@ export const Appointments: CollectionConfig = {
             // src/migrations/20260815_000000_appointments_slot_unique.ts):
             // между этим find и вставкой есть окно, в которое проходят оба запроса.
             if (blocking.length > 0) {
-              throw new Error(SLOT_TAKEN_MESSAGE)
+              // bookingError, а не new Error: обычную ошибку Payload считает
+              // внутренней и отдаёт клиенту 500 «Something went wrong.» вместо
+              // нашего текста — второй пациент видел бы именно её.
+              throw bookingError(SLOT_TAKEN_MESSAGE)
             }
           }
         }
