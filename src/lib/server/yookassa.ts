@@ -280,6 +280,33 @@ export async function getPayment(paymentId: string): Promise<YooKassaPayment> {
   return request<YooKassaPayment>(`/payments/${encodeURIComponent(paymentId)}`, { method: 'GET' })
 }
 
+/**
+ * Отменить платёж, по которому деньги ещё не списаны.
+ *
+ * ВАЖНО: ЮKassa принимает отмену ТОЛЬКО в статусе `waiting_for_capture`
+ * (предавторизация — деньги захолдированы на карте, но не списаны). Платёж в
+ * статусе `pending` отменить нельзя: он ещё не авторизован и ждёт действий
+ * пользователя, ЮKassa отменит его сама по истечении срока жизни. Поэтому
+ * вызывать эту функцию имеет смысл только для `waiting_for_capture`.
+ *
+ * Мы создаём платежи с `capture: true`, так что в `waiting_for_capture` они
+ * штатно не задерживаются, — но если платёж там всё же оказался, отмена снимает
+ * холд с карты пациента, а не держит его деньги до автоотмены.
+ */
+export async function cancelPayment({
+  paymentId,
+  idempotenceKey,
+}: {
+  paymentId: string
+  idempotenceKey: string
+}): Promise<YooKassaPayment> {
+  return request<YooKassaPayment>(`/payments/${encodeURIComponent(paymentId)}/cancel`, {
+    method: 'POST',
+    body: {},
+    idempotenceKey,
+  })
+}
+
 /** Полный возврат средств по платежу. */
 export async function createRefund({
   paymentId,

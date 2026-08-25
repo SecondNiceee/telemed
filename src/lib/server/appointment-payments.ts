@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import {
   buildIdempotenceKey,
+  cancelPayment,
   createPayment,
   createRefund,
   getPayment,
@@ -12,7 +13,11 @@ import {
   YooKassaError,
   type YooKassaPayment,
 } from './yookassa'
-import { releaseHold } from './appointment-holds'
+import {
+  deleteReleasedHold,
+  releaseHold,
+  type AppointmentMoneyState,
+} from './appointment-holds'
 import { formatDate } from '@/lib/utils/date'
 
 /**
@@ -68,6 +73,7 @@ interface AppointmentLike {
   user: unknown
   doctor: unknown
   paymentExpiresAt?: string | null
+  paidAt?: string | null
   payment?: AppointmentPaymentState | null
 }
 
@@ -399,7 +405,7 @@ export interface SyncResult {
 /**
  * Сверить платёж записи с ЮKassa и применить исход.
  *
- * Вызывается из двух мест: обработчика уведомлений и страницы/поллинга при
+ * Вызывается из двух мест: обработчика ��ведомлений и страницы/поллинга при
  * возврате пользователя на сайт. Возвращает null, если у записи нет платежа.
  */
 export async function syncAppointmentPayment({
@@ -606,7 +612,7 @@ async function refundLatePayment({
   appointment: AppointmentLike
   payment: YooKassaPayment
   snapshot: Partial<AppointmentPaymentState>
-  /** Причина возврата: видна пациенту в выписке и нам в кабинете ЮKassa. */
+  /** Причина возврата: видна пациенту в выпис��е и нам в кабинете ЮKassa. */
   description: string
 }): Promise<SyncResult> {
   // Уже возвращали — второй раз не нужно. Проверяем и наш след (refundId), и
@@ -760,4 +766,142 @@ export async function handlePaymentNotification({
 
   const result = await applyPaymentOutcome({ payload, appointment, payment })
   return { handled: true, result }
+}
+
+/**
+ * Как часто повторно сверять один и тот же брошенный платёж.
+ *
+ * Троттл считается по `payment.checkedAt`, который обновляет любая сверка.
+ * Он нужен с двух сторон: не долбить ЮKassa по записи, которая может висеть
+ * часами, и не крутить в логах вечный ретрай по записи, которую не удаётся
+ * удалить (например, к ней успели привязать сообщение и FK не отпускает).
+ */
+const RECONCILE_RECHECK_MS = 10 * 60 * 1000
+
+/** Максимум записей за один проход сверки. */
+const RECONCILE_MAX_BATCH = 50
+
+/**
+ * Догнать судьбу платежей по уже отменённым броням.
+ *
+ * Зачем это нужно. Истёкшая бронь без платежа удаляется сразу, но бронь, по
+ * которой пациент успел нажать «Оплатить», удалить нельзя: ссылка на оплату
+ * осталась у него в браузере, и запись — единственная связь между платежом и
+ * консультацией (см. `moneyKeepReason` в appointment-holds.ts). Такие записи
+ * оседали в личном кабинете как «Отменена» навсегда: снять их мог только
+ * вебхук ЮKassa, а если он не пришёл — никто.
+ *
+ * Что делает проход. Для каждой отменённой брони с живым платежом читает
+ * платёж из ЮKassa и применяет фактический исход:
+ *
+ *  - `succeeded` — деньги всё-таки пришли (вебхук потерялся): `applyPaymentOutcome`
+ *    возвращает их пациенту. Это главная страховка прохода — без него оплата по
+ *    истёкшей броне могла молча остаться у нас;
+ *  - `canceled` — платёж окончательно мёртв, запись больше ничего не связывает,
+ *    и она удаляется;
+ *  - `pending` — ждём. Отменить такой платёж через API нельзя (ЮKassa принимает
+ *    отмену только для `waiting_for_capture`), поэтому запись остаётся до
+ *    автоотмены на стороне ЮKassa, и следующий проход её подберёт;
+ *  - `waiting_for_capture` — деньги захолдированы на карте. Отменяем платёж явно,
+ *    чтобы снять холд, а не держать деньги пациента до автоотмены.
+ *
+ * Проход идемпотентен: и отмена, и возврат идут с ключом идемпотентности,
+ * привязанным к платежу, поэтому повтор ничего не делает дважды.
+ */
+export async function reconcileAbandonedPayments({
+  maxBatch = RECONCILE_MAX_BATCH,
+}: { maxBatch?: number } = {}): Promise<{
+  checked: number
+  refunded: number
+  deleted: number
+}> {
+  const stats = { checked: 0, refunded: 0, deleted: 0 }
+
+  // Без ключей ЮKassa сверять нечем: getPayment всё равно упал бы 503.
+  if (!isYooKassaConfigured()) return stats
+
+  const payload = await getPayload({ config })
+  const staleBefore = new Date(Date.now() - RECONCILE_RECHECK_MS).toISOString()
+
+  const found = await payload.find({
+    collection: 'appointments',
+    where: {
+      and: [
+        { status: { equals: 'cancelled' } },
+        // Только незакрытые платежи. `succeeded` и `refunded` здесь не нужны:
+        // по ним исход уже доведён до конца, а запись хранит след денег.
+        { 'payment.status': { in: ['pending', 'waiting_for_capture', 'canceled'] } },
+        {
+          or: [
+            { 'payment.checkedAt': { exists: false } },
+            { 'payment.checkedAt': { less_than: staleBefore } },
+          ],
+        },
+      ],
+    },
+    // Второй запрос (SELECT COUNT) не нужен — считаем сами по docs.
+    pagination: false,
+    limit: maxBatch,
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  // pagination: false в некоторых адаптерах игнорирует limit — страхуемся.
+  for (const doc of found.docs.slice(0, maxBatch)) {
+    const appointment = doc as unknown as AppointmentLike
+    const paymentId = appointment.payment?.paymentId
+
+    // Платежа нет — записью занимается обычный sweep, а не сверка.
+    if (!paymentId) continue
+
+    try {
+      stats.checked += 1
+
+      // Единственный статус, отмену которого ЮKassa принимает. Делаем это до
+      // сверки, чтобы холд с карты снялся сразу, а не через 6 часов.
+      if (appointment.payment?.status === 'waiting_for_capture') {
+        try {
+          await cancelPayment({
+            paymentId,
+            idempotenceKey: buildIdempotenceKey('appointment-cancel', paymentId),
+          })
+        } catch (err) {
+          // Платёж мог уйти в succeeded между чтением и отменой — не страшно:
+          // сверка ниже увидит оплату и вернёт деньги.
+          console.error('[v0][payments] не удалось отменить платёж', {
+            appointmentId: appointment.id,
+            paymentId,
+            error: err instanceof Error ? err.message : err,
+          })
+        }
+      }
+
+      // Источник правды — сам платёж в ЮKassa, а не наш снимок статуса.
+      const result = await syncAppointmentPayment({ payload, appointmentId: appointment.id })
+      if (result?.refunded) stats.refunded += 1
+
+      // Состояние изменилось внутри sync — перечитываем, прежде чем решать
+      // судьбу записи.
+      const fresh = await loadAppointment(payload, appointment.id)
+      if (!fresh) continue
+
+      // Удалится только если платёж окончательно мёртв и денег за ним нет:
+      // решение целиком внутри deleteReleasedHold.
+      const removed = await deleteReleasedHold({
+        payload,
+        appointment: fresh as AppointmentMoneyState & { id: number },
+      })
+
+      if (removed) stats.deleted += 1
+    } catch (err) {
+      // Одна проблемная запись не должна ронять весь проход.
+      console.error('[v0][payments] сверка брошенного платежа не удалась', {
+        appointmentId: appointment.id,
+        paymentId,
+        error: err instanceof Error ? err.message : err,
+      })
+    }
+  }
+
+  return stats
 }
