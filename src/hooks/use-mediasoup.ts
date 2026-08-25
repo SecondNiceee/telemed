@@ -21,9 +21,22 @@ interface RemoteMedia { peerId: string; stream: MediaStream }
 
 const ackTimeout = 10_000
 const INTERNET_CONNECTION_ERROR = 'Нет подключения к интернету'
+const CONNECTION_LOST_ERROR = 'Связь с интернетом была потеряна'
+
+/**
+ * Ошибки просроченного пропуска в комнату.
+ *
+ * Токен из `/api/mediasoup/token` живёт 5 минут, а сокет переиспользует его при
+ * каждом переподключении. Поэтому обрыв связи после этих 5 минут приводит к
+ * отказу на `joinRoom`, и jsonwebtoken отдаёт своё техническое «jwt expired» —
+ * оно доезжает до UI дословно через ack. Для пациента это означает ровно одно:
+ * связь пропала и нужно переподключиться (кнопка «Повторить» берёт новый токен).
+ */
+const STALE_TOKEN_RE = /jwt (expired|malformed|must be provided)|invalid (signature|token)/i
 
 function getCallErrorMessage(reason: unknown, fallback = 'Ошибка подключения'): string {
   const message = reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : fallback
+  if (STALE_TOKEN_RE.test(message)) return CONNECTION_LOST_ERROR
   const isConnectionError = /websocket|socket|network|track\s*ended|trackended|transport|timeout|disconnected|connection|fetch failed/i.test(message)
   return isConnectionError ? INTERNET_CONNECTION_ERROR : message
 }
