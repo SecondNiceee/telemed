@@ -2,6 +2,7 @@ import type { Server, Socket } from 'socket.io'
 import type { DtlsParameters, MediaKind, RtpCapabilities, RtpParameters } from 'mediasoup/types'
 import { roomManager } from '../room'
 import { verifyRoomToken } from '../room-token'
+import { formatQualityLogFields, type CallQualitySnapshot } from '../call-quality'
 
 interface MediaSocketData {
   peerId?: string
@@ -20,6 +21,11 @@ const peerSocketOwners = new Map<string, string>()
 const peerDisconnectTimers = new Map<string, NodeJS.Timeout>()
 const peerOwnerKey = (roomId: string, peerId: string) => `${roomId}:${peerId}`
 const disconnectGraceMs = 10_000
+
+// Последний записанный в лог уровень качества по участнику - защита от потока
+// одинаковых строк.
+const qualityLogState = new Map<string, { level: string; at: number }>()
+const qualityLogIntervalMs = 60_000
 
 function cancelDisconnectTimer(ownerKey: string): void {
   const timer = peerDisconnectTimers.get(ownerKey)
@@ -171,6 +177,39 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
     })
   })
 
+  /**
+   * Диагностический отчёт о качестве связи от участника.
+   *
+   * Логируется намеренно скупо: при смене уровня и далее не чаще раза в минуту,
+   * пока связь плохая. Стабильное «good» в лог не пишется совсем - иначе на
+   * длинной консультации отчёты обоих участников затопили бы вывод и скрыли
+   * настоящие события звонка.
+   */
+  socket.on('qualityReport', (data: { roomId?: string } & Partial<CallQualitySnapshot>) => {
+    const { roomId, peerId } = socket.data
+    if (!roomId || !peerId || data?.roomId !== roomId) return
+    if (!data.level || data.level === 'unknown') return
+
+    const ownerKey = peerOwnerKey(roomId, peerId)
+    const previous = qualityLogState.get(ownerKey)
+    const now = Date.now()
+    const levelChanged = previous?.level !== data.level
+    const shouldRepeat = data.level !== 'good' && now - (previous?.at ?? 0) >= qualityLogIntervalMs
+    if (!levelChanged && !shouldRepeat) return
+
+    qualityLogState.set(ownerKey, { level: data.level, at: now })
+    const snapshot: CallQualitySnapshot = {
+      level: data.level,
+      rttMs: data.rttMs ?? null,
+      outboundLossPct: data.outboundLossPct ?? null,
+      inboundLossPct: data.inboundLossPct ?? null,
+      outboundKbps: data.outboundKbps ?? null,
+      inboundKbps: data.inboundKbps ?? null,
+      jitterMs: data.jitterMs ?? null,
+    }
+    console.log(`[MediaSoup] quality room=${roomId} peer=${peerId} ${formatQualityLogFields(snapshot)}`)
+  })
+
   socket.on('closeProducer', (data: { roomId: string; producerId: string }, ack: Ack) => {
     handle(ack, () => {
       const { room, peerId } = inRoom(socket, data.roomId)
@@ -190,6 +229,7 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
 
     cancelDisconnectTimer(ownerKey)
     peerSocketOwners.delete(ownerKey)
+    qualityLogState.delete(ownerKey)
     const room = roomManager.getRoom(roomId)
     const removed = room ? roomManager.removePeer(room, peerId) : false
     if (removed) {

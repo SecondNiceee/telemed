@@ -9,6 +9,7 @@ import { getCountdownParts } from '@/lib/utils/date'
 import { getBaseUrl } from '@/lib/api/fetch'
 import { AppointmentsApi } from '@/lib/api/appointments'
 import { readFailedMessages, writeFailedMessages, type FailedChatMessage } from '@/lib/chat/failed-messages'
+import { ShieldOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -550,6 +551,18 @@ export function ChatWindow({
         onStartAudioConsultation={handleStartAudioConsultation}
         onStartChatConsultation={handleStartChatConsultation}
       />
+
+      {/* VPN уводит трафик через лишний узел и портит связь в звонке. Подсказка
+          нужна до начала консультации, поэтому в завершённой и отменённой её
+          не показываем - там она уже ни на что не влияет. */}
+      {!isCompleted && !isCancelled && (
+        <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-2">
+          <ShieldOff className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <p className="text-xs leading-relaxed text-muted-foreground text-pretty">
+            Для лучшей связи рекомендуется выключить VPN
+          </p>
+        </div>
+      )}
 
       <ChatMessages
         appointmentId={appointment.id}
