@@ -605,7 +605,7 @@ export const Appointments: CollectionConfig = {
         {
           name: 'startedAt',
           type: 'date',
-          label: '��ремя начала',
+          label: 'Время начала',
           admin: {
             date: {
               pickerAppearance: 'dayAndTime',
@@ -615,7 +615,7 @@ export const Appointments: CollectionConfig = {
         {
           name: 'doctorPeerId',
           type: 'text',
-          label: 'PeerJS ID в��ача',
+          label: 'PeerJS ID врача',
         },
         {
           name: 'userPeerId',

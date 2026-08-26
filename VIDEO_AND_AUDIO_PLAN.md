@@ -147,7 +147,7 @@ kebab-case) — при переносе клиента и сервера име�
 | `connectTransport` | `{ roomId, peerId, transportId, dtlsParameters }` | `void` | DTLS-хендшейк. |
 | `restartIce` | `{ roomId, peerId, transportId }` | `iceParameters` | ICE-restart после обрыва/VPN. Ошибка `transport-gone` → клиент делает rebuild. |
 | `produce` | `{ roomId, peerId, transportId, kind, rtpParameters, appData }` | `{ producerId }` | Опубликовать дорожку. `appData.source: 'media'\|'screen'`. |
-| `consume` | `{ roomId, peerId, producerId, rtpCapabilities }` | `{ consumerId, producerId, kind, rtpParameters, producerPaused, appData }` | Подписаться (консьюмер созд��ётся `paused`). |
+| `consume` | `{ roomId, peerId, producerId, rtpCapabilities }` | `{ consumerId, producerId, kind, rtpParameters, producerPaused, appData }` | Подписаться (консьюмер создаётся `paused`). |
 | `resumeConsumer` | `{ roomId, peerId, consumerId }` | `void` | Возобновить консьюмер (+ сервер шлёт keyframe-ретраи). |
 | `closeConsumer` | `{ roomId, peerId, consumerId }` | `void` | Точечное восстановление приёма (черный кадр). |
 | `pauseConsumer` | `{ roomId, peerId, consumerId, paused }` | `void` | Локальная защита downlink: пауза/резюм одного консьюмера. |
@@ -253,7 +253,7 @@ src/lib/mediasoup/
 Обязательно сохранить (это и есть «устойчивость» replixo):
 - `rooms: Map`, `peerSockets: Map` (ключ `roomId\0peerId`), `peerClients: Map` (nonce страницы);
 - **grace-окна**: `DISCONNECT_GRACE_MS = 45000` (обрыв сети/блокировка телефона),
-  `CLOSE_GRACE_MS = 6000` (beacon «закрываю вкла��ку»), `CLEAN_CLOSE_GRACE_MS = 10000`
+  `CLOSE_GRACE_MS = 6000` (beacon «закрываю вкладку»), `CLEAN_CLOSE_GRACE_MS = 10000`
   (чистый close без beacon);
 - `markClosing/isClosing`, `scheduleEviction`, `clearPendingDisconnect`, `deletePendingDisconnect`;
 - `evictPeer(io, roomId, peerId, expectedSocketId?)` — идемпотентно, шлёт `peerLeft`,
@@ -594,7 +594,7 @@ TURN. После изменения схемы: `pnpm generate:types`; посл�
    НЕ «исчезает» у второго (grace-окно 45s).
 4. **Закрытие вкладки**: закрыть вкладку → второй видит выход через ~6–10с (beacon/clean-close),
    а не через минуту.
-5. **Дубликат вкладки**: ��ткрыть комнату во второй вкладке того же профиля → старая получает `kicked`.
+5. **Дубликат вкладки**: открыть комнату во второй вкладке того же профиля → старая получает `kicked`.
 6. **Слабая сеть** (throttle): видео деградирует (слой↓) → при ухудшении пропадает, голос жив;
    при восстановлении видео возвращается (не «мигает»); баннер NetworkBanner показывается.
 7. **Запись**: врач жмёт «Запись» → `start-recording` → говорят 20с → «Стоп» → `finalize-server` →

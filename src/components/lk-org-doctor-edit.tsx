@@ -259,7 +259,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
       <DoctorFormShell
         icon={Save}
         title="Редактирование врача"
-        subtitle="Обновите данные врача"
+        subtitle="Обновите данные врача, включая фото, образование и услуги. Все поля, отмеченные *, обязательны для заполнения."
         success={success}
         error={error}
         onDismissSuccess={() => setSuccess(null)}
