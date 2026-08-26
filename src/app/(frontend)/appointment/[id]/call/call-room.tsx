@@ -186,7 +186,7 @@ export function CallRoom({
     // Могли успеть войти в комнату и включить камеру: отпускаем устройства и
     // дописываем запись, иначе микрофон останется занятым после ухода.
     callLeave()
-    toast.info('Комната уже закрыта — звон��к завершён', { position: 'top-center' })
+    toast.info('Комната уже закрыта — звонок завершён', { position: 'top-center' })
     void stopRecording().finally(() => router.replace(`${chatPath}?appointment=${appointmentId}`))
   }, [appointmentId, callLeave, chatPath, isRoomClosed, router, stopRecording])
 
@@ -291,7 +291,7 @@ export function CallRoom({
         {call.error ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive" role="alert">
             <span>{call.error}</span>
-            <Button variant="outline" size="sm" onClick={() => void call.connect()}><RefreshCw data-icon="inline-start" />Повтори��ь</Button>
+            <Button variant="outline" size="sm" onClick={() => void call.connect()}><RefreshCw data-icon="inline-start" />Повторить</Button>
           </div>
         ) : null}
 

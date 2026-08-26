@@ -405,7 +405,7 @@ export interface SyncResult {
 /**
  * Сверить платёж записи с ЮKassa и применить исход.
  *
- * Вызывается из двух мест: обработчика ��ведомлений и страницы/поллинга при
+ * Вызывается из двух мест: обработчика уведомлений и страницы/поллинга при
  * возврате пользователя на сайт. Возвращает null, если у записи нет платежа.
  */
 export async function syncAppointmentPayment({
@@ -612,7 +612,7 @@ async function refundLatePayment({
   appointment: AppointmentLike
   payment: YooKassaPayment
   snapshot: Partial<AppointmentPaymentState>
-  /** Причина возврата: видна пациенту в выпис��е и нам в кабинете ЮKassa. */
+  /** Причина возврата: видна пациенту в выписке и нам в кабинете ЮKassa. */
   description: string
 }): Promise<SyncResult> {
   // Уже возвращали — второй раз не нужно. Проверяем и наш след (refundId), и

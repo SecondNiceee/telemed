@@ -268,7 +268,7 @@
 
 **Клиент:** `src/components/socket-provider.tsx`.
 
-**��омпоненты чата (`src/components/chat/`):** `chat-page`, `chat-sidebar`, `chat-window`, `doctor-chat-wrapper`, `message-bubble`, `components/` (`chat-header`, `chat-input`, `chat-messages`, `consultation-dialogs`, `drag-drop-overlay`, `video-save-sidebar`), `hooks/` (`use-file-upload`, `use-typing`).
+**компоненты чата (`src/components/chat/`):** `chat-page`, `chat-sidebar`, `chat-window`, `doctor-chat-wrapper`, `message-bubble`, `components/` (`chat-header`, `chat-input`, `chat-messages`, `consultation-dialogs`, `drag-drop-overlay`, `video-save-sidebar`), `hooks/` (`use-file-upload`, `use-typing`).
 
 **Типы сообщений:** обычные (пузырёк слева/справа) и системные (`isSystemMessage: true`) — по центру с линиями.
 

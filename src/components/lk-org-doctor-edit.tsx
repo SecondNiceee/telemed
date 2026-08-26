@@ -222,7 +222,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
     setCropSource({ kind: "file", file })
   }
 
-  /** Повторный выбор области: к��опаем оригинал, а не уже обрезанный квадрат. */
+  /** Повторный выбор области: кропаем оригинал, а не уже обрезанный квадрат. */
   function editCropArea() {
     if (originalFile) {
       setCropSource({ kind: "file", file: originalFile })
@@ -462,7 +462,7 @@ export function LkOrgDoctorEdit({ doctorId, orgId }: LkOrgDoctorEditProps) {
                 Редактирование врача
               </h1>
               <p className="text-sm text-muted-foreground">
-                Обновите данные врач��
+                Обновите данные врача, включая фото, образование и услуги. Все поля, отмеченные *, обязательны для заполнения.
               </p>
             </div>
           </div>

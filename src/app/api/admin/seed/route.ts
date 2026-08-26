@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     // раз, до всех обращений к payload.
     const organisationId = Number(body.organisationId)
     if (!body.organisationId || !Number.isInteger(organisationId)) {
-      return NextResponse.json({ message: 'Выберите орга��изацию' }, { status: 400 })
+      return NextResponse.json({ message: 'Выберите организацию' }, { status: 400 })
     }
 
     try {

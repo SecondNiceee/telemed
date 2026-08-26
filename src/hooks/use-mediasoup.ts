@@ -343,7 +343,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         try {
           const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities; otherPeersOnline?: number }>(socket, 'joinRoom', token)
 
-          // Сокет ��аменён более новым подключением: этот вход уже не нужен.
+          // Сокет заменён более новым подключением: этот вход уже не нужен.
           // Раньше здесь стоял `continue` вместе с проверками ниже, и живой,
           // но осиротевший сокет крутил joinRoom без остановки - сервер
           // заливало логами `repeat=true` по несколько раз в секунду.

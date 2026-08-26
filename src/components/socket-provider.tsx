@@ -439,7 +439,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         return
       }
 
-      const timer = window.setTimeout(() => reject(new Error('Не удало��ь отправить сообщение')), 10_000)
+      const timer = window.setTimeout(() => reject(new Error('Не удалось отправить сообщение')), 10_000)
       socket.emit('send-message', {
         appointmentId,
         text,

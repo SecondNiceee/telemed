@@ -481,7 +481,7 @@ export function ChatWindow({
       await AppointmentsApi.complete(appointment.id)
       setLocalStatus('completed')
       onAppointmentCompleted?.(appointment.id)
-      toast.success('Консультация ��авершена')
+      toast.success('Консультация завершена')
     } catch (error) {
       console.error('[ChatWindow] Failed to complete appointment:', error)
       toast.error('Не удалось завершить консультацию')

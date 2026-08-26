@@ -343,7 +343,7 @@ export function LkMedContent({
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Стр��ница {currentPage} из {totalPages}
+              Страница {currentPage} из {totalPages}
             </p>
             <div className="flex items-center gap-2">
               <button

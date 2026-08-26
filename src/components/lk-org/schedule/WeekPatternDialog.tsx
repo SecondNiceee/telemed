@@ -204,7 +204,7 @@ export const WeekPatternDialog = memo(function WeekPatternDialog({
             <Info className="w-4 h-4 shrink-0" />
             <span>
               Будет заполнено <strong>{previewCount}</strong> дней
-              ({totalDays} {totalDays === 1 ? "��ень" : totalDays < 5 ? "дня" : "дней"} недели,{" "}
+              ({totalDays} {totalDays === 1 ? "день" : totalDays < 5 ? "дня" : "дней"} недели,{" "}
               {totalSlots} {totalSlots === 1 ? "слот" : totalSlots < 5 ? "слота" : "слотов"} каждую неделю)
             </span>
           </div>

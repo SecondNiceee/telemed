@@ -240,7 +240,7 @@ export function DoctorBookingSection({
     setBookingError(null);
 
     try {
-      // Запись создаётся как неоплаченная бронь: слот с��азу пропадает у всех,
+      // Запись создаётся как неоплаченная бронь: слот сразу пропадает у всех,
       // но подтверждённой запись станет только после оплаты.
       const appointment = await createAppointment({
         doctor: doctorId,
@@ -286,7 +286,7 @@ export function DoctorBookingSection({
             <CreditCard className="h-7 w-7 text-teal" aria-hidden="true" />
           </div>
           <h2 className="mb-2 text-xl font-semibold text-foreground text-balance sm:text-2xl">
-            Врем�� забронировано
+            Время забронировано
           </h2>
           <p className="max-w-sm text-sm leading-relaxed text-muted-foreground text-pretty">
             Переходим к оплате консультации. Бронь действует{" "}

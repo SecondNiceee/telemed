@@ -177,7 +177,7 @@ function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): 
  * а откатывается к значению из `originalDoc` — попытка изменения просто
  * не даёт эффекта.
  *
- * Возв��ащает имена полей, попытк�� изменить которые мы отклонили.
+ * Возваащает имена полей, попытку изменить которые мы отклонили.
  */
 function revertToOriginal(
   data: Record<string, unknown>,
@@ -372,7 +372,7 @@ export async function applyUpdateGuards({
     const reverted = revertToOriginal(data, DOCTOR_UPDATABLE_FIELDS, originalDoc)
     if (reverted.length > 0) {
       console.warn(
-        `[appointments] отклоняю изменение п��лей от doctor ${doctorId}: ${reverted.join(', ')}`,
+        `[appointments] отклоняю изменение полей от doctor ${doctorId}: ${reverted.join(', ')}`,
       )
     }
 

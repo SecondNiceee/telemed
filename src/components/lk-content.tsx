@@ -191,7 +191,7 @@ export function LkContent({
                 className="shrink-0 rounded-full bg-amber-500 px-5 text-white hover:bg-amber-600"
               >
                 <Link href={`/appointment/${pendingPaymentAppointments[0].id}/payment`}>
-                  Перейти к ��плате
+                  Перейти к оплате
                 </Link>
               </Button>
             </div>
@@ -252,7 +252,7 @@ export function LkContent({
         {isLoading ? (
           <div className="flex items-center justify-center gap-3 py-16">
             <span className="h-7 w-7 animate-spin rounded-full border-2 border-teal border-t-transparent" />
-            <span className="text-sm text-muted-foreground">Загру��аем записи…</span>
+            <span className="text-sm text-muted-foreground">Загружаем записи…</span>
           </div>
         ) : filteredAppointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-14 text-center shadow-[0_0_0_1px_oklch(0_0_0_/_0.07)]">
