@@ -163,7 +163,7 @@ class Recorder {
    *
    * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
    * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо б��ать за ноль дорожки.
+   * начинается с keyframe, и именно его надо б����ать за ноль дорожки.
    * После замера trace отключаем, чтобы не грузить воркер.
    */
   private trackMediaStart(input: RecordingInput): void {
@@ -441,7 +441,7 @@ class Recorder {
       //
       // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
       // времени прихода не имеют систематического дрейфа (они привязаны к
-      // реальному времени), в них есть только джиттер ±десятки мс.
+      // реальному времени), в них есть толь��о джиттер ±десятки мс.
       '-use_wallclock_as_timestamps', '1',
 
       '-i', input.sdpPath,
@@ -820,36 +820,76 @@ class Recorder {
   }
 
   /**
-   * Останавливает процесс FFmpeg одной дорожки эскалацией "q" -> SIGTERM ->
-   * SIGKILL. Команда "q" через stdin - единственный способ, ��ри котором
-   * FFmpeg дописывает контейнер (иначе файл остаётся битым).
+   * ЭТО ПРИЧИНА ОБРЕЗАННЫХ ФАЙЛОВ И ЧЁРНОЙ ПОЛОВИНЫ КАНВАСА.
+   *
+   * Раньше killTimer вызывал resolve() СРАЗУ после отправки SIGKILL, не дожидаясь
+   * события 'close'. Из-за этого stopInputProcesses завершался, пока процессы
+   * ещё умирали, и hasUsableData мерил файлы до того, как FFmpeg сбросил буферы
+   * и дописал контейнер.
+   *
+   * В логах это видно буквально: строки "Track a-video: ... bytes" напечатаны
+   * РАНЬШЕ, чем "FFmpeg [a-video] exited with code null". Размеры при этом
+   * оказались точными кратными 64 КБ (786432 = 12x65536, 3407872 = 52x65536) -
+   * то есть на диск попали только целые блоки буфера, а хвост потерялся. Отсюда
+   * же "File ended prematurely" на склейке: SIGKILL не даёт дописать ни данные,
+   * ни индекс.
+   *
+   * Дальше это превращалось в симптом "у врача видео кончилось раньше": его
+   * дорожка обрезана сильнее (768 КБ против 3.3 МБ у пациента), а в фильтре
+   * стоит eof_action=pass:repeatlast=0 - после EOF окно перестаёт
+   * дорисовываться и обнажает чёрный базовый слой.
+   *
+   * Теперь эскалация "q" -> SIGINT -> SIGKILL, и resolve() происходит ТОЛЬКО по
+   * 'close'. SIGINT выбран вместо SIGTERM осознанно: FFmpeg обрабатывает его как
+   * штатное прерывание и дописывает контейнер.
    */
   private stopInputProcess(session: RecordingSession, input: RecordingInput): Promise<void> {
     const ffmpeg = input.ffmpeg
-    if (!ffmpeg || ffmpeg.exitCode !== null) return Promise.resolve()
+    if (!ffmpeg || ffmpeg.exitCode !== null || ffmpeg.signalCode !== null) return Promise.resolve()
 
     return new Promise<void>((resolve) => {
-      const termTimer = setTimeout(() => {
-        if (ffmpeg.exitCode === null) {
-          console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] ignored "q", sending SIGTERM`)
-          ffmpeg.kill('SIGTERM')
-        }
-      }, 4000)
-      termTimer.unref()
+      const timers: NodeJS.Timeout[] = []
+      let settled = false
 
-      const killTimer = setTimeout(() => {
-        if (ffmpeg.exitCode === null) {
-          console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] did not exit, killing`)
-          ffmpeg.kill('SIGKILL')
-        }
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        for (const timer of timers) clearTimeout(timer)
         resolve()
-      }, 8000)
-      killTimer.unref()
+      }
 
-      ffmpeg.once('close', () => {
-        clearTimeout(termTimer)
-        clearTimeout(killTimer)
-        resolve()
+      const isAlive = (): boolean => ffmpeg.exitCode === null && ffmpeg.signalCode === null
+
+      const later = (ms: number, fn: () => void): void => {
+        const timer = setTimeout(fn, ms)
+        timer.unref()
+        timers.push(timer)
+      }
+
+      // Файл дописан - только теперь можно мерить размер.
+      ffmpeg.once('close', finish)
+
+      later(4000, () => {
+        if (settled || !isAlive()) return
+        console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] ignored "q", sending SIGINT`)
+        ffmpeg.kill('SIGINT')
+      })
+
+      later(9000, () => {
+        if (settled || !isAlive()) return
+        console.warn(
+          `[Recorder] FFmpeg [${session.id}/${input.label}] did not exit, killing ` +
+            '(файл останется недописанным)',
+        )
+        ffmpeg.kill('SIGKILL')
+      })
+
+      // Страховка от вечного зависания: SIGKILL послан на 9-й секунде, 'close'
+      // после него приходит за миллисекунды, так что сюда доходить не должно.
+      later(12000, () => {
+        if (settled) return
+        console.error(`[Recorder] FFmpeg [${session.id}/${input.label}] no 'close' after SIGKILL`)
+        finish()
       })
 
       try {
@@ -857,10 +897,10 @@ class Recorder {
           ffmpeg.stdin.write('q')
           ffmpeg.stdin.end()
         } else {
-          ffmpeg.kill('SIGTERM')
+          ffmpeg.kill('SIGINT')
         }
       } catch {
-        ffmpeg.kill('SIGTERM')
+        ffmpeg.kill('SIGINT')
       }
     })
   }
@@ -868,6 +908,34 @@ class Recorder {
   /** Все дорожки останавливаем параллельно, пока RTP ещё идёт. */
   private async stopInputProcesses(session: RecordingSession): Promise<void> {
     await Promise.all(session.inputs.map((input) => this.stopInputProcess(session, input)))
+  }
+
+  /**
+   * Сколько RTP mediasoup реально отправил в порт каждой дорожки.
+   *
+   * Это разделяет два неразличимых по файлам случая: аудиофайл нулевой потому,
+   * что mediasoup ничего не послал (проблема на стороне продюсера/консюмера),
+   * или потому, что FFmpeg принятое не записал (проблема в аргументах и SDP).
+   * Снимаем ДО closeInputs - у закрытого консюмера статистики уже нет.
+   */
+  private async logConsumerStats(session: RecordingSession): Promise<void> {
+    for (const input of session.inputs) {
+      try {
+        const stats = (await input.consumer.getStats()) as unknown as Array<{
+          type?: string
+          packetCount?: number
+          byteCount?: number
+        }>
+        const rtp = stats.find((entry) => entry.type === 'outbound-rtp') ?? stats[0]
+        console.log(
+          `[Recorder] RTP -> ${input.label} (port ${input.rtpPort}): ` +
+            `packets=${rtp?.packetCount ?? 'n/a'} bytes=${rtp?.byteCount ?? 'n/a'} ` +
+            `paused=${input.consumer.paused} producerPaused=${input.consumer.producerPaused}`,
+        )
+      } catch (error) {
+        console.warn(`[Recorder] Cannot read stats for ${input.label}:`, error)
+      }
+    }
   }
 
   private async cleanupTempFiles(session: RecordingSession): Promise<void> {
@@ -895,6 +963,7 @@ class Recorder {
     // ВАЖЕН ПОРЯДОК: сначала останавливаем FFmpeg (пакеты ещё идут, поэтому
     // процесс не заблокирован в recvfrom и сразу читает "q"), и только потом
     // закрываем консюмеры mediasoup.
+    await this.logConsumerStats(session)
     await this.stopInputProcesses(session)
     this.closeInputs(session)
     this.releasePorts(session)
