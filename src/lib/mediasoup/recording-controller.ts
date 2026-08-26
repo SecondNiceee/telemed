@@ -41,12 +41,44 @@ class RecordingController {
   private readonly finalizing = new Set<string>()
   /** Чтобы не засорять лог отсутствием ffmpeg на каждом продюсере. */
   private warnedMissingFfmpeg = false
+  /**
+   * Последняя известная Room по id. Нужна, чтобы после разрыва сегмента
+   * запустить новый, имея на руках только roomId из колбэка рекордера.
+   * Держим здесь, а не через roomManager: room.ts импортирует контроллер,
+   * и обратный импорт замкнул бы цикл.
+   */
+  private readonly rooms = new Map<string, Room>()
+
+  constructor() {
+    // Участник переопубликовал дорожки посреди сегмента - закрываем текущий
+    // файл и начинаем новый, иначе он выпадет из записи до конца сегмента.
+    recorder.onSegmentInterrupted = (roomId, label) => {
+      void this.restartSegment(roomId, label)
+    }
+  }
+
+  /**
+   * Закрыть прерванный сегмент и открыть новый на свежих продюсерах.
+   */
+  private async restartSegment(roomId: string, label: string): Promise<void> {
+    console.warn(`[RecordingController] Segment in room ${roomId} interrupted by ${label}, restarting`)
+    await this.stopAndFinalize(roomId)
+
+    const room = this.rooms.get(roomId)
+    if (!room || room.router.closed) return
+    // Через onProducersChanged, а не напрямую: тот же дебаунс даёт
+    // переподключившемуся участнику время опубликовать И аудио, И видео,
+    // чтобы новый сегмент сразу стал полноценным.
+    this.onProducersChanged(room)
+  }
 
   /**
    * Called after any producer is created. Debounced so that a participant's
    * audio and video producers (published back to back) land in one segment.
    */
   onProducersChanged(room: Room): void {
+    this.rooms.set(room.id, room)
+
     // Режим выбирается в src/lib/recording-mode.ts. Остановка и финализация
     // ниже намеренно работают всегда - если сегмент всё же был запущен
     // (режим меняли на ходу), его нужно корректно закрыть.
@@ -89,6 +121,7 @@ class RecordingController {
   async onRoomClosing(roomId: string): Promise<void> {
     this.cancelPendingStart(roomId)
     await this.stopAndFinalize(roomId)
+    this.rooms.delete(roomId)
   }
 
   private cancelPendingStart(roomId: string): void {
