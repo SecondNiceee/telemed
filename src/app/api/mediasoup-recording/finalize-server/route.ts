@@ -2,10 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import fs from 'fs/promises'
+import { createReadStream, createWriteStream } from 'fs'
+import { pipeline } from 'stream/promises'
 import path from 'path'
+import { MEDIA_DIR, ensureMediaDir } from '@/lib/media-dir'
 
 // Must match the outputDir in src/lib/mediasoup/config.ts
 const RECORDINGS_DIR = process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings'
+
+/**
+ * Переносит файл, не загружая его в память.
+ *
+ * rename мгновенен, но работает только внутри одной файловой системы, а
+ * RECORDING_OUTPUT_DIR по умолчанию лежит в /tmp и вполне может оказаться
+ * отдельным томом (в частности tmpfs). В этом случае ядро возвращает EXDEV, и
+ * тогда копируем потоком: данные идут через буфер фиксированного размера, а не
+ * целиком в RSS.
+ */
+async function moveFile(from: string, to: string): Promise<void> {
+  ensureMediaDir()
+
+  try {
+    await fs.rename(from, to)
+    return
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err
+  }
+
+  console.log('[MediaSoupRecording/FinalizeServer] Cross-device move, copying by stream')
+  await pipeline(createReadStream(from), createWriteStream(to))
+  await fs.unlink(from).catch(() => {})
+}
 
 // Shared secret for server-to-server calls
 const SERVER_SECRET = process.env.MEDIASOUP_SERVER_SECRET
@@ -89,37 +116,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recording file is empty' }, { status: 400 })
     }
 
-    // Read the recording file
-    const recordingBuffer = await fs.readFile(recordingPath)
-    console.log('[MediaSoupRecording/FinalizeServer] Read recording buffer, size:', recordingBuffer.length)
-
-    // Upload to Payload Media
+    // Файл НЕ читаем в память. Раньше здесь был fs.readFile целиком, и это
+    // ломалось именно на длинных консультациях: при 1500k видео + 128k аудио
+    // час записи - около 700 МБ, которые разом попадали в RSS процесса Next.js
+    // и легко давали OOM. Payload при локальном хранилище всё равно записал бы
+    // этот буфер обратно на диск, то есть память тратилась впустую.
+    //
+    // Вместо этого перемещаем готовый файл в каталог медиа сами (rename -
+    // операция над метаданными, для файла любого размера мгновенная), а
+    // документ создаём БЕЗ поля file. У коллекции media стоит
+    // filesRequiredOnCreate: false, поэтому Payload принимает такой вызов и
+    // сохраняет filename/mimeType/filesize как обычные поля.
     const filename = `consultation-${appointmentId}-${Date.now()}.webm`
-    
-    console.log('[MediaSoupRecording/FinalizeServer] Uploading to media via Payload...')
-    
-    const mediaDoc = await payload.create({
-      collection: 'media',
-      data: {
-        alt: `Запись консультации #${appointmentId}`,
-      },
-      file: {
-        data: recordingBuffer,
-        mimetype: recordingType === 'audio' ? 'audio/webm' : 'video/webm',
-        name: filename,
-        size: recordingBuffer.length,
-      },
-    })
-    
-    const mediaId = mediaDoc.id
-    console.log('[MediaSoupRecording/FinalizeServer] Media uploaded, ID:', mediaId)
+    const mimeType = recordingType === 'audio' ? 'audio/webm' : 'video/webm'
+    const targetPath = path.join(MEDIA_DIR, filename)
+
+    console.log('[MediaSoupRecording/FinalizeServer] Moving recording into media dir:', targetPath)
+    await moveFile(recordingPath, targetPath)
+
+    let mediaId: number | string
+    try {
+      const mediaDoc = await payload.create({
+        collection: 'media',
+        data: {
+          alt: `Запись консультации #${appointmentId}`,
+          filename,
+          mimeType,
+          filesize: fileStats.size,
+        },
+      })
+      mediaId = mediaDoc.id
+    } catch (err) {
+      // Документа нет - файл в каталоге медиа осиротеет, поэтому убираем его.
+      await fs.unlink(targetPath).catch(() => {})
+      throw err
+    }
+
+    console.log('[MediaSoupRecording/FinalizeServer] Media created, ID:', mediaId)
 
     // Real duration comes from the recording controller; fall back to a
     // rough size-based estimate only if it was not provided.
     const estimatedDuration =
       typeof durationSeconds === 'number' && durationSeconds > 0
         ? Math.round(durationSeconds)
-        : Math.round(recordingBuffer.length / 50000)
+        : Math.round(fileStats.size / 50000)
 
     // Create call-recording entry
     const recording = await payload.create({
@@ -136,17 +176,10 @@ export async function POST(request: NextRequest) {
 
     console.log('[MediaSoupRecording/FinalizeServer] CallRecording created, ID:', recording.id)
 
-    // Cleanup the temporary recording file
-    try {
-      await fs.unlink(recordingPath)
-      console.log('[MediaSoupRecording/FinalizeServer] Cleaned up recording file')
-      
-      // Also try to clean up the SDP file if it exists
-      const sdpPath = path.join(RECORDINGS_DIR, `${sessionId}.sdp`)
-      await fs.unlink(sdpPath).catch(() => {})
-    } catch (err) {
-      console.warn('[MediaSoupRecording/FinalizeServer] Failed to cleanup files:', err)
-    }
+    // Сам webm удалять не нужно: он уже перемещён в каталог медиа, а не
+    // скопирован. Подчищаем только служебный SDP, если он остался.
+    const sdpPath = path.join(RECORDINGS_DIR, `${sessionId}.sdp`)
+    await fs.unlink(sdpPath).catch(() => {})
 
     return NextResponse.json({ 
       success: true, 

@@ -163,7 +163,7 @@ class Recorder {
    *
    * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
    * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо б������ать за ноль дорожки.
+   * начинается с keyframe, и именно его надо б��������ать за ноль дорожки.
    * После замера trace отключаем, чтобы не грузить воркер.
    */
   private trackMediaStart(input: RecordingInput): void {
@@ -441,7 +441,7 @@ class Recorder {
       // надёжной привязки к таймлинии, и после той правки звук пропал совсем.
       //
       // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
-      // времени прихода не имеют систематического дрейфа (они привязаны к
+      // времени прихода не имеют систематич��ского дрейфа (они привязаны к
       // реальному времени), в них есть т��ль��о джиттер ±десятки мс.
       '-use_wallclock_as_timestamps', '1',
 
@@ -470,7 +470,7 @@ class Recorder {
         // склейки. У сырого PCM заголовка нет вообще, поэтому обрыв не портит
         // ничего: читается ровно то, что записано.
         //
-        // Моно 48 кГц: речь, дальше всё равно amix в один канал. Это ~96 КБ/с,
+        // Моно 48 кГц: речь, дальше всё равно amix в ��дин канал. Это ~96 КБ/с,
         // то есть ~350 МБ на час на участника в /tmp - временные файлы
         // удаляются сразу после склейки.
         ? ['-c:a', 'pcm_s16le', '-ac', '1', '-ar', '48000', '-f', 's16le']
@@ -571,7 +571,15 @@ class Recorder {
     const withVideo = videos.length > 0
     const offsets = this.computeOffsets(usable)
 
-    const args: string[] = ['-loglevel', 'warning', '-nostdin']
+    // -progress pipe:1 даёт машинный отчёт о прогрессе в stdout примерно раз в
+    // полсекунды. Он нужен composeSegment, чтобы отличать "медленно считает" от
+    // "завис": при -loglevel warning в stderr во время нормальной работы тишина,
+    // и по нему судить о живости процесса нельзя.
+    //
+    // ВАЖНО: раз мы это включаем, stdout ОБЯЗАН кто-то читать. Иначе пайп
+    // заполнится и FFmpeg встанет на записи в него - то есть ровно то зависание,
+    // которое мы пытаемся ловить.
+    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-progress', 'pipe:1']
     const streamIndex = new Map<RecordingInput, number>()
     let nextIndex = 0
 
@@ -672,33 +680,103 @@ class Recorder {
     return args
   }
 
-  /** Запускает офлайн-склейку и ждёт её завершения. */
+  /**
+   * Запускает офлайн-склейку и ждёт её завершения.
+   *
+   * Раньше здесь стоял фиксированный лимит 30 минут, и для часовой консультации
+   * он был опасен: склейка перекодирует запись в VP8 (54 000 кадров на час),
+   * идёт быстрее реального времени в несколько раз, но при нескольких
+   * консультациях одновременно они делят CPU. Упёршись в лимит, процесс
+   * получал SIGKILL - и запись пропадала ЦЕЛИКОМ, уже после звонка.
+   *
+   * Теперь лимита по календарному времени нет. Вместо него две проверки:
+   *   - зависание: прогресс не двигался STALL_MS - процесс мёртв, убиваем;
+   *   - абсолютный предел: пропорционален длине записи, а не константа.
+   * Медленная, но живая склейка доводится до конца.
+   */
   private composeSegment(session: RecordingSession, usable: RecordingInput[]): Promise<void> {
     const args = this.buildComposeArgs(session, usable)
     console.log('[Recorder] Composing:', recordingConfig.ffmpegPath, args.join(' '))
 
+    // Нет прогресса 5 минут - это не медленный кодек, а зависший процесс.
+    const STALL_MS = 5 * 60 * 1000
+    // Даже на очень загруженной машине склейка укладывается в несколько единиц
+    // реального времени записи. 8x + 15 минут запаса - предел, за которым
+    // происходящее уже ненормально. Для часа это ~8.25 часа против прежних 30
+    // минут, при которых час не имел шансов.
+    const HARD_CAP_MS = session.durationSeconds * 8000 + 15 * 60 * 1000
+
     return new Promise<void>((resolve, reject) => {
       const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
+      const startedAt = Date.now()
+
+      let lastProgressAt = Date.now()
+      let lastLogAt = 0
+      let encodedMs = 0
+      let killedReason: string | null = null
 
       ffmpeg.stderr?.on('data', (data: Buffer) => {
         const text = data.toString().trim()
         if (text) console.log(`[Recorder] Compose [${session.id}]: ${text}`)
       })
 
-      // Страховка: склейка не должна длиться дольше 30 минут.
-      const timeout = setTimeout(() => {
-        if (ffmpeg.exitCode === null) ffmpeg.kill('SIGKILL')
-      }, 30 * 60 * 1000)
-      timeout.unref()
+      // Читать stdout ОБЯЗАТЕЛЬНО - см. комментарий про -progress в
+      // buildComposeArgs. Заодно это и есть наш индикатор живости.
+      ffmpeg.stdout?.on('data', (data: Buffer) => {
+        lastProgressAt = Date.now()
+
+        const match = /out_time_us=(\d+)/.exec(data.toString())
+        if (match) encodedMs = Number(match[1]) / 1000
+
+        // Прогресс приходит дважды в секунду - в лог пишем раз в 30 с, иначе он
+        // станет нечитаемым. Зато по нему видно реальную скорость склейки.
+        const now = Date.now()
+        if (now - lastLogAt >= 30_000) {
+          lastLogAt = now
+          const wallSeconds = (now - startedAt) / 1000
+          const speed = wallSeconds > 0 ? encodedMs / 1000 / wallSeconds : 0
+          console.log(
+            `[Recorder] Compose [${session.id}]: ` +
+              `${Math.round(encodedMs / 1000)}s / ${Math.round(session.durationSeconds)}s ` +
+              `(${speed.toFixed(1)}x realtime, ${Math.round(wallSeconds)}s elapsed)`,
+          )
+        }
+      })
+
+      const watchdog = setInterval(() => {
+        if (ffmpeg.exitCode !== null || ffmpeg.signalCode !== null) return
+
+        const idleMs = Date.now() - lastProgressAt
+        if (idleMs >= STALL_MS) {
+          killedReason = `no progress for ${Math.round(idleMs / 1000)}s`
+        } else if (Date.now() - startedAt >= HARD_CAP_MS) {
+          killedReason = `exceeded hard cap of ${Math.round(HARD_CAP_MS / 60000)} min`
+        }
+
+        if (killedReason) {
+          console.error(`[Recorder] Compose [${session.id}] killed: ${killedReason}`)
+          ffmpeg.kill('SIGKILL')
+        }
+      }, 30_000)
+      watchdog.unref()
+
+      const cleanup = (): void => clearInterval(watchdog)
 
       ffmpeg.on('error', (error) => {
-        clearTimeout(timeout)
+        cleanup()
         reject(error)
       })
       ffmpeg.on('close', (code) => {
-        clearTimeout(timeout)
-        if (code === 0) resolve()
-        else reject(new Error(`Compose FFmpeg exited with code ${code}`))
+        cleanup()
+        if (code === 0) {
+          const wallSeconds = Math.round((Date.now() - startedAt) / 1000)
+          console.log(`[Recorder] Compose [${session.id}] finished in ${wallSeconds}s`)
+          resolve()
+        } else if (killedReason) {
+          reject(new Error(`Compose FFmpeg killed: ${killedReason}`))
+        } else {
+          reject(new Error(`Compose FFmpeg exited with code ${code}`))
+        }
       })
     })
   }
@@ -908,7 +986,7 @@ class Recorder {
       })
 
       // Страховка от вечного зависания: SIGKILL послан на 9-й секунде, 'close'
-      // после него приходит за миллисекунды, так что сюда доходить не должно.
+      // после него приходит за миллисекунды, ��ак что сюда доходить не должно.
       later(12000, () => {
         if (settled) return
         console.error(`[Recorder] FFmpeg [${session.id}/${input.label}] no 'close' after SIGKILL`)
