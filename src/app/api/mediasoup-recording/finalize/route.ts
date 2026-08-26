@@ -5,15 +5,13 @@ import { cookies } from 'next/headers'
 import fs from 'fs/promises'
 import path from 'path'
 import jwt from 'jsonwebtoken'
+import { RECORDINGS_DIR } from '@/lib/recordings-dir'
 
 interface DecodedToken {
   id: number
   email: string
   collection: string
 }
-
-// Must match the outputDir in src/lib/mediasoup/config.ts
-const RECORDINGS_DIR = process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings'
 
 /**
  * POST /api/mediasoup-recording/finalize

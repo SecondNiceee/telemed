@@ -6,18 +6,16 @@ import { createReadStream, createWriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 import path from 'path'
 import { MEDIA_DIR, ensureMediaDir } from '@/lib/media-dir'
-
-// Must match the outputDir in src/lib/mediasoup/config.ts
-const RECORDINGS_DIR = process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings'
+import { RECORDINGS_DIR } from '@/lib/recordings-dir'
 
 /**
  * Переносит файл, не загружая его в память.
  *
- * rename мгновенен, но работает только внутри одной файловой системы, а
- * RECORDING_OUTPUT_DIR по умолчанию лежит в /tmp и вполне может оказаться
- * отдельным томом (в частности tmpfs). В этом случае ядро возвращает EXDEV, и
- * тогда копируем потоком: данные идут через буфер фиксированного размера, а не
- * целиком в RSS.
+ * rename мгновенен, но работает только внутри одной файловой системы. По
+ * умолчанию каталоги записей и медиа лежат рядом (оба относительно cwd), так
+ * что срабатывает быстрый путь. Но RECORDING_OUTPUT_DIR или MEDIA_DIR могут
+ * указывать на разные тома - тогда ядро вернёт EXDEV, и мы копируем потоком:
+ * данные идут через буфер фиксированного размера, а не целиком в RSS.
  */
 async function moveFile(from: string, to: string): Promise<void> {
   ensureMediaDir()

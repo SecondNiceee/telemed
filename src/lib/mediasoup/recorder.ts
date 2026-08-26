@@ -29,11 +29,12 @@
  */
 
 import { spawn, ChildProcess, execSync } from 'child_process'
-import { existsSync, mkdirSync, statSync } from 'fs'
+import { existsSync, statSync } from 'fs'
 import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
 import type { types as mediasoupTypes } from 'mediasoup'
 import { recordingConfig, plainTransportOptions } from './config'
+import { assertEnoughFreeSpace, getFreeBytes } from '../recordings-dir'
 
 type Router = mediasoupTypes.Router
 type Producer = mediasoupTypes.Producer
@@ -163,7 +164,7 @@ class Recorder {
    *
    * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
    * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо б��������ать за ноль дорожки.
+   * начинается с keyframe, и именно его надо б����������ать за ноль дорожки.
    * После замера trace отключаем, чтобы не грузить воркер.
    */
   private trackMediaStart(input: RecordingInput): void {
@@ -441,7 +442,7 @@ class Recorder {
       // надёжной привязки к таймлинии, и после той правки звук пропал совсем.
       //
       // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
-      // времени прихода не имеют систематич��ского дрейфа (они привязаны к
+      // времени прихода не имеют система��ич��ского дрейфа (они привязаны к
       // реальному времени), в них есть т��ль��о джиттер ±десятки мс.
       '-use_wallclock_as_timestamps', '1',
 
@@ -799,9 +800,11 @@ class Recorder {
     const existing = this.getActiveRecordingForRoom(roomId)
     if (existing) return existing
 
-    if (!existsSync(recordingConfig.outputDir)) {
-      mkdirSync(recordingConfig.outputDir, { recursive: true })
-    }
+    // Проверяем место ДО начала записи. Бросить здесь безопасно:
+    // RecordingController ловит ошибку startSegment и просто логирует её, так
+    // что звонок продолжится без записи. Это заметно лучше прежнего поведения,
+    // когда место кончалось на середине разговора и терялась вся запись - молча.
+    await assertEnoughFreeSpace()
 
     const withVideo = Boolean(participantA.video && participantB.video)
     const sessionId = `${roomId}-${Date.now()}`
@@ -888,7 +891,7 @@ class Recorder {
    * Правильно: запросить keyframe только на старте (чтобы FFmpeg начал писать
    * без долгого чёрного участка) и дальше не мешать - у VP8 есть свой
    * интервал опорных кадров, а потери на loopback-UDP практически исключены.
-   * Оставляем редкую страховку раз в 30 с: на дистанции часа это ~120 лишних
+   * Оставляем редкую с��раховку раз в 30 с: на дистанции часа это ~120 лишних
    * кадров вместо ~1800 и не ломает бюджет кодировщика.
    */
   private scheduleKeyFrameRequests(session: RecordingSession): void {
@@ -1110,8 +1113,26 @@ class Recorder {
       console.error(`[Recorder] Compose failed for ${sessionId}:`, error)
     }
 
-    // При ошибке остав��яем сырые дорожки для отладки.
-    if (session.status === 'completed') await this.cleanupTempFiles(session)
+    // Сырые дорожки удаляем ВСЕГДА, в том числе после провала склейки.
+    //
+    // Раньше при ошибке они оставались "для отладки", и это было плохим
+    // обменом: часовая консультация - это ~1.3 ГБ сырых файлов, которые лежали
+    // до перезагрузки. Несколько сбоев подряд забивали том, и тогда FFmpeg не
+    // мог писать уже ВО ВРЕМЯ звонка - терялась не одна запись, а все
+    // последующие. Диагностику дают логи (размеры дорожек, скорость склейки,
+    // причина смерти процесса), а не гигабайты PCM.
+    if (session.status === 'failed') {
+      const free = await getFreeBytes()
+      console.warn(
+        `[Recorder] Session ${sessionId} failed, удаляем промежуточные файлы` +
+          (free === null ? '' : ` (свободно ${Math.round(free / 1024 / 1024)} МБ)`),
+      )
+      // Итоговый webm при провале склейки недописан и бесполезен - забрать его
+      // всё равно некому, а место занимает.
+      await unlink(session.filePath).catch(() => {})
+    }
+
+    await this.cleanupTempFiles(session)
 
     console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s, ${session.status})`)
     return session

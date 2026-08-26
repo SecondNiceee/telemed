@@ -7,6 +7,7 @@
 
 import type { types as mediasoupTypes } from 'mediasoup'
 import { isServerRecordingEnabled, recordingMode } from '../recording-mode'
+import { RECORDINGS_DIR } from '../recordings-dir'
 
 type WorkerSettings = mediasoupTypes.WorkerSettings
 type RouterOptions = mediasoupTypes.RouterOptions
@@ -166,9 +167,9 @@ export const serverConfig = {
  * Recording configuration
  * 
  * NOTE: outputDir is a TEMPORARY directory for FFmpeg to write files.
- * After recording stops, the file is uploaded to Payload CMS Media collection
- * and the temp file is deleted.
- * 
+ * After recording stops, the finished file is MOVED into the media directory
+ * (rename, not copy) and the intermediate per-track files are deleted.
+ *
  * You can override with RECORDING_OUTPUT_DIR env variable.
  */
 export const recordingConfig = {
@@ -177,9 +178,10 @@ export const recordingConfig = {
   // в браузере врача выключается тем же значением, поэтому две записи на одну
   // консультацию теперь невозможны по построению.
   enabled: isServerRecordingEnabled,
-  // Directory to store temporary recordings (before upload to Payload).
-  // Must match the default in app/api/mediasoup-recording/finalize-server.
-  outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',
+  // Каталог промежуточных файлов. Единый источник - src/lib/recordings-dir.ts;
+  // раньше этот путь был продублирован строкой в трёх местах и мог разъехаться.
+  // Там же объяснено, почему он больше НЕ в /tmp.
+  outputDir: RECORDINGS_DIR,
   // FFmpeg path
   ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
   // Recording format
