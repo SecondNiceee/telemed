@@ -37,15 +37,28 @@ function pickMimeType(audioOnly: boolean): string | null {
   return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? null
 }
 
-/** Скрытый <video>, который служит источником кадров для canvas. */
-function createHiddenVideo(stream: MediaStream): HTMLVideoElement {
+/**
+ * Скрытый <video> - источник кадров для canvas. Создаётся ПУСТЫМ: дорожку в
+ * него подставляет syncVideoPanes, он же перепривязывает её после
+ * переподключения участника.
+ */
+function createHiddenVideo(): HTMLVideoElement {
   const element = document.createElement('video')
-  element.srcObject = stream
   element.muted = true
   element.autoplay = true
   element.playsInline = true
-  void element.play().catch(() => {})
   return element
+}
+
+/**
+ * Одно окно записи. trackId - id дорожки, которая реально подставлена в
+ * element: по расхождению с текущей дорожкой потока мы и узнаём, что
+ * участник переподключился и картинку надо перепривязать.
+ */
+interface VideoPane {
+  key: 'remote' | 'local'
+  element: HTMLVideoElement
+  trackId: string | null
 }
 
 /** Рисует кадр в свою половину канваса с сохранением пропорций (letterbox). */
@@ -100,9 +113,9 @@ export function useCallRecorder({
    * получалась полностью беззвучной.
    */
   const audioSourcesRef = useRef(new Map<string, MediaStreamAudioSourceNode>())
-  const audioSyncRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const mediaSyncRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tickerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const videoElementsRef = useRef<HTMLVideoElement[]>([])
+  const videoPanesRef = useRef<VideoPane[]>([])
   const canvasStreamRef = useRef<MediaStream | null>(null)
 
   const startedRef = useRef(false)
@@ -158,6 +171,55 @@ export function useCallRecorder({
     }
   }, [])
 
+  /**
+   * Идемпотентно держит в каждом окне АКТУАЛЬНУЮ видеодорожку участника.
+   *
+   * Зачем это нужно. При переподключении сокета useMediasoup закрывает
+   * консюмеры и заводит для собеседника НОВЫЙ MediaStream с новой дорожкой
+   * (disconnect -> closeMediaSession -> remoteStreamsRef.clear -> consume).
+   * Интерфейс это переживает: ref-callback заново присваивает srcObject на
+   * каждом рендере, а autoPlay возобновляет воспроизведение - поэтому на
+   * экране картинка не пропадала. Скрытый <video> рекордера так не умел: он
+   * оставался с закрытой дорожкой, videoWidth обнулялся, drawPane выходил
+   * досрочно, и половина канваса до конца записи была чёрной.
+   *
+   * Поэтому сверяем дорожку по id и перепривязываем при любой замене, а
+   * заодно поднимаем воспроизведение, если элемент встал: открепленный от DOM
+   * <video> после подмены дорожки нередко остаётся в paused.
+   */
+  const syncVideoPanes = useCallback(() => {
+    for (const pane of videoPanesRef.current) {
+      const stream =
+        pane.key === 'remote' ? streamsRef.current.remoteStream : streamsRef.current.localStream
+      const track = stream?.getVideoTracks().find((item) => item.readyState === 'live') ?? null
+
+      if (!track) {
+        // Камера выключена или поток ещё не пришёл: окно честно чёрное. Сбрасываем
+        // trackId, чтобы вернувшаяся дорожка снова привязалась.
+        if (pane.trackId !== null) {
+          pane.element.srcObject = null
+          pane.trackId = null
+        }
+        continue
+      }
+
+      if (pane.trackId !== track.id) {
+        // Отдельный MediaStream на дорожку: привязка зависит только от самой
+        // дорожки, поэтому замена ловится и когда поток пересоздали, и когда
+        // дорожку подменили внутри прежнего потока.
+        pane.element.srcObject = new MediaStream([track])
+        pane.trackId = track.id
+        void pane.element.play().catch(() => {})
+        console.log('[CallRecorder] Video pane re-attached', pane.key, track.id)
+        continue
+      }
+
+      if (pane.element.paused || pane.element.readyState === 0) {
+        void pane.element.play().catch(() => {})
+      }
+    }
+  }, [])
+
   /** Ставит чанк в очередь: порядок загрузки должен совпадать с порядком записи. */
   const enqueueChunk = useCallback((blob: Blob, isLast: boolean) => {
     const { appointmentId: aid, doctorId: did } = metaRef.current
@@ -196,16 +258,16 @@ export function useCallRecorder({
       clearInterval(tickerRef.current)
       tickerRef.current = null
     }
-    if (audioSyncRef.current) {
-      clearInterval(audioSyncRef.current)
-      audioSyncRef.current = null
+    if (mediaSyncRef.current) {
+      clearInterval(mediaSyncRef.current)
+      mediaSyncRef.current = null
     }
     canvasStreamRef.current?.getTracks().forEach((track) => track.stop())
     canvasStreamRef.current = null
-    videoElementsRef.current.forEach((element) => {
-      element.srcObject = null
+    videoPanesRef.current.forEach((pane) => {
+      pane.element.srcObject = null
     })
-    videoElementsRef.current = []
+    videoPanesRef.current = []
     audioSourcesRef.current.forEach((source) => source.disconnect())
     audioSourcesRef.current.clear()
     audioDestinationRef.current = null
@@ -284,8 +346,13 @@ export function useCallRecorder({
     void audioContext.resume().catch(() => {})
     syncAudioSources()
     // Сверка раз в секунду: подхватывает аудио собеседника, если оно пришло
-    // позже видео, и заменённый микрофон после переподключения сети.
-    audioSyncRef.current = setInterval(syncAudioSources, 1000)
+    // позже видео, заменённый микрофон после переподключения сети и новую
+    // видеодорожку участника после его переподключения. Окна создаются ниже -
+    // до этого syncVideoPanes работает по пустому списку.
+    mediaSyncRef.current = setInterval(() => {
+      syncAudioSources()
+      syncVideoPanes()
+    }, 1000)
 
     const recordedTracks: MediaStreamTrack[] = [...destination.stream.getAudioTracks()]
 
@@ -301,15 +368,17 @@ export function useCallRecorder({
       }
 
       // Слева собеседник, справа врач - тот же порядок, что в интерфейсе.
-      const remoteVideo = createHiddenVideo(remoteStream)
-      const localVideo = createHiddenVideo(localStream)
-      videoElementsRef.current = [remoteVideo, localVideo]
+      const remotePane: VideoPane = { key: 'remote', element: createHiddenVideo(), trackId: null }
+      const localPane: VideoPane = { key: 'local', element: createHiddenVideo(), trackId: null }
+      videoPanesRef.current = [remotePane, localPane]
+      // Первая привязка сразу, дальше - раз в секунду вместе с аудио.
+      syncVideoPanes()
 
       tickerRef.current = setInterval(() => {
         context.fillStyle = '#000000'
         context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-        drawPane(context, remoteVideo, 0)
-        drawPane(context, localVideo, PANE_WIDTH)
+        drawPane(context, remotePane.element, 0)
+        drawPane(context, localPane.element, PANE_WIDTH)
       }, Math.round(1000 / FPS))
 
       const canvasStream = canvas.captureStream(FPS)
@@ -345,7 +414,7 @@ export function useCallRecorder({
     recorder.start(CHUNK_INTERVAL_MS)
     setIsRecording(true)
     console.log('[CallRecorder] Recording started', { appointmentId, mimeType })
-  }, [enabled, doctorId, localStream, remoteStream, audioOnly, appointmentId, enqueueChunk, teardown, syncAudioSources])
+  }, [enabled, doctorId, localStream, remoteStream, audioOnly, appointmentId, enqueueChunk, teardown, syncAudioSources, syncVideoPanes])
 
   // Аварийное закрытие вкладки: чанки уже на сервере, просим финализировать
   // то, что успело дойти. sendBeacon переживает выгрузку страницы.
