@@ -87,25 +87,28 @@ export function CallRoom({
   const [isChatOpen, setIsChatOpen] = useState(false)
   const unreadCount = useChatStore((state) => state.unreadCounts[appointmentId] ?? 0)
 
-  // Звонящий попадает сюда через router.push, поэтому у только что начатого
-  // звонка статус приглашения в памяти всегда есть. Его отсутствие означает,
-  // что страницу открыли заново по старой ссылке (например, после закрытия
-  // браузера) - тогда ждать пациента нельзя, сначала надо выяснить, идёт ли
-  // ещё звонок, иначе экран «Ждём пациента…» зависает навсегда.
+  // Статус исходящего приглашения живёт в модульном сторе провайдера, поэтому
+  // у только что начатого звонка он есть и после перехода из чата. Отсутствие
+  // статуса означает, что страницу открыли заново по старой ссылке (например,
+  // после перезагрузки браузера) - тогда ждать пациента нельзя, сначала надо
+  // спросить сервер, «звонит» ли приглашение ещё, иначе экран «Ждём пациента…»
+  // зависает навсегда.
   const knownStatus = callId ? outgoingCallStatuses[callId] : undefined
   const needsRestoreCheck = isCaller && Boolean(callId) && knownStatus === undefined
-  const [restoredStatus, setRestoredStatus] = useState<'waiting' | 'answered' | 'closed' | null>(null)
+  const [restoredStatus, setRestoredStatus] = useState<'waiting' | 'answered' | null>(null)
   const [socketGraceElapsed, setSocketGraceElapsed] = useState(false)
   const [emptyRoomTimedOut, setEmptyRoomTimedOut] = useState(false)
 
-  const invitationStatus: 'resolving' | 'waiting' | 'answered' | 'rejected' | 'closed' = !callId
+  const invitationStatus: 'resolving' | 'waiting' | 'answered' | 'rejected' = !callId
     ? 'answered'
     : knownStatus ?? (needsRestoreCheck ? restoredStatus ?? 'resolving' : 'answered')
 
-  const isCallActive = invitationStatus === 'answered'
+  // Завершённость звонка определяется только изнутри комнаты - по присутствию
+  // собеседника. До входа в комнату мы этого знать не можем.
+  const isRoomClosed = emptyRoomTimedOut
+  const isCallActive = invitationStatus === 'answered' && !isRoomClosed
   const isWaitingForPatient = invitationStatus === 'waiting'
   const isResolving = invitationStatus === 'resolving'
-  const isRoomClosed = invitationStatus === 'closed' || emptyRoomTimedOut
   const call = useMediasoup(appointmentId, audioOnly)
   const connect = call.connect
   const callLeave = call.leave
@@ -146,43 +149,10 @@ export function CallRoom({
       // Сервер помнит только те приглашения, на которые ещё не ответили.
       const state = await getCallState(appointmentId, callId)
       if (cancelled) return
-      if (state?.pending) {
-        setRestoredStatus('waiting')
-        return
-      }
-
-      // На приглашение ответили или оно истекло. Живой звонок отличаем от
-      // закрытого по присутствию второго участника в комнате медиасервера.
-      // Пары попыток достаточно: сервер считает только участников с живым
-      // соединением, а собеседник мог принять звонок за мгновение до нашего
-      // возвращения и ещё не успеть войти в комнату.
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500))
-        if (cancelled) return
-        try {
-          const response = await fetch('/api/mediasoup/room-state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ appointmentId }),
-          })
-          const data = await response.json() as { success?: boolean; otherPeerPresent?: boolean }
-          if (cancelled) return
-          if (!response.ok || data.success !== true) {
-            // Состояние выяснить не удалось. Подключаемся: понятная ошибка
-            // соединения лучше ложного «комната закрыта».
-            setRestoredStatus('answered')
-            return
-          }
-          if (data.otherPeerPresent) {
-            setRestoredStatus('answered')
-            return
-          }
-        } catch {
-          if (!cancelled) setRestoredStatus('answered')
-          return
-        }
-      }
-      if (!cancelled) setRestoredStatus('closed')
+      // Приглашение всё ещё «звонит» - ждём ответа. Иначе на него уже ответили
+      // или оно истекло: входим в комнату, а закончился звонок или нет решит
+      // проверка присутствия собеседника уже внутри неё.
+      setRestoredStatus(state?.pending ? 'waiting' : 'answered')
     })()
 
     return () => {
@@ -190,10 +160,9 @@ export function CallRoom({
     }
   }, [appointmentId, callId, getCallState, isConnected, needsRestoreCheck, socketGraceElapsed])
 
-  // Подстраховка изнутри комнаты. HTTP-проверка выше доступна не всегда (запрос
-  // к медиасерверу может не дойти), и тогда мы входим в звонок «на всякий
-  // случай». Медиасервер при входе сообщает, есть ли живой собеседник: если его
-  // нет и он не появляется, звонок закончен - уходим, а не ждём бесконечно.
+  // Единственная проверка «жив ли звонок» - изнутри комнаты. Медиасервер при
+  // входе сообщает, есть ли живой собеседник: если его нет и он не появляется,
+  // звонок закончен - уходим, а не ждём бесконечно.
   useEffect(() => {
     // Обрыв уже в середине звонка обрабатывается отдельно (там своё сообщение),
     // иначе пользователь увидел бы два уведомления подряд.
