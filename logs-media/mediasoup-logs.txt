@@ -1,41 +1,4 @@
   GNU nano 8.7.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   /root/.pm2/logs/mediasoup-out.log
-[Room] Created room appointment_3
-[MediaSoup] joined socket=Q7td0F9g9u6AwZMzAAAB room=appointment_3 peer=patient-2
-[Recorder] FFmpeg is available
-[MediaSoup] joined socket=GO1hTHMwSA8Qh4dOAAAD room=appointment_3 peer=doctor-27
-[Recorder] Starting FFmpeg [a-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.a-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_3-1787740549916.a-video.mkv
-[Recorder] Starting FFmpeg [b-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.b-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_3-1787740549916.b-video.mkv
-[Recorder] a-audio media start captured (rtp)
-[Recorder] Starting FFmpeg [a-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 0 -probesize 32 -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.a-audio.sdp -map 0 -c:a pcm_s16le -ac 1 -ar 48000 -f wav -y /tmp/mediasoup-recordings/appointment_3-1787740549916.a-audio.wav
-[Recorder] b-audio media start captured (rtp)
-[Recorder] Starting FFmpeg [b-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 0 -probesize 32 -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.b-audio.sdp -map 0 -c:a pcm_s16le -ac 1 -ar 48000 -f wav -y /tmp/mediasoup-recordings/appointment_3-1787740549916.b-audio.wav
-[Recorder] Started video segment appointment_3-1787740549916 for room appointment_3 (4 independent FFmpeg processes)
-[Recorder] a-video media start captured (keyframe)
-[Recorder] b-video media start captured (keyframe)
-[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=152ms loss_out=0.0% loss_in=0.8% kbps_out=2890 kbps_in=374 jitter=3ms
-[MediaSoup] quality room=appointment_3 peer=doctor-27 level=good rtt=43ms loss_out=0.0% loss_in=0.1% kbps_out=1360 kbps_in=1855 jitter=8ms
-[MediaSoup] quality room=appointment_3 peer=patient-2 level=poor rtt=104ms loss_out=0.0% loss_in=6.4% kbps_out=3426 kbps_in=328 jitter=315ms
-[MediaSoup] removed socket=Q7td0F9g9u6AwZMzAAAB room=appointment_3 peer=patient-2 reason=participant-ended removed=true
-[MediaSoup] disconnect grace socket=GO1hTHMwSA8Qh4dOAAAD room=appointment_3 peer=doctor-27 timeout=10000
-[Recorder] FFmpeg [appointment_3-1787740549916/a-video] ignored "q", sending SIGTERM
-[Recorder] FFmpeg [appointment_3-1787740549916/b-video] ignored "q", sending SIGTERM
-[Recorder] FFmpeg [appointment_3-1787740549916/a-audio] ignored "q", sending SIGTERM
-[Recorder] FFmpeg [appointment_3-1787740549916/b-audio] ignored "q", sending SIGTERM
-[Recorder] FFmpeg [appointment_3-1787740549916/b-audio]: [in#0/sdp @ 0x5df9e2415d80] Error during demuxing: Connection timed out
-[Recorder] FFmpeg [appointment_3-1787740549916/b-audio] exited with code 255
-[Recorder] FFmpeg [appointment_3-1787740549916/a-video] did not exit, killing
-[Recorder] FFmpeg [appointment_3-1787740549916/b-video] did not exit, killing
-[Recorder] FFmpeg [appointment_3-1787740549916/a-audio] did not exit, killing
-[Recorder] Track a-video: 2359296 bytes -> usable
-[Recorder] Track b-video: 524288 bytes -> usable
-[Recorder] Track a-audio: 2621440 bytes -> usable
-[Recorder] Track b-audio: 1088746 bytes -> usable
-[Recorder] Composing: ffmpeg -loglevel warning -nostdin -f lavfi -i color=c=black:s=1280x360:r=15 -itsoffset 0.076 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.a-video.mkv -itsoffset 0.955 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.b-video.mkv -i /tmp/mediasoup-recordings/appointment_3-1787740549916.a-audio.wav -itsoffset 0.008 -i /tmp/mediasoup-recordings/appointment_3-1787740549916.b-audio.wav -filter_complex [1:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w0];[0:v][w0]overlay=x=0:y=0:eof_action=pass:repeatlast=0[b0];[2:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w1];[b0][w1]overlay=x=640:y=0:eof_action=pass:repeatlast=0,format=yuv420p[v];[3:a]aresample=async=1:min_hard_comp=0.100[a0];[4:a]aresample=async=1:min_hard_comp=0.100[a1];[a0][a1]amix=inputs=2:duration=longest:normalize=0,apad[a] -map [v] -map [a] -t 30 -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -r 15 -avoid_negative_ts make_zero -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_3-1787740549916.webm
-[Recorder] FFmpeg [appointment_3-1787740549916/a-video] exited with code null
-[Recorder] FFmpeg [appointment_3-1787740549916/a-audio] exited with code null
-[Recorder] FFmpeg [appointment_3-1787740549916/b-video] exited with code null
-[Recorder] Compose [appointment_3-1787740549916]: [wav @ 0x5f13f5977800] Ignoring maximum wav data size, file may be invalid
-[Recorder] Compose [appointment_3-1787740549916]: [wav @ 0x5f13f5977800] Estimating duration from bitrate, this may be inaccurate
 [aist#3:0/pcm_s16le @ 0x5f13f5a5ac40] Guessed Channel Layout: mono
 [Recorder] Compose [appointment_3-1787740549916]: [aist#4:0/pcm_s16le @ 0x5f13f5af1440] Guessed Channel Layout: mono
 [MediaSoup] removed socket=GO1hTHMwSA8Qh4dOAAAD room=appointment_3 peer=doctor-27 reason=participant-disconnected removed=true
@@ -107,3 +70,103 @@
 [Recorder] Compose [appointment_3-1787740663107]: [matroska,webm @ 0x6171c920aa80] File ended prematurely
 [Recorder] Stopped segment appointment_3-1787740663107 (65s, completed)
 [RecordingController] Finalized video segment appointment_3-1787740663107
+[ELIFECYCLE] Command failed.
+[MediaSoup Config] ANNOUNCED_IP: 79.174.77.110
+[MediaSoup Config] LISTEN_IP: 0.0.0.0
+[MediaSoup Config] RTC_PORT_RANGE: 40000-49999
+[MediaSoup Config] RECORDING_MODE: server
+[MediaSoup] Creating 1 worker(s) with RTC ports 40000-49999
+[MediaSoup] Worker 0 created, PID: 1964668
+[MediaSoup] 1 worker(s) created
+[MediaSoup] Listening on port 3002
+[Room] Created room appointment_3
+[MediaSoup] joined socket=m3-cYBzu7xaAh3pHAAAB room=appointment_3 peer=doctor-27
+[Recorder] FFmpeg is available
+[MediaSoup] quality room=appointment_3 peer=doctor-27 level=good rtt=19ms loss_out=0.0% loss_in=-% kbps_out=1434 kbps_in=0 jitter=-ms
+[MediaSoup] disconnect grace socket=m3-cYBzu7xaAh3pHAAAB room=appointment_3 peer=doctor-27 timeout=10000
+[MediaSoup] removed socket=m3-cYBzu7xaAh3pHAAAB room=appointment_3 peer=doctor-27 reason=participant-disconnected removed=true
+[MediaSoup] joined socket=_AfR_pxPY7rbzc7qAAAD room=appointment_3 peer=doctor-27
+[MediaSoup] joined socket=pn6urMXIVKo4xCBaAAAF room=appointment_3 peer=patient-2
+[Recorder] b-audio media start captured (rtp)
+[Recorder] Starting FFmpeg [a-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.a-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_3-1787742275515.a-video.mkv
+[Recorder] Starting FFmpeg [b-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.b-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_3-1787742275515.b-video.mkv
+[Recorder] Starting FFmpeg [a-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 0 -probesize 32 -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.a-audio.sdp -map 0 -c:a pcm_s16le -ac 1 -ar 48000 -f wav -y /tmp/mediasoup-recordings/appointment_3-1787742275515.a-audio.wav
+[Recorder] a-audio media start captured (rtp)
+[Recorder] Starting FFmpeg [b-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 0 -probesize 32 -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.b-audio.sdp -map 0 -c:a pcm_s16le -ac 1 -ar 48000 -f wav -y /tmp/mediasoup-recordings/appointment_3-1787742275515.b-audio.wav
+[Recorder] Started video segment appointment_3-1787742275515 for room appointment_3 (4 independent FFmpeg processes)
+[Recorder] b-video media start captured (keyframe)
+[Recorder] a-video media start captured (keyframe)
+[MediaSoup] quality room=appointment_3 peer=doctor-27 level=good rtt=45ms loss_out=0.0% loss_in=0.0% kbps_out=1388 kbps_in=356 jitter=9ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=108ms loss_out=0.0% loss_in=0.6% kbps_out=1056 kbps_in=405 jitter=9ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=poor rtt=104ms loss_out=0.6% loss_in=5.3% kbps_out=1409 kbps_in=232 jitter=21ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=108ms loss_out=0.0% loss_in=3.0% kbps_out=1876 kbps_in=233 jitter=200ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=110ms loss_out=0.0% loss_in=0.4% kbps_out=2448 kbps_in=221 jitter=200ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=106ms loss_out=0.0% loss_in=3.7% kbps_out=3297 kbps_in=112 jitter=318ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=poor rtt=112ms loss_out=0.0% loss_in=5.6% kbps_out=3416 kbps_in=224 jitter=431ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=195ms loss_out=0.5% loss_in=0.4% kbps_out=3533 kbps_in=206 jitter=431ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=poor rtt=107ms loss_out=0.0% loss_in=5.2% kbps_out=3500 kbps_in=228 jitter=274ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=110ms loss_out=0.0% loss_in=3.0% kbps_out=3364 kbps_in=245 jitter=359ms
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio]: [sdp @ 0x5b629a5db040] max delay reached. need to consume packet
+[sdp @ 0x5b629a5db040] RTP: missed 1 packets
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=106ms loss_out=0.0% loss_in=0.0% kbps_out=3278 kbps_in=137 jitter=465ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=106ms loss_out=0.0% loss_in=3.1% kbps_out=3491 kbps_in=223 jitter=476ms
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio]: [sdp @ 0x5b629a5db040] max delay reached. need to consume packet
+[sdp @ 0x5b629a5db040] RTP: missed 1 packets
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=103ms loss_out=0.0% loss_in=0.0% kbps_out=3479 kbps_in=136 jitter=489ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=106ms loss_out=0.0% loss_in=3.1% kbps_out=3435 kbps_in=218 jitter=491ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=108ms loss_out=0.0% loss_in=0.0% kbps_out=3286 kbps_in=72 jitter=385ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=105ms loss_out=0.0% loss_in=3.3% kbps_out=3418 kbps_in=176 jitter=429ms
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio]: [sdp @ 0x5b629a5db040] max delay reached. need to consume packet
+[sdp @ 0x5b629a5db040] RTP: missed 1 packets
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=104ms loss_out=0.0% loss_in=0.5% kbps_out=3443 kbps_in=73 jitter=479ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=104ms loss_out=0.1% loss_in=2.9% kbps_out=3501 kbps_in=181 jitter=485ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=104ms loss_out=0.0% loss_in=0.0% kbps_out=3447 kbps_in=168 jitter=491ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=107ms loss_out=0.0% loss_in=3.1% kbps_out=3432 kbps_in=225 jitter=492ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=129ms loss_out=0.0% loss_in=0.0% kbps_out=3368 kbps_in=175 jitter=493ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=113ms loss_out=0.0% loss_in=3.0% kbps_out=3472 kbps_in=222 jitter=314ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=109ms loss_out=0.0% loss_in=0.0% kbps_out=3499 kbps_in=160 jitter=454ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=108ms loss_out=0.0% loss_in=3.1% kbps_out=3429 kbps_in=222 jitter=470ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=106ms loss_out=0.0% loss_in=0.0% kbps_out=3431 kbps_in=163 jitter=424ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=107ms loss_out=0.0% loss_in=3.1% kbps_out=3379 kbps_in=221 jitter=452ms
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio]: [sdp @ 0x5b629a5db040]
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio]: max delay reached. need to consume packet
+[sdp @ 0x5b629a5db040] RTP: missed 1 packets
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=poor rtt=106ms loss_out=0.0% loss_in=10.4% kbps_out=4166 kbps_in=68 jitter=760ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=good rtt=105ms loss_out=0.0% loss_in=0.0% kbps_out=3235 kbps_in=195 jitter=484ms
+[MediaSoup] quality room=appointment_3 peer=patient-2 level=fair rtt=107ms loss_out=0.0% loss_in=2.9% kbps_out=3429 kbps_in=265 jitter=488ms
+[MediaSoup] removed socket=pn6urMXIVKo4xCBaAAAF room=appointment_3 peer=patient-2 reason=participant-ended removed=true
+[Recorder] RTP -> a-video (port 5000): packets=3315 bytes=3864849 paused=false producerPaused=false
+[Recorder] RTP -> a-audio (port 5004): packets=11467 bytes=1205614 paused=false producerPaused=false
+[MediaSoup] disconnect grace socket=_AfR_pxPY7rbzc7qAAAD room=appointment_3 peer=doctor-27 timeout=10000
+[Recorder] FFmpeg [appointment_3-1787742275515/a-video] ignored "q", sending SIGINT
+[Recorder] FFmpeg [appointment_3-1787742275515/b-video] ignored "q", sending SIGINT
+[Recorder] FFmpeg [appointment_3-1787742275515/a-audio] ignored "q", sending SIGINT
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio] ignored "q", sending SIGINT
+[Recorder] FFmpeg [appointment_3-1787742275515/a-video] exited with code null
+[Recorder] FFmpeg [appointment_3-1787742275515/b-video] exited with code null
+[Recorder] FFmpeg [appointment_3-1787742275515/a-audio] exited with code null
+[Recorder] FFmpeg [appointment_3-1787742275515/b-audio] exited with code null
+[Recorder] Track a-video: 3407872 bytes -> usable
+[Recorder] Track b-video: 18874368 bytes -> usable
+[Recorder] Track a-audio: 21757952 bytes -> usable
+[Recorder] Track b-audio: 21757952 bytes -> usable
+[Recorder] Composing: ffmpeg -loglevel warning -nostdin -f lavfi -i color=c=black:s=1280x360:r=15 -itsoffset 0.616 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.a-video.mkv -itsoffset 0.128 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.b-video.mkv -itsoffset 0.012 -i /tmp/mediasoup-recordings/appointment_3-1787742275515.a-audio.wav -i /tmp/mediasoup-recordings/appointment_3-1787742275515.b-audio.wav -filter_complex [1:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w0];[0:v][w0]overlay=x=0:y=0:eof_action=pass:repeatlast=0[b0];[2:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w1];[b0][w1]overlay=x=640:y=0:eof_action=pass:repeatlast=0,format=yuv420p[v];[3:a]aresample=async=1:min_hard_comp=0.100[a0];[4:a]aresample=async=1:min_hard_comp=0.100[a1];[a0][a1]amix=inputs=2:duration=longest:normalize=0,apad[a] -map [v] -map [a] -t 229 -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -r 15 -avoid_negative_ts make_zero -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_3-1787742275515.webm
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd5fce040] Ignoring maximum wav data size, file may be invalid
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd5fce040] Estimating duration from bitrate, this may be inaccurate
+[aist#3:0/pcm_s16le @ 0x615fd6066ac0] Guessed Channel Layout: mono
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd6067180] Ignoring maximum wav data size, file may be invalid
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd6067180] Estimating duration from bitrate, this may be inaccurate
+[aist#4:0/pcm_s16le @ 0x615fd60ee600] Guessed Channel Layout: mono
+[MediaSoup] removed socket=_AfR_pxPY7rbzc7qAAAD room=appointment_3 peer=doctor-27 reason=participant-disconnected removed=true
+[Recorder] Compose [appointment_3-1787742275515]: [matroska,webm @ 0x615fd5fa29c0] File ended prematurely
+[Recorder] Compose [appointment_3-1787742275515]: [matroska,webm @ 0x615fd5f99880] File ended prematurely
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd6067180] Packet corrupt (stream = 0, dts = NOPTS).
+[in#4/wav @ 0x615fd6066c80] corrupt input packet in stream 0
+[Recorder] Compose [appointment_3-1787742275515]: [wav @ 0x615fd5fce040] Packet corrupt (stream = 0, dts = NOPTS).
+[in#3/wav @ 0x615fd5fcdc00] corrupt input packet in stream 0
+[Recorder] Stopped segment appointment_3-1787742275515 (229s, completed)
+[RecordingController] Finalized video segment appointment_3-1787742275515
+
+
+
+
