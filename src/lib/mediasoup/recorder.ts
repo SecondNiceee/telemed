@@ -163,7 +163,7 @@ class Recorder {
    *
    * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
    * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо брать за ноль дорожки.
+   * начинается с keyframe, и именно его надо б��ать за ноль дорожки.
    * После замера trace отключаем, чтобы не грузить воркер.
    */
   private trackMediaStart(input: RecordingInput): void {
@@ -257,7 +257,11 @@ class Recorder {
         rtpPort,
         rtcpPort,
         sdpPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.sdp`),
-        rawPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.mkv`),
+        // Аудио пишется в WAV/PCM, видео - в Matroska (см. buildInputFfmpegArgs).
+        rawPath: path.join(
+          recordingConfig.outputDir,
+          `${session.id}.${label}.${producer.kind === 'audio' ? 'wav' : 'mkv'}`,
+        ),
         ffmpeg: null,
         startTs: null,
         startTsFallback: null,
@@ -395,11 +399,33 @@ class Recorder {
    * гарантированно финализирует контейнер.
    */
   private buildInputFfmpegArgs(input: RecordingInput): string[] {
+    const isAudio = input.kind === 'audio'
+
     return [
       '-loglevel', 'warning',
       '-protocol_whitelist', 'file,rtp,udp',
-      '-analyzeduration', '5M',
-      '-probesize', '5M',
+
+      // ЭТО ПРИЧИНА ПУСТЫХ АУДИОДОРОЖЕК.
+      //
+      // Логи показали: процессы a-audio/b-audio жили все 53 секунды, но файлы
+      // остались пустыми и в stderr не было НИ ОДНОГО сообщения - при том что у
+      // видео сыпались "max delay reached" и "RTP: missed 1 packets". Плюс
+      // аудио проигнорировало "q". Всё вместе означает одно: FFmpeg не дошёл
+      // до главного цикла и стоял в avformat_find_stream_info().
+      //
+      // Почему стоял именно он: чтобы определить sample_fmt, FFmpeg обязан
+      // ДЕКОДИРОВАТЬ пакет, и до успеха он читает вход, пока не наберёт
+      // probesize или analyzeduration. probesize 5M для Opus (~4 КБ/с) - это
+      // больше 20 минут; у видео (~110 КБ/с) тот же лимит набирается за
+      // секунды, поэтому оно и писалось. Заголовок файла пишется только ПОСЛЕ
+      // анализа - отсюда пустой файл, и hasUsableData выбрасывал дорожку.
+      //
+      // Кодек, частоту и число каналов мы уже знаем из SDP, поэтому анализ
+      // аудио не нужен вообще: с analyzeduration 0 FFmpeg пишет заголовок
+      // сразу и входит в главный цикл (там же начинает слушаться "q").
+      '-analyzeduration', isAudio ? '0' : '5M',
+      '-probesize', isAudio ? '32' : '5M',
+
       '-buffer_size', '8388608',
       '-max_delay', '1000000',
       '-reorder_queue_size', '2048',
@@ -424,8 +450,24 @@ class Recorder {
 
       '-i', input.sdpPath,
       '-map', '0',
-      '-c', 'copy',
-      '-f', 'matroska',
+
+      // Видео копируем как есть - оно и так пишется исправно.
+      //
+      // Аудио декодируем в PCM вместо "-c copy -f matroska". Причин две.
+      // Первая: Opus в Matroska требует CodecPrivate (OpusHead), которого в
+      // RTP-потоке нет - при копировании муксер оставался бы в зависимости от
+      // того, соберёт ли FFmpeg extradata сам. Вторая: PCM пишется линейно и
+      // читается даже у оборванного файла, а нас обрывают - логи показывают,
+      // что все процессы дожили до SIGKILL ("did not exit, killing"), то есть
+      // контейнер не финализировался ни разу.
+      //
+      // Моно 48 кГц: речь, дальше всё равно amix в один канал. Это ~96 КБ/с,
+      // то есть ~350 МБ на час на участника в /tmp - временные файлы удаляются
+      // сразу после склейки.
+      ...(isAudio
+        ? ['-c:a', 'pcm_s16le', '-ac', '1', '-ar', '48000', '-f', 'wav']
+        : ['-c', 'copy', '-f', 'matroska']),
+
       '-y', input.rawPath,
     ]
   }
