@@ -83,6 +83,12 @@ export interface RecordingSession {
   durationSeconds: number
   inputs: RecordingInput[]
   keyFrameTimer: NodeJS.Timeout | null
+  /**
+   * Участник переопубликовал дорожки посреди сегмента (реконнект), поэтому
+   * сегмент закрывается и начинается новый. Флаг нужен, чтобы перезапуск
+   * произошёл один раз, а не на каждый закрытый продюсер.
+   */
+  interrupted: boolean
   error?: string
 }
 
@@ -116,6 +122,13 @@ class Recorder {
   private readonly sessions = new Map<string, RecordingSession>()
   private readonly usedPorts = new Set<number>()
   private ffmpegAvailable: boolean | null = null
+
+  /**
+   * Вызывается, когда участник переопубликовал дорожки посреди сегмента.
+   * Подписчик (RecordingController) закрывает текущий сегмент и открывает
+   * новый - уже на свежих продюсерах.
+   */
+  onSegmentInterrupted: ((roomId: string, label: string) => void) | null = null
 
   checkFfmpegAvailable(): boolean {
     if (this.ffmpegAvailable !== null) return this.ffmpegAvailable
@@ -251,12 +264,49 @@ class Recorder {
       }
 
       this.trackMediaStart(input)
+      this.watchProducerClose(session, input)
       return input
     } catch (error) {
       this.usedPorts.delete(rtpPort)
       transport.close()
       throw error
     }
+  }
+
+  /**
+   * ЭТО ПРИЧИНА "ЗАПИСАЛСЯ ТОЛЬКО ВРАЧ".
+   *
+   * Сегмент запускается на КОНКРЕТНЫХ объектах Producer, снятых в момент
+   * старта. Когда участник переподключается (а пациент на мобильной сети
+   * делает это регулярно), браузер закрывает старые продюсеры и публикует
+   * НОВЫЕ. Консюмер записи висел на старом продюсере: mediasoup закрывает его
+   * по 'producerclose', RTP в этот порт больше не приходит, FFmpeg дальше
+   * пишет пустоту.
+   *
+   * Дальше срабатывал второй, куда более коварный эффект: новые продюсеры
+   * вызывали onProducersChanged, но контроллер видел активную сессию и молча
+   * выходил - подхватить свежие дорожки было НЕЧЕМ. В итоге пациент исчезал
+   * из записи до конца сегмента: аудио пропадало целиком, а его половина
+   * канваса оставалась последним кадром. Врач при этом писался нормально,
+   * потому что он звонок не терял - отсюда и "записывается только врач".
+   *
+   * Лечим в согласии с архитектурой: одна консультация и так может состоять
+   * из нескольких сегментов (файлов). Поэтому закрываем текущий сегмент и
+   * открываем новый на свежих продюсерах, вместо попытки на ходу переподцепить
+   * консюмер к тому же порту (FFmpeg привязывается к первому SSRC и второй
+   * поток в тот же порт всё равно не принял бы).
+   */
+  private watchProducerClose(session: RecordingSession, input: RecordingInput): void {
+    input.consumer.on('producerclose', () => {
+      if (session.status !== 'recording' && session.status !== 'starting') return
+      if (session.interrupted) return
+      session.interrupted = true
+      console.warn(
+        `[Recorder] Producer for ${input.label} closed mid-segment (участник переподключился). ` +
+          `Segment ${session.id} will be finalized and a new one started.`,
+      )
+      this.onSegmentInterrupted?.(session.roomId, input.label)
+    })
   }
 
   /**
@@ -322,7 +372,7 @@ class Recorder {
       //
       // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
       // времени прихода не имеют систематического дрейфа (они привязаны к
-      // реальному времени), в них есть только джиттер ±десятки мс.
+      // реал��ному времени), в них есть только джиттер ±десятки мс.
       '-use_wallclock_as_timestamps', '1',
 
       '-i', input.sdpPath,
@@ -580,6 +630,7 @@ class Recorder {
       durationSeconds: 0,
       inputs: [],
       keyFrameTimer: null,
+      interrupted: false,
     }
     this.sessions.set(sessionId, session)
 

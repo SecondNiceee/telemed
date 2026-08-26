@@ -293,8 +293,17 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
               codecOptions: { videoGoogleStartBitrate: 1000 },
             }
           : {
-              // FEC recovers audio on lossy networks; DTX saves bandwidth in silence.
-              codecOptions: { opusFec: true, opusDtx: true },
+              // FEC восстанавливает звук на потерях - оставляем.
+              //
+              // opusDtx СПЕЦИАЛЬНО ВЫКЛЮЧЕН. В режиме DTX кодировщик почти
+              // ничего не передаёт, пока участник молчит, и для живого звонка
+              // это чистая экономия. Но для ЗАПИСИ дорожка того, кто в основном
+              // слушает (обычно пациент), превращается в набор коротких
+              // всплесков с многосекундными провалами: метки ставятся по
+              // времени прихода пакетов, поэтому такие провалы приходится
+              // заполнять тишиной уже на склейке. Экономия - около 5 кбит/с,
+              // цена - самая ценная часть записи. Оставляем непрерывный поток.
+              codecOptions: { opusFec: true },
             }),
       })
       producersRef.current.set(key, producer)
@@ -334,7 +343,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         try {
           const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities; otherPeersOnline?: number }>(socket, 'joinRoom', token)
 
-          // Сокет заменён более новым подключением: этот вход уже не нужен.
+          // Сокет ��аменён более новым подключением: этот вход уже не нужен.
           // Раньше здесь стоял `continue` вместе с проверками ниже, и живой,
           // но осиротевший сокет крутил joinRoom без остановки - сервер
           // заливало логами `repeat=true` по несколько раз в секунду.
