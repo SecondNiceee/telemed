@@ -92,6 +92,26 @@ const PORT_RANGE_END = 5998
 /** Файл меньше этого размера считаем пустым (FFmpeg не получил медиа) */
 const MIN_USABLE_FILE_BYTES = 2048
 
+/**
+ * Редкая страховка на случай, если FFmpeg всё же потерял опорный кадр.
+ * Раньше здесь было 2000 мс - именно это и роняло частоту кадров до ~2 fps
+ * (подробности в scheduleKeyFrameRequests).
+ */
+const KEYFRAME_RECOVERY_INTERVAL_MS = 30_000
+
+/** Частота кадров итоговой записи: одна и та же для фильтров и для вывода. */
+const OUTPUT_FPS = 15
+
+/**
+ * Раскладка 2x1. Панели 16:9 под вебкамеру: раньше стояло 640x480 (4:3), и
+ * кадр 16:9 вписывался туда с чёрными полосами сверху и снизу - четверть
+ * площади уходила впустую и всё равно кодировалась.
+ */
+const PANE_W = 640
+const PANE_H = 360
+const CANVAS_W = PANE_W * 2
+const CANVAS_H = PANE_H
+
 class Recorder {
   private readonly sessions = new Map<string, RecordingSession>()
   private readonly usedPorts = new Set<number>()
@@ -137,7 +157,13 @@ class Recorder {
     const traceType = input.kind === 'video' ? 'keyframe' : 'rtp'
 
     input.consumer.on('trace', (trace: { type: string; timestamp?: number }) => {
-      if (input.startTs !== null) return
+      // Раньше здесь стояла проверка startTs !== null. Если mediasoup не дал
+      // валидный timestamp, startTs оставался null - и обработчик срабатывал
+      // на КАЖДОМ следующем trace, каждый раз перезаписывая startTsFallback.
+      // В итоге для аудио (trace на каждый RTP-пакет) в fallback оказывалось
+      // время ПОСЛЕДНЕГО пакета вместо первого, и смещения дорожек считались
+      // от мусорных значений. Сторожим по fallback: он выставляется всегда.
+      if (input.startTsFallback !== null) return
       if (trace.type !== traceType) return
 
       input.startTs = typeof trace.timestamp === 'number' && trace.timestamp > 0 ? trace.timestamp : null
@@ -189,11 +215,19 @@ class Recorder {
         paused: false,
       })
 
-      // Фиксируем верхний simulcast-слой: иначе mediasoup переключает слои по
-      // ходу звонка и разрешение меняется на лету.
+      // Раньше здесь жёстко запрашивался ВЕРХНИЙ слой (spatialLayer 2). Это
+      // вторая причина низкого fps: слой 2 - это 2500 кбит/с 720p, и когда
+      // браузер врача упирается в CPU или аплинк (а он упирается - там же
+      // идёт клиентская запись), верхний слой почти не производится. Консюмер,
+      // прибитый к слою 2, получал в этом случае считанные кадры вместо
+      // плавного отката на слой 1.
+      //
+      // Просим средний слой: 900 кбит/с 640x360 достаточно для окна 480x360 в
+      // раскладке, этот слой производится стабильно, и mediasoup сам поднимет
+      // качество, если полоса позволит.
       if (producer.kind === 'video') {
         try {
-          await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 })
+          await consumer.setPreferredLayers({ spatialLayer: 1, temporalLayer: 2 })
         } catch {
           // Не simulcast-продюсер - ничего фиксировать не нужно.
         }
@@ -264,7 +298,7 @@ class Recorder {
    * гарантированно финализирует контейнер.
    */
   private buildInputFfmpegArgs(input: RecordingInput): string[] {
-    return [
+    const args = [
       '-loglevel', 'warning',
       '-protocol_whitelist', 'file,rtp,udp',
       '-analyzeduration', '5M',
@@ -273,13 +307,34 @@ class Recorder {
       '-max_delay', '1000000',
       '-reorder_queue_size', '2048',
       '-thread_queue_size', '8192',
-      '-use_wallclock_as_timestamps', '1',
+    ]
+
+    // ЭТО БЫЛА ПРИЧИНА РАССИНХРОНА ЗВУКА.
+    //
+    // Раньше -use_wallclock_as_timestamps ставился ВСЕМ дорожкам, включая
+    // аудио. Для видео это разумно: VP8-кадры приходят неравномерно, и время
+    // прихода - лучшая оценка их места на таймлинии. Для аудио - наоборот
+    // губительно.
+    //
+    // Opus идёт пакетами по 20 мс, и RTP-таймстамп у него - точный СЧЁТЧИК
+    // СЭМПЛОВ на 48 кГц. Подменяя его временем прихода пакета, мы вносили в
+    // аудио-таймлинию сетевой джиттер: длительность дорожки перестаёт
+    // соответствовать числу сэмплов. На коротком отрезке это незаметно, а на
+    // часовой консультации ошибка копится в секунды - ровно тот уплывающий
+    // звук, который и наблюдался. Поэтому для аудио оставляем родные
+    // RTP-таймстампы: они сэмпл-точные и не плывут.
+    if (input.kind === 'video') {
+      args.push('-use_wallclock_as_timestamps', '1')
+    }
+
+    args.push(
       '-i', input.sdpPath,
       '-map', '0',
       '-c', 'copy',
       '-f', 'matroska',
       '-y', input.rawPath,
-    ]
+    )
+    return args
   }
 
   private startInputFfmpeg(session: RecordingSession, input: RecordingInput): ChildProcess {
@@ -363,7 +418,7 @@ class Recorder {
     let nextIndex = 0
 
     if (withVideo) {
-      args.push('-f', 'lavfi', '-i', 'color=c=black:s=1280x480:r=15')
+      args.push('-f', 'lavfi', '-i', `color=c=black:s=${CANVAS_W}x${CANVAS_H}:r=${OUTPUT_FPS}`)
       nextIndex = 1
     }
 
@@ -377,8 +432,8 @@ class Recorder {
 
     const filters: string[] = []
     const windowChain = (index: number, name: string) =>
-      `[${index}:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,` +
-      `pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[${name}]`
+      `[${index}:v]fps=${OUTPUT_FPS},scale=${PANE_W}:${PANE_H}:force_original_aspect_ratio=decrease,` +
+      `pad=${PANE_W}:${PANE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[${name}]`
 
     if (withVideo) {
       // Каждое видео кладём на канвас. eof_action=pass + repeatlast=0: когда
@@ -388,7 +443,7 @@ class Recorder {
       videos.forEach((input, position) => {
         const name = position === 0 ? 'w0' : 'w1'
         filters.push(windowChain(streamIndex.get(input) as number, name))
-        const x = input.slot === 0 ? 0 : 640
+        const x = input.slot === 0 ? 0 : PANE_W
         const isLast = position === videos.length - 1
         const out = isLast ? '[v]' : `[b${position}]`
         const tail = isLast ? ',format=yuv420p' : ''
@@ -397,13 +452,22 @@ class Recorder {
       })
     }
 
+    // async=1000 разрешал ресемплеру растягивать/сжимать до 1000 сэмплов в
+    // секунду, подгоняя звук под джиттерные PTS - на длинной записи это давало
+    // накопительный уплыв и слышимую порчу тембра. Теперь PTS у аудио честные
+    // (см. buildInputFfmpegArgs), поэтому агрессивная подгонка не нужна:
+    // async=1 только вставляет тишину в реальные разрывы, min_hard_comp
+    // задаёт порог 100 мс, а first_pts=0 прибивает начало дорожки к нулю,
+    // чтобы -itsoffset остался единственным источником смещения.
+    const RESAMPLE = 'aresample=async=1:min_hard_comp=0.100:first_pts=0'
+
     if (audios.length === 2) {
       const [first, second] = audios
-      filters.push(`[${streamIndex.get(first)}:a]aresample=async=1000[a0]`)
-      filters.push(`[${streamIndex.get(second)}:a]aresample=async=1000[a1]`)
-      filters.push(`[a0][a1]amix=inputs=2:duration=longest${withVideo ? ',apad' : ''}[a]`)
+      filters.push(`[${streamIndex.get(first)}:a]${RESAMPLE}[a0]`)
+      filters.push(`[${streamIndex.get(second)}:a]${RESAMPLE}[a1]`)
+      filters.push(`[a0][a1]amix=inputs=2:duration=longest:normalize=0${withVideo ? ',apad' : ''}[a]`)
     } else if (audios.length === 1) {
-      filters.push(`[${streamIndex.get(audios[0])}:a]aresample=async=1000${withVideo ? ',apad' : ''}[a]`)
+      filters.push(`[${streamIndex.get(audios[0])}:a]${RESAMPLE}${withVideo ? ',apad' : ''}[a]`)
     }
 
     args.push('-filter_complex', filters.join(';'))
@@ -421,6 +485,13 @@ class Recorder {
         '-cpu-used', '4',
         '-b:v', '1500k',
         '-g', '60',
+        // Постоянная частота кадров на выводе: входные дорожки принципиально
+        // VFR (wallclock-метки), и рваные PTS дали бы "плавающий" fps.
+        // Осознанно только -r, без -fps_mode cfr: -fps_mode появился в FFmpeg
+        // 5.0, а на Ubuntu 20.04 штатный ffmpeg - 4.2, где эта опция валит
+        // процесс целиком. CFR и без неё гарантирован: фильтр fps= на каждом
+        // окне, чёрный канвас с r=OUTPUT_FPS как база overlay и это -r.
+        '-r', String(OUTPUT_FPS),
       )
     }
 
@@ -547,9 +618,26 @@ class Recorder {
   }
 
   /**
-   * Ключевые кадры нужно запрашивать ВСЮ запись, а не только на старте.
-   * FFmpeg не умеет присылать PLI/FIR через RTCP, поэтому после любой потери
-   * пакета декодер остаётся без опорного кадра и картинка "застывает".
+   * ЭТО БЫЛА ПРИЧИНА "2 FPS".
+   *
+   * Раньше здесь стоял setInterval(2000), который дёргал requestKeyFrame всю
+   * запись. Выглядело логично (FFmpeg не умеет присылать PLI, значит поможем
+   * ему сами), но эффект обратный, и вот почему.
+   *
+   * requestKeyFrame идёт ПРОДЮСЕРУ, то есть браузеру участника. Кодировщик у
+   * продюсера ОДИН и общий для живого звонка и для записи. Ключевой кадр
+   * весит в 5-15 раз больше разностного, а битрейт задан жёстко (см.
+   * encodings в use-mediasoup). Прося keyframe каждые 2 с, мы заставляли
+   * кодировщик тратить почти весь бюджет на опорные кадры - на разностные не
+   * оставалось ничего, и он ронял частоту кадров до считанных единиц. То есть
+   * 2 fps приходили УЖЕ ТАКИМИ от браузера, склейка тут ни при чём. Хуже
+   * того, это одновременно портило картинку живому собеседнику.
+   *
+   * Правильно: запросить keyframe только на старте (чтобы FFmpeg начал писать
+   * без долгого чёрного участка) и дальше не мешать - у VP8 есть свой
+   * интервал опорных кадров, а потери на loopback-UDP практически исключены.
+   * Оставляем редкую страховку раз в 30 с: на дистанции часа это ~120 лишних
+   * кадров вместо ~1800 и не ломает бюджет кодировщика.
    */
   private scheduleKeyFrameRequests(session: RecordingSession): void {
     // Стартовые запросы: чем раньше придёт keyframe, тем короче чёрный
@@ -568,7 +656,7 @@ class Recorder {
         return
       }
       this.requestKeyFrames(session)
-    }, 2000)
+    }, KEYFRAME_RECOVERY_INTERVAL_MS)
     interval.unref()
     session.keyFrameTimer = interval
   }
