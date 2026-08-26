@@ -265,6 +265,7 @@ class Recorder {
 
       this.trackMediaStart(input)
       this.watchProducerClose(session, input)
+      this.watchProducerPauseResume(session, input)
       return input
     } catch (error) {
       this.usedPorts.delete(rtpPort)
@@ -306,6 +307,52 @@ class Recorder {
           `Segment ${session.id} will be finalized and a new one started.`,
       )
       this.onSegmentInterrupted?.(session.roomId, input.label)
+    })
+  }
+
+  /**
+   * ЭТО ПРИЧИНА "КАМЕРА ВРАЧА ЧЁРНАЯ ТОЛЬКО В ЗАПИСИ".
+   *
+   * toggleCamera делает producer.pause() и дополнительно гасит продюсера на
+   * SFU (pauseProducer), поэтому консюмер записи тоже встаёт - и это
+   * правильно. Проблема в возврате: после resume кодировщик продолжает с
+   * РАЗНОСТНОГО кадра, а опорного у FFmpeg больше нет. VP8 без опорного кадра
+   * не декодируется - в файле чёрный экран.
+   *
+   * Живому собеседнику это незаметно, потому что его консюмер - обычный
+   * WebRTC-консюмер: он сам присылает PLI и получает keyframe за десятки мс. У
+   * записи такой возможности нет - мы намеренно вырезали rtcpFeedback в
+   * createInput (иначе ретрансмиссии ломали дорожку). Отсюда и асимметрия:
+   * "вживую видно, в записи чёрное".
+   *
+   * Раньше keyframe пришёл бы только со страховочного интервала, а он теперь
+   * 30 с (его пришлось растянуть, чтобы убрать 2 fps) - то есть до полуминуты
+   * черноты, а при неудачном совпадении с паузой и дольше. Поэтому на resume
+   * запрашиваем keyframe сами, серией: первый запрос может прийти раньше, чем
+   * кодировщик реально ожил.
+   */
+  private watchProducerPauseResume(session: RecordingSession, input: RecordingInput): void {
+    // Аудио опорных кадров не имеет: Opus декодируется с любого пакета.
+    if (input.kind !== 'video') return
+
+    input.consumer.on('producerpause', () => {
+      console.log(`[Recorder] ${input.label}: камера выключена, RTP остановлен`)
+    })
+
+    input.consumer.on('producerresume', () => {
+      if (session.status !== 'recording' && session.status !== 'starting') return
+      console.log(`[Recorder] ${input.label}: камера включена, запрашиваем keyframe`)
+
+      for (const delayMs of [0, 300, 1000, 2500]) {
+        const timer = setTimeout(() => {
+          if (session.status !== 'recording' && session.status !== 'starting') return
+          if (input.consumer.closed || input.consumer.paused) return
+          input.consumer.requestKeyFrame().catch((error) => {
+            console.warn(`[Recorder] ${input.label}: requestKeyFrame failed:`, error)
+          })
+        }, delayMs)
+        timer.unref()
+      }
     })
   }
 
@@ -671,9 +718,15 @@ class Recorder {
 
   private requestKeyFrames(session: RecordingSession): void {
     for (const input of session.inputs) {
-      if (input.kind === 'video' && !input.consumer.closed) {
-        input.consumer.requestKeyFrame().catch(() => {})
-      }
+      if (input.kind !== 'video') continue
+      // Паузу пропускаем осознанно: пока камера выключена, запрос всё равно
+      // никуда не уйдёт, а нужный keyframe закажет producerresume.
+      if (input.consumer.closed || input.consumer.paused) continue
+      input.consumer.requestKeyFrame().catch((error) => {
+        // Раньше ошибка глушилась пустым catch: если keyframe перестал
+        // приходить, картинка чернела без единой строки в логах.
+        console.warn(`[Recorder] ${input.label}: requestKeyFrame failed:`, error)
+      })
     }
   }
 
