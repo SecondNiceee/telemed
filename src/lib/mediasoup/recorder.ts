@@ -163,7 +163,7 @@ class Recorder {
    *
    * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
    * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо брать за ноль дорожки.
+   * начинается с keyframe, и именно его надо б��ать за ноль дорожки.
    * После замера trace отключаем, чтобы не грузить воркер.
    */
   private trackMediaStart(input: RecordingInput): void {
@@ -257,7 +257,11 @@ class Recorder {
         rtpPort,
         rtcpPort,
         sdpPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.sdp`),
-        rawPath: path.join(recordingConfig.outputDir, `${session.id}.${label}.mkv`),
+        // Аудио пишется в WAV/PCM, видео - в Matroska (см. buildInputFfmpegArgs).
+        rawPath: path.join(
+          recordingConfig.outputDir,
+          `${session.id}.${label}.${producer.kind === 'audio' ? 'wav' : 'mkv'}`,
+        ),
         ffmpeg: null,
         startTs: null,
         startTsFallback: null,
@@ -395,37 +399,71 @@ class Recorder {
    * гарантированно финализирует контейнер.
    */
   private buildInputFfmpegArgs(input: RecordingInput): string[] {
+    const isAudio = input.kind === 'audio'
+
     return [
       '-loglevel', 'warning',
       '-protocol_whitelist', 'file,rtp,udp',
-      '-analyzeduration', '5M',
-      '-probesize', '5M',
+
+      // Анализ входа для аудио отключён - см. ниже про пустые файлы.
+      //
+      // Факт из логов: процессы a-audio/b-audio жили все 53 секунды, но файлы
+      // остались настолько пустыми, что hasUsableData их отбросил
+      // ("Skipping empty tracks: a-audio, b-audio"), и в склейку не попало
+      // -map '[a]'. При этом в stderr по аудио не было НИ ОДНОГО сообщения,
+      // тогда как видео исправно писало "max delay reached".
+      //
+      // Пустой файл при живом процессе означает, что дело было до/на записи
+      // заголовка: FFmpeg пишет заголовок только ПОСЛЕ
+      // avformat_find_stream_info(), а для аудио анализ требует РАСКОДИРОВАТЬ
+      // пакет, чтобы узнать sample_fmt. Кодек, частоту и каналы мы и так
+      // знаем из SDP, поэтому анализ здесь - чистый риск без пользы: с
+      // analyzeduration 0 заголовок пишется сразу.
+      //
+      // Для видео лимиты не трогаем: оно писалось исправно, и менять то, что
+      // работает, смысла нет.
+      '-analyzeduration', isAudio ? '0' : '5M',
+      '-probesize', isAudio ? '32' : '5M',
+
       '-buffer_size', '8388608',
       '-max_delay', '1000000',
       '-reorder_queue_size', '2048',
       '-thread_queue_size', '8192',
 
-      // ВАЖНО: нужен и аудио, и видео - без него пропадает ЗВУК ЦЕЛИКОМ.
+      // Ставится и аудио, и видео - НЕ РАЗДЕЛЯТЬ.
       //
       // Была попытка оставить аудио родные RTP-таймстампы (они сэмпл-точные),
-      // чтобы убрать уплыв звука. Это ошибка, и вот почему: чтобы перевести
+      // чтобы убрать уплыв звука. Так делать нельзя: чтобы перевести
       // RTP-таймстамп в реальное время, FFmpeg должен получить RTCP Sender
-      // Report. Здесь его фактически нет - PlainTransport recvonly, а
-      // rtcpFeedback мы вырезаем в createInput. Без SR демуксер отдаёт пакеты
-      // без годного PTS, matroska-муксер их выбрасывает, файл остаётся почти
-      // пустым, hasUsableData отсеивает дорожку по размеру - и в склейку
-      // аудио уже НЕ ПОПАДАЕТ (нет -map '[a]'). В итоге видео идеальное, а
-      // звука в файле нет вообще.
+      // Report, а здесь его фактически нет - PlainTransport recvonly, и
+      // rtcpFeedback мы вырезаем в createInput. Без SR у демуксера нет
+      // надёжной привязки к таймлинии, и после той правки звук пропал совсем.
       //
       // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
       // времени прихода не имеют систематического дрейфа (они привязаны к
-      // реал��ному времени), в них есть только джиттер ±десятки мс.
+      // реальному времени), в них есть только джиттер ±десятки мс.
       '-use_wallclock_as_timestamps', '1',
 
       '-i', input.sdpPath,
       '-map', '0',
-      '-c', 'copy',
-      '-f', 'matroska',
+
+      // Видео копируем как есть - оно и так пишется исправно.
+      //
+      // Аудио декодируем в PCM вместо "-c copy -f matroska". Причин две.
+      // Первая: Opus в Matroska требует CodecPrivate (OpusHead), которого в
+      // RTP-потоке нет - при копировании муксер оставался бы в зависимости от
+      // того, соберёт ли FFmpeg extradata сам. Вторая: PCM пишется линейно и
+      // читается даже у оборванного файла, а нас обрывают - логи показывают,
+      // что все процессы дожили до SIGKILL ("did not exit, killing"), то есть
+      // контейнер не финализировался ни разу.
+      //
+      // Моно 48 кГц: речь, дальше всё равно amix в один канал. Это ~96 КБ/с,
+      // то есть ~350 МБ на час на участника в /tmp - временные файлы удаляются
+      // сразу после склейки.
+      ...(isAudio
+        ? ['-c:a', 'pcm_s16le', '-ac', '1', '-ar', '48000', '-f', 'wav']
+        : ['-c', 'copy', '-f', 'matroska']),
+
       '-y', input.rawPath,
     ]
   }
@@ -902,7 +940,7 @@ class Recorder {
       console.error(`[Recorder] Compose failed for ${sessionId}:`, error)
     }
 
-    // При ошибке оставляем сырые дорожки для отладки.
+    // При ошибке остав��яем сырые дорожки для отладки.
     if (session.status === 'completed') await this.cleanupTempFiles(session)
 
     console.log(`[Recorder] Stopped segment ${sessionId} (${session.durationSeconds}s, ${session.status})`)
