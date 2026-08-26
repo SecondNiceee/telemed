@@ -298,7 +298,7 @@ class Recorder {
    * гарантированно финализирует контейнер.
    */
   private buildInputFfmpegArgs(input: RecordingInput): string[] {
-    const args = [
+    return [
       '-loglevel', 'warning',
       '-protocol_whitelist', 'file,rtp,udp',
       '-analyzeduration', '5M',
@@ -307,34 +307,30 @@ class Recorder {
       '-max_delay', '1000000',
       '-reorder_queue_size', '2048',
       '-thread_queue_size', '8192',
-    ]
 
-    // ЭТО БЫЛА ПРИЧИНА РАССИНХРОНА ЗВУКА.
-    //
-    // Раньше -use_wallclock_as_timestamps ставился ВСЕМ дорожкам, включая
-    // аудио. Для видео это разумно: VP8-кадры приходят неравномерно, и время
-    // прихода - лучшая оценка их места на таймлинии. Для аудио - наоборот
-    // губительно.
-    //
-    // Opus идёт пакетами по 20 мс, и RTP-таймстамп у него - точный СЧЁТЧИК
-    // СЭМПЛОВ на 48 кГц. Подменяя его временем прихода пакета, мы вносили в
-    // аудио-таймлинию сетевой джиттер: длительность дорожки перестаёт
-    // соответствовать числу сэмплов. На коротком отрезке это незаметно, а на
-    // часовой консультации ошибка копится в секунды - ровно тот уплывающий
-    // звук, который и наблюдался. Поэтому для аудио оставляем родные
-    // RTP-таймстампы: они сэмпл-точные и не плывут.
-    if (input.kind === 'video') {
-      args.push('-use_wallclock_as_timestamps', '1')
-    }
+      // ВАЖНО: нужен и аудио, и видео - без него пропадает ЗВУК ЦЕЛИКОМ.
+      //
+      // Была попытка оставить аудио родные RTP-таймстампы (они сэмпл-точные),
+      // чтобы убрать уплыв звука. Это ошибка, и вот почему: чтобы перевести
+      // RTP-таймстамп в реальное время, FFmpeg должен получить RTCP Sender
+      // Report. Здесь его фактически нет - PlainTransport recvonly, а
+      // rtcpFeedback мы вырезаем в createInput. Без SR демуксер отдаёт пакеты
+      // без годного PTS, matroska-муксер их выбрасывает, файл остаётся почти
+      // пустым, hasUsableData отсеивает дорожку по размеру - и в склейку
+      // аудио уже НЕ ПОПАДАЕТ (нет -map '[a]'). В итоге видео идеальное, а
+      // звука в файле нет вообще.
+      //
+      // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
+      // времени прихода не имеют систематического дрейфа (они привязаны к
+      // реальному времени), в них есть только джиттер ±десятки мс.
+      '-use_wallclock_as_timestamps', '1',
 
-    args.push(
       '-i', input.sdpPath,
       '-map', '0',
       '-c', 'copy',
       '-f', 'matroska',
       '-y', input.rawPath,
-    )
-    return args
+    ]
   }
 
   private startInputFfmpeg(session: RecordingSession, input: RecordingInput): ChildProcess {
@@ -359,11 +355,21 @@ class Recorder {
     return ffmpeg
   }
 
-  /** Дорожка пригодна для склейки, только если FFmpeg реально что-то записал */
+  /**
+   * Дорожка пригодна для склейки, только если FFmpeg реально что-то записал.
+   * Размер логируем всегда: пустая дорожка молча выпадает из склейки, и без
+   * этой строки "звука нет" выглядит как необъяснимое поведение.
+   */
   private hasUsableData(input: RecordingInput): boolean {
     try {
-      return existsSync(input.rawPath) && statSync(input.rawPath).size >= MIN_USABLE_FILE_BYTES
+      const size = existsSync(input.rawPath) ? statSync(input.rawPath).size : 0
+      const usable = size >= MIN_USABLE_FILE_BYTES
+      console.log(
+        `[Recorder] Track ${input.label}: ${size} bytes -> ${usable ? 'usable' : 'EMPTY (dropped)'}`,
+      )
+      return usable
     } catch {
+      console.warn(`[Recorder] Track ${input.label}: cannot stat ${input.rawPath}`)
       return false
     }
   }
@@ -452,14 +458,17 @@ class Recorder {
       })
     }
 
-    // async=1000 разрешал ресемплеру растягивать/сжимать до 1000 сэмплов в
-    // секунду, подгоняя звук под джиттерные PTS - на длинной записи это давало
-    // накопительный уплыв и слышимую порчу тембра. Теперь PTS у аудио честные
-    // (см. buildInputFfmpegArgs), поэтому агрессивная подгонка не нужна:
-    // async=1 только вставляет тишину в реальные разрывы, min_hard_comp
-    // задаёт порог 100 мс, а first_pts=0 прибивает начало дорожки к нулю,
-    // чтобы -itsoffset остался единственным источником смещения.
-    const RESAMPLE = 'aresample=async=1:min_hard_comp=0.100:first_pts=0'
+    // Тут лечится уплыв звука. async=1000 (было изначально) разрешал
+    // ресемплеру растягивать/сжимать до 1000 сэмплов в секунду, подгоняя звук
+    // под джиттерные метки - на часовой записи это давало накопительный уплыв
+    // и слышимую порчу тембра. async=1 оставляет только то, что реально нужно:
+    // заполнение настоящих разрывов тишиной, с порогом 100 мс, без
+    // растягивания сэмплов.
+    //
+    // first_pts=0 здесь БЫТЬ НЕ ДОЛЖНО: он прибивает начало дорожки к нулю и
+    // тем самым отменяет -itsoffset этого входа, то есть ломает ровно ту
+    // синхронизацию, ради которой смещения и считаются.
+    const RESAMPLE = 'aresample=async=1:min_hard_comp=0.100'
 
     if (audios.length === 2) {
       const [first, second] = audios
@@ -489,7 +498,7 @@ class Recorder {
         // VFR (wallclock-метки), и рваные PTS дали бы "плавающий" fps.
         // Осознанно только -r, без -fps_mode cfr: -fps_mode появился в FFmpeg
         // 5.0, а на Ubuntu 20.04 штатный ffmpeg - 4.2, где эта опция валит
-        // процесс целиком. CFR и без неё гарантирован: фильтр fps= на каждом
+        // процесс целиком. CFR и без неё гарантиро��ан: фильтр fps= на каждом
         // окне, чёрный канвас с r=OUTPUT_FPS как база overlay и это -r.
         '-r', String(OUTPUT_FPS),
       )
@@ -670,7 +679,7 @@ class Recorder {
 
   /**
    * Останавливает процесс FFmpeg одной дорожки эскалацией "q" -> SIGTERM ->
-   * SIGKILL. Команда "q" через stdin - единственный способ, при котором
+   * SIGKILL. Команда "q" через stdin - единственный способ, ��ри котором
    * FFmpeg дописывает контейнер (иначе файл остаётся битым).
    */
   private stopInputProcess(session: RecordingSession, input: RecordingInput): Promise<void> {
@@ -767,6 +776,16 @@ class Recorder {
     if (session.recordingType === 'video' && !usable.some((i) => i.kind === 'video')) {
       console.warn(`[Recorder] Segment ${sessionId} has no video tracks, saving as audio`)
       session.recordingType = 'audio'
+    }
+
+    // Видео без звука - это почти всегда сломанный приём аудио, а не норма.
+    // Раньше такой сегмент уходил в файл молча, и "в записи нет звука"
+    // обнаруживалось только при просмотре.
+    if (!usable.some((i) => i.kind === 'audio')) {
+      console.error(
+        `[Recorder] Segment ${sessionId}: НЕТ НИ ОДНОЙ аудиодорожки - в файле не будет звука. ` +
+          'Проверьте выше строки "Track *-audio: N bytes" и stderr FFmpeg по этим дорожкам.',
+      )
     }
 
     try {
