@@ -14,6 +14,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { registerOpenCallRoom } from '@/lib/chat/call-chat-bridge'
 import { cn } from '@/lib/utils'
 import { CallChatPanel } from './call-chat-panel'
+import { CallQualityBadge } from './call-quality-badge'
 
 interface VideoSurfaceProps {
   stream: MediaStream | null
@@ -253,6 +254,7 @@ export function CallRoom({
             <p className="text-sm text-muted-foreground">Консультация №{appointmentId} · медиа передаётся через SFU</p>
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            {isCallActive && call.online ? <CallQualityBadge quality={call.quality} /> : null}
             {recorder.isRecording ? (
               <span className="flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 font-medium text-destructive" role="status" aria-live="polite">
                 <span className="size-2 animate-pulse rounded-full bg-destructive" aria-hidden="true" />

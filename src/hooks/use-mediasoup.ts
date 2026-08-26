@@ -4,6 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Device, types } from 'mediasoup-client'
 import { io, type Socket } from 'socket.io-client'
 import { getStableMicrophone, type MicrophoneGate } from '@/lib/mediasoup/mic-gate'
+import {
+  QUALITY_POLL_MS,
+  QUALITY_REPORT_INTERVAL_MS,
+  UNKNOWN_QUALITY,
+  readQualityCounters,
+  summarizeQuality,
+  type CallQualityLevel,
+  type CallQualitySnapshot,
+  type QualityCounters,
+} from '@/lib/mediasoup/call-quality'
 
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 export type CallEndReason = 'participant-ended' | 'participant-disconnected'
@@ -72,6 +82,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [remoteCameraEnabled, setRemoteCameraEnabled] = useState(true)
   const [online, setOnline] = useState(true)
   const [endReason, setEndReason] = useState<CallEndReason | null>(null)
+  const [quality, setQuality] = useState<CallQualitySnapshot>(UNKNOWN_QUALITY)
   // Есть ли в комнате второй участник. 'unknown' - пока не вошли и не спросили.
   const [remotePresence, setRemotePresence] = useState<RemotePresence>('unknown')
 
@@ -91,6 +102,9 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   const pendingJoinRef = useRef(false)
   const joinedSocketIdRef = useRef<string | null>(null)
   const leftRef = useRef(false)
+  // Предыдущий снимок счётчиков: показатели считаются только по разнице.
+  const qualityCountersRef = useRef<QualityCounters | null>(null)
+  const qualityReportRef = useRef<{ level: CallQualityLevel; at: number }>({ level: 'unknown', at: 0 })
 
   const broadcastMediaState = useCallback(async () => {
     const socket = socketRef.current
@@ -105,6 +119,28 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     } catch {
       // Non-critical signal: the peer keeps its last known state.
     }
+  }, [])
+
+  /**
+   * Отправляет оценку связи на сервер, чтобы плохое соединение было видно в
+   * логах, а не только на экране участника.
+   *
+   * Без подтверждения: отчёт диагностический, и терять его не страшно. Ack
+   * добавил бы таймауты ровно в тот момент, когда со связью и так плохо.
+   */
+  const reportQuality = useCallback((snapshot: CallQualitySnapshot) => {
+    const socket = socketRef.current
+    const token = tokenRef.current
+    if (!socket?.connected || !token || snapshot.level === 'unknown') return
+
+    const now = Date.now()
+    const last = qualityReportRef.current
+    // Смену уровня отправляем сразу, неизменную - по интервалу: иначе сервер
+    // получал бы одинаковые отчёты каждые несколько секунд от каждого участника.
+    if (last.level === snapshot.level && now - last.at < QUALITY_REPORT_INTERVAL_MS) return
+
+    qualityReportRef.current = { level: snapshot.level, at: now }
+    socket.emit('qualityReport', { roomId: token.roomId, ...snapshot })
   }, [])
 
   const restartIce = useCallback(async (transport: types.Transport) => {
@@ -522,6 +558,46 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   }, [audioOnly, broadcastMediaState, cameraEnabled])
 
   useEffect(() => {
+    // Пока соединения нет, показатели измерять нечем, а старые ввели бы в
+    // заблуждение: сбрасываем оценку до «неизвестно».
+    if (status !== 'connected') {
+      qualityCountersRef.current = null
+      setQuality(UNKNOWN_QUALITY)
+      return
+    }
+
+    let cancelled = false
+    const collect = async () => {
+      const transports = [sendRef.current, recvRef.current].filter((item): item is types.Transport => item !== null)
+      if (transports.length === 0) return
+      try {
+        const reports = await Promise.all(transports.map((transport) => transport.getStats()))
+        if (cancelled) return
+
+        const counters = readQualityCounters(reports)
+        const previous = qualityCountersRef.current
+        qualityCountersRef.current = counters
+        // Первый снимок задаёт точку отсчёта: проценты и битрейт считаются
+        // только начиная со второго.
+        if (!previous) return
+
+        const snapshot = summarizeQuality(previous, counters)
+        setQuality(snapshot)
+        reportQuality(snapshot)
+      } catch {
+        // Транспорт закрылся между снимками - на следующем тике всё повторится.
+      }
+    }
+
+    void collect()
+    const timer = window.setInterval(() => void collect(), QUALITY_POLL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [reportQuality, status])
+
+  useEffect(() => {
     const onlineHandler = () => {
       setOnline(true)
       const socket = socketRef.current
@@ -541,5 +617,5 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
   }, [leave, restartIce])
 
-  return { status, error, endReason, remotePresence, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
+  return { status, error, endReason, remotePresence, quality, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }
