@@ -1,92 +1,22 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react'
-import { Phone, PhoneOff } from 'lucide-react'
 import { io, type Socket } from 'socket.io-client'
-import { toast } from 'sonner'
 import { useChatStore } from '@/stores/chat-store'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { ApiMessage } from '@/lib/api/messages'
-import { getSenderType, getSenderId } from '@/lib/api/messages'
-import { isInCallRoom } from '@/lib/chat/call-chat-bridge'
+import { IncomingCallDialog } from '@/components/socket/incoming-call-dialog'
+import {
+  getOutgoingCallStatusesSnapshot,
+  setOutgoingCallStatus,
+  subscribeToOutgoingCallStatuses,
+} from '@/components/socket/outgoing-call-status'
+import { registerCallHandlers } from '@/components/socket/register-call-handlers'
+import { registerChatHandlers } from '@/components/socket/register-chat-handlers'
+import { registerConsultationHandlers } from '@/components/socket/register-consultation-handlers'
+import type { IncomingCall, SocketContextValue } from '@/components/socket/types'
 
-type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
-
-/**
- * Статусы исходящих приглашений живут вне состояния компонента.
- *
- * Начав звонок из чата, врач сразу уходит на /appointment/[id]/call: страница
- * чата размонтируется вместе со своим SocketProvider, а страница звонка читает
- * уже другой экземпляр провайдера. Пока статус лежал в useState, он исчезал
- * при этом переходе - комната звонка не знала, что звонок только что начат, и
- * запускала проверку «а не закрыт ли он», которая для ещё не отвеченного
- * приглашения заканчивалась «Комната уже закрыта».
- *
- * Модульный стор общий для всех провайдеров, поэтому статус переживает и
- * переход между страницами, и параллельно смонтированные провайдеры.
- */
-let outgoingCallStatusesSnapshot: Record<string, OutgoingCallStatus> = {}
-const outgoingCallStatusListeners = new Set<() => void>()
-
-function notifyOutgoingCallStatusListeners() {
-  outgoingCallStatusListeners.forEach((listener) => listener())
-}
-
-function setOutgoingCallStatus(callId: string, status: OutgoingCallStatus) {
-  if (outgoingCallStatusesSnapshot[callId] === status) return
-  outgoingCallStatusesSnapshot = { ...outgoingCallStatusesSnapshot, [callId]: status }
-  notifyOutgoingCallStatusListeners()
-}
-
-function clearOutgoingCallStatus(callId: string) {
-  if (!(callId in outgoingCallStatusesSnapshot)) return
-  const next = { ...outgoingCallStatusesSnapshot }
-  delete next[callId]
-  outgoingCallStatusesSnapshot = next
-  notifyOutgoingCallStatusListeners()
-}
-
-function subscribeToOutgoingCallStatuses(listener: () => void) {
-  outgoingCallStatusListeners.add(listener)
-  return () => {
-    outgoingCallStatusListeners.delete(listener)
-  }
-}
-
-function getOutgoingCallStatusesSnapshot() {
-  return outgoingCallStatusesSnapshot
-}
-
-interface SocketContextValue {
-  socket: Socket | null
-  isConnected: boolean
-  hasConnectionError: boolean
-  outgoingCallStatuses: Record<string, OutgoingCallStatus>
-  joinRoom: (appointmentId: number) => void
-  leaveRoom: (appointmentId: number) => void
-  sendMessage: (appointmentId: number, text: string, attachmentId?: number, clientMessageId?: string) => Promise<void>
-  markAsRead: (appointmentId: number) => void
-  startTyping: (appointmentId: number) => void
-  stopTyping: (appointmentId: number) => void
-  // Video call signaling
-  initiateCall: (appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => string | null
-  answerCall: (appointmentId: number, callId: string, answerPeerId: string) => void
-  rejectCall: (appointmentId: number, callId: string) => void
-  endCall: (appointmentId: number, callId?: string) => void
-  /** Активно ли ещё приглашение. null - сервер не ответил. */
-  getCallState: (appointmentId: number, callId: string) => Promise<{ pending: boolean } | null>
-  // Callback for when remote party ends call (before store is updated)
-  // Callback can be async - socket-provider will await it before updating store
-  onRemoteCallEnded: (callback: (appointmentId: number) => void | Promise<void>) => () => void
-  // Consultation management
-  startConsultation: (appointmentId: number) => void
-  endConsultation: (appointmentId: number) => void
-  cancelConsultation: (appointmentId: number) => void
-  blockChat: (appointmentId: number) => void
-  unblockChat: (appointmentId: number) => void
-  changeConnectionType: (appointmentId: number, connectionType: 'chat' | 'audio' | 'video') => void
-}
+// Публичная поверхность не изменилась: потребители по-прежнему берут и хук, и
+// тип значения контекста из этого файла.
+export type { SocketContextValue } from '@/components/socket/types'
 
 const SocketContext = createContext<SocketContextValue | null>(null)
 
@@ -96,37 +26,11 @@ interface SocketProviderProps {
   currentSenderId?: number
 }
 
-// Play notification sound
-function playNotificationSound() {
-  try {
-    // Create audio context for notification sound
-    const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-    
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
-    
-    // Pleasant notification sound
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime) // A5
-    oscillator.frequency.setValueAtTime(1100, audioContext.currentTime + 0.1) // C#6
-    
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-    
-    oscillator.start(audioContext.currentTime)
-    oscillator.stop(audioContext.currentTime + 0.3)
-  } catch {
-    // Audio not supported or blocked
-    console.log('[Socket] Could not play notification sound')
-  }
-}
-
 export function SocketProvider({ children, currentSenderType, currentSenderId }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [hasConnectionError, setHasConnectionError] = useState(false)
-  const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callId: string; callerName: string; isAudioOnly: boolean } | null>(null)
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null)
   const outgoingCallStatuses = useSyncExternalStore(
     subscribeToOutgoingCallStatuses,
     getOutgoingCallStatusesSnapshot,
@@ -206,209 +110,17 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
       setHasConnectionError(true)
     })
 
-    // Handle new messages
-    newSocket.on('new-message', (message: ApiMessage) => {
-      chatStoreRef.current.addMessage(message)
-      
-      const msgAppointmentId = typeof message.appointment === 'object' 
-        ? message.appointment.id 
-        : message.appointment
-      
-      // Check if this is a message from the other party (not from us)
-      const messageSenderType = getSenderType(message)
-      const messageSenderId = getSenderId(message)
-      // isOwnMessage только если можем определить тип и он совпадает
-      const isOwnMessage = messageSenderType !== null && 
-                           messageSenderType === currentSenderTypeRef.current && 
-                           messageSenderId === currentSenderIdRef.current
-      
-      // Play sound and increment unread if:
-      // 1. Not our own message AND
-      // 2. Either not in active chat OR tab is not visible
-      if (!isOwnMessage) {
-        const isTabVisible = document.visibilityState === 'visible'
-        const isInActiveChat = chatStoreRef.current.activeAppointmentId === msgAppointmentId
-        
-        if (!isInActiveChat || !isTabVisible) {
-          chatStoreRef.current.incrementUnreadCount(msgAppointmentId)
-          // Play notification sound if tab is not visible
-          if (!isTabVisible) {
-            playNotificationSound()
-          }
-        }
-      }
-    })
-
-    // Глобальное уведомление о новом сообщении: приходит в персональную
-    // комнату получателя на любой странице сайта. Показываем тост справа
-    // снизу с кнопкой перехода в нужный чат.
-    newSocket.on('message-notification', ({ messageId, appointmentId, recipientType, senderName, text }: {
-      messageId: number
-      appointmentId: number
-      recipientType: 'user' | 'doctor'
-      senderName: string
-      text: string
-    }) => {
-      // Не показываем тост, если этот чат уже открыт и вкладка видима.
-      const isTabVisible = document.visibilityState === 'visible'
-      const isInActiveChat = chatStoreRef.current.activeAppointmentId === appointmentId
-      if (isInActiveChat && isTabVisible) return
-
-      // В звонке по этой же консультации тост не показываем вообще: единственное
-      // его действие - переход на страницу чата, а это полная перезагрузка,
-      // которая выбрасывает человека из комнаты посреди разговора. Сообщение не
-      // теряется: чат доступен прямо в звонке (панель справа), а на кнопке чата
-      // горит счётчик непрочитанных.
-      if (isInCallRoom(appointmentId)) return
-
-      const chatUrl = recipientType === 'doctor'
-        ? `/lk-med/chat?appointment=${appointmentId}`
-        : `/lk/chat?appointment=${appointmentId}`
-
-      // id тоста = id сообщения: если на странице смонтировано два
-      // SocketProvider (глобальный + чат), дубликат не появится.
-      toast(senderName, {
-        id: `msg-${messageId}`,
-        description: text,
-        position: 'bottom-right',
-        duration: 8000,
-        action: {
-          label: 'Перейти',
-          onClick: () => window.location.assign(chatUrl),
-        },
-      })
-    })
-
-    // Handle typing indicators
-    newSocket.on('user-typing', ({ appointmentId, senderType, senderId }) => {
-      chatStoreRef.current.setTypingUser(appointmentId, { senderType, senderId })
-    })
-
-    newSocket.on('user-stop-typing', ({ appointmentId }) => {
-      chatStoreRef.current.setTypingUser(appointmentId, null)
-    })
-
-    // Handle messages marked as read
-    newSocket.on('messages-read', ({ appointmentId, readBy }) => {
-      // Mark messages from the OTHER party as read
-      // If readBy is 'user', mark all 'doctor' messages as read (user read them)
-      // If readBy is 'doctor', mark all 'user' messages as read (doctor read them)
-      const senderTypeToMarkRead = readBy === 'user' ? 'doctor' : 'user'
-      chatStoreRef.current.markMessagesAsReadByType(appointmentId, senderTypeToMarkRead)
-    })
-
     // Handle errors
     newSocket.on('error', ({ message }) => {
       console.error('[Socket] Error:', message)
     })
 
-    // Video call signaling events
-    newSocket.on('incoming-call', ({ appointmentId, callId, callerName, callerType, isAudioOnly }) => {
-      if (callerType !== currentSenderTypeRef.current) {
-        setIncomingCall({ appointmentId, callId, callerName, isAudioOnly: Boolean(isAudioOnly) })
-        playNotificationSound()
-      }
-    })
-
-    newSocket.on('call-answered', ({ callId }) => {
-      setOutgoingCallStatus(callId, 'answered')
-    })
-    newSocket.on('call-rejected', ({ callId }) => {
-      setIncomingCall((current) => current?.callId === callId ? null : current)
-      setOutgoingCallStatus(callId, 'rejected')
-    })
-
-    newSocket.on('call-ended', async ({ appointmentId, callId }) => {
-      console.log('[Socket] Call ended by remote, appointmentId:', appointmentId, 'callbacks count:', remoteCallEndedCallbacksRef.current.size)
-      
-      // IMPORTANT: Call all registered callbacks BEFORE updating the store
-      // This allows VideoCallProvider to stop recording and save video before store resets data
-      // We MUST await all callbacks to ensure recording is saved before store is cleared
-      const callbackPromises: Promise<void>[] = []
-      remoteCallEndedCallbacksRef.current.forEach(callback => {
-        try {
-          const result = callback(appointmentId)
-          // If callback returns a promise, track it
-          if (result instanceof Promise) {
-            callbackPromises.push(result.catch(err => {
-              console.error('[Socket] Error in async remoteCallEnded callback:', err)
-            }))
-          }
-        } catch (err) {
-          console.error('[Socket] Error in remoteCallEnded callback:', err)
-        }
-      })
-      
-      // Wait for all async callbacks to complete (e.g., recording finalization)
-      if (callbackPromises.length > 0) {
-        console.log('[Socket] Waiting for', callbackPromises.length, 'async callbacks to complete...')
-        await Promise.all(callbackPromises)
-        console.log('[Socket] All async callbacks completed')
-      }
-      
-      // Гасим попап только если событие относится ИМЕННО к этому звонку.
-      // Раньше `!callId` обнуляло любой входящий звонок, поэтому отголосок
-      // call-end от предыдущего созвона мог погасить только что показанный
-      // попап нового.
-      setIncomingCall((current) => {
-        if (!current) return current
-        if (callId) return current.callId === callId ? null : current
-        return current.appointmentId === appointmentId ? null : current
-      })
-      if (callId) clearOutgoingCallStatus(callId)
-    })
-
-    // Consultation status events
-    newSocket.on('consultation-started', ({ appointmentId, message }) => {
-      console.log('[Socket] Consultation started:', appointmentId)
-      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'in_progress')
-      
-      // Add system message to chat
-      if (message) {
-        chatStoreRef.current.addMessage(message)
-      }
-    })
-
-    newSocket.on('consultation-ended', ({ appointmentId, message }) => {
-      console.log('[Socket] Consultation ended:', appointmentId)
-      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'completed')
-      
-      // Add system message to chat
-      if (message) {
-        chatStoreRef.current.addMessage(message)
-      }
-    })
-
-    newSocket.on('consultation-cancelled', ({ appointmentId }) => {
-      console.log('[Socket] Consultation cancelled:', appointmentId)
-      chatStoreRef.current.updateAppointmentStatus(appointmentId, 'cancelled')
-    })
-
-    newSocket.on('chat-blocked', ({ appointmentId }) => {
-      console.log('[Socket] Chat blocked:', appointmentId)
-      chatStoreRef.current.setChatBlocked(appointmentId, true)
-    })
-
-    newSocket.on('chat-unblocked', ({ appointmentId }) => {
-      console.log('[Socket] Chat unblocked:', appointmentId)
-      chatStoreRef.current.setChatBlocked(appointmentId, false)
-    })
-
-    // Connection type change events
-    newSocket.on('connection-type-changed', ({ appointmentId, connectionType, message }) => {
-      console.log('[Socket] Connection type changed:', appointmentId, connectionType)
-      chatStoreRef.current.setConnectionType(appointmentId, connectionType)
-      
-      // Add system message to chat
-      if (message) {
-        chatStoreRef.current.addMessage(message)
-      }
-      
-      // Play notification sound for doctors
-      if (currentSenderTypeRef.current === 'doctor') {
-        playNotificationSound()
-      }
-    })
+    // Предметные обработчики разнесены по темам - см. src/components/socket/.
+    // Здесь остаётся только то, что относится к самому соединению.
+    const handlerDeps = { chatStoreRef, currentSenderTypeRef, currentSenderIdRef }
+    registerChatHandlers(newSocket, handlerDeps)
+    registerCallHandlers(newSocket, { ...handlerDeps, setIncomingCall, remoteCallEndedCallbacksRef })
+    registerConsultationHandlers(newSocket, handlerDeps)
 
     setSocket(newSocket)
 
@@ -417,7 +129,6 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     }
   // Empty dependency array - socket should only connect once when the component mounts
   // All store updates are handled via refs to avoid reconnection
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const joinRoom = useCallback((appointmentId: number) => {
@@ -439,7 +150,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         return
       }
 
-      const timer = window.setTimeout(() => reject(new Error('Не удало��ь отправить сообщение')), 10_000)
+      const timer = window.setTimeout(() => reject(new Error('Не удалось отправить сообщение')), 10_000)
       socket.emit('send-message', {
         appointmentId,
         text,
@@ -621,28 +332,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   return (
     <SocketContext.Provider value={value}>
       {children}
-      {/*
-        Входящий звонок закрывается ТОЛЬКО кнопками «Принять» / «Отклонить»:
-        случайный клик по затемнению или Esc не должны отменять звонок.
-        onOpenChange намеренно пустой - состоянием управляет только код ниже.
-      */}
-      <Dialog open={Boolean(incomingCall)}>
-        <DialogContent
-          showCloseButton={false}
-          onPointerDownOutside={(event) => event.preventDefault()}
-          onInteractOutside={(event) => event.preventDefault()}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Входящий {incomingCall?.isAudioOnly ? 'аудиозвонок' : 'видеозвонок'}</DialogTitle>
-            <DialogDescription>{incomingCall?.callerName || 'Участник консультации'} приглашает вас в защищённую комнату.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={rejectIncomingCall}><PhoneOff data-icon="inline-start" />Отклонить</Button>
-            <Button onClick={acceptIncomingCall}><Phone data-icon="inline-start" />Принять</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IncomingCallDialog
+        incomingCall={incomingCall}
+        onAccept={acceptIncomingCall}
+        onReject={rejectIncomingCall}
+      />
     </SocketContext.Provider>
   )
 }

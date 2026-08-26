@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Device, types } from 'mediasoup-client'
 import { io, type Socket } from 'socket.io-client'
 import { getStableMicrophone, type MicrophoneGate } from '@/lib/mediasoup/mic-gate'
+import { INTERNET_CONNECTION_ERROR, emitAck, getCallErrorMessage, type TokenData } from '@/lib/mediasoup/signaling'
+import { createWebRtcTransports, restartTransportIce, type TransportDeps } from '@/lib/mediasoup/transports'
 import {
   QUALITY_POLL_MS,
   QUALITY_REPORT_INTERVAL_MS,
@@ -18,58 +20,7 @@ import {
 type Status = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'failed'
 export type CallEndReason = 'participant-ended' | 'participant-disconnected'
 export type RemotePresence = 'unknown' | 'present' | 'absent'
-type Ack<T = Record<string, never>> = ({ success: true } & T) | { success: false; error: string }
-interface TokenData {
-  token: string
-  roomId: string
-  peerId: string
-  role: 'doctor' | 'patient'
-  peerName: string
-  iceServers: RTCIceServer[]
-}
 interface RemoteMedia { peerId: string; stream: MediaStream }
-
-const ackTimeout = 10_000
-const INTERNET_CONNECTION_ERROR = 'Нет подключения к интернету'
-const CONNECTION_LOST_ERROR = 'Связь с интернетом была потеряна'
-
-/**
- * Ошибки просроченного пропуска в комнату.
- *
- * Токен из `/api/mediasoup/token` живёт 5 минут, а сокет переиспользует его при
- * каждом переподключении. Поэтому обрыв связи после этих 5 минут приводит к
- * отказу на `joinRoom`, и jsonwebtoken отдаёт своё техническое «jwt expired» —
- * оно доезжает до UI дословно через ack. Для пациента это означает ровно одно:
- * связь пропала и нужно переподключиться (кнопка «Повторить» берёт новый токен).
- */
-const STALE_TOKEN_RE = /jwt (expired|malformed|must be provided)|invalid (signature|token)/i
-
-function getCallErrorMessage(reason: unknown, fallback = 'Ошибка подключения'): string {
-  const message = reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : fallback
-  if (STALE_TOKEN_RE.test(message)) return CONNECTION_LOST_ERROR
-  const isConnectionError = /websocket|socket|network|track\s*ended|trackended|transport|timeout|disconnected|connection|fetch failed/i.test(message)
-  return isConnectionError ? INTERNET_CONNECTION_ERROR : message
-}
-
-function emitAck<T>(socket: Socket, event: string, data: unknown): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let settled = false
-    const finish = (callback: () => void) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timer)
-      socket.off('disconnect', onDisconnect)
-      callback()
-    }
-    const onDisconnect = () => finish(() => reject(new Error(`${event}: socket disconnected`)))
-    const timer = window.setTimeout(() => finish(() => reject(new Error(`${event}: timeout`))), ackTimeout)
-    socket.once('disconnect', onDisconnect)
-    socket.emit(event, data, (response: Ack<T>) => finish(() => {
-      if (!response?.success) reject(new Error(response?.error || `${event}: failed`))
-      else resolve(response as T)
-    }))
-  })
-}
 
 export function useMediasoup(appointmentId: number, audioOnly = false) {
   const [status, setStatus] = useState<Status>('idle')
@@ -143,25 +94,12 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     socket.emit('qualityReport', { roomId: token.roomId, ...snapshot })
   }, [])
 
-  const restartIce = useCallback(async (transport: types.Transport) => {
-    const socket = socketRef.current
-    const token = tokenRef.current
-    if (!socket || !token) return
-    try {
-      const response = await emitAck<{ iceParameters: types.IceParameters }>(socket, 'restartIce', { roomId: token.roomId, transportId: transport.id })
-      await transport.restartIce({ iceParameters: response.iceParameters })
-    } catch {
-      setStatus('reconnecting')
-      socket.disconnect().connect()
-    }
-  }, [])
-
-  const wireTransport = useCallback((transport: types.Transport) => {
-    transport.on('connectionstatechange', (state) => {
-      if (state === 'connected') setStatus('connected')
-      if (state === 'failed' || state === 'disconnected') void restartIce(transport)
-    })
-  }, [restartIce])
+  const transportDeps = useRef<TransportDeps>({
+    getSocket: () => socketRef.current,
+    getToken: () => tokenRef.current,
+    onConnected: () => setStatus('connected'),
+    onRecovering: () => setStatus('reconnecting'),
+  }).current
 
   const consume = useCallback(async (producerId: string, producerPeerId: string) => {
     const socket = socketRef.current
@@ -211,27 +149,10 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
   }, [])
 
   const createTransports = useCallback(async (socket: Socket, token: TokenData, device: Device) => {
-    const sendData = await emitAck<{ transport: types.TransportOptions }>(socket, 'createWebRtcTransport', { roomId: token.roomId, direction: 'send' })
-    const recvData = await emitAck<{ transport: types.TransportOptions }>(socket, 'createWebRtcTransport', { roomId: token.roomId, direction: 'recv' })
-    const transportOptions = { iceServers: token.iceServers }
-    const send = device.createSendTransport({ ...sendData.transport, ...transportOptions })
-    const recv = device.createRecvTransport({ ...recvData.transport, ...transportOptions })
-
-    send.on('connect', ({ dtlsParameters }, callback, errback) => {
-      emitAck(socket, 'connectTransport', { roomId: token.roomId, transportId: send.id, dtlsParameters }).then(() => callback()).catch(errback)
-    })
-    recv.on('connect', ({ dtlsParameters }, callback, errback) => {
-      emitAck(socket, 'connectTransport', { roomId: token.roomId, transportId: recv.id, dtlsParameters }).then(() => callback()).catch(errback)
-    })
-    send.on('produce', ({ kind, rtpParameters, appData }, callback, errback) => {
-      emitAck<{ producerId: string }>(socket, 'produce', { roomId: token.roomId, transportId: send.id, kind, rtpParameters, appData })
-        .then(({ producerId }) => callback({ id: producerId })).catch(errback)
-    })
-    wireTransport(send)
-    wireTransport(recv)
+    const { send, recv } = await createWebRtcTransports(socket, token, device, transportDeps)
     sendRef.current = send
     recvRef.current = recv
-  }, [wireTransport])
+  }, [transportDeps])
 
   const ensureLiveLocalTracks = useCallback(async () => {
     const stream = localStreamRef.current
@@ -343,7 +264,7 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
         try {
           const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities; otherPeersOnline?: number }>(socket, 'joinRoom', token)
 
-          // Сокет ��аменён более новым подключением: этот вход уже не нужен.
+          // Сокет заменён более новым подключением: этот вход уже не нужен.
           // Раньше здесь стоял `continue` вместе с проверками ниже, и живой,
           // но осиротевший сокет крутил joinRoom без остановки - сервер
           // заливало логами `repeat=true` по несколько раз в секунду.
@@ -617,14 +538,14 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
       }
       // The socket may have survived the network switch while ICE did not:
       // proactively restart ICE on both transports instead of waiting for timeouts.
-      if (sendRef.current) void restartIce(sendRef.current)
-      if (recvRef.current) void restartIce(recvRef.current)
+      if (sendRef.current) void restartTransportIce(sendRef.current, transportDeps)
+      if (recvRef.current) void restartTransportIce(recvRef.current, transportDeps)
     }
     const offlineHandler = () => { setOnline(false); setError(INTERNET_CONNECTION_ERROR); setStatus('reconnecting') }
     window.addEventListener('online', onlineHandler)
     window.addEventListener('offline', offlineHandler)
     return () => { window.removeEventListener('online', onlineHandler); window.removeEventListener('offline', offlineHandler); leave() }
-  }, [leave, restartIce])
+  }, [leave, transportDeps])
 
   return { status, error, endReason, remotePresence, quality, localStream, remoteMedia, micEnabled, cameraEnabled, remoteMicEnabled, remoteCameraEnabled, online, connect, leave, endCall, toggleMicrophone, toggleCamera }
 }
