@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { Footer } from "@/components/footer"
 import { BackgroundDecor } from "@/components/background-decor"
 import { LkMedContent } from "@/components/lk-med-content"
-import { serverApiFetch, AppointmentsApi } from "@/lib/api/index"
+import { serverApiFetch, AppointmentsApi, MessagesApi } from "@/lib/api/index"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 export const metadata = {
@@ -23,6 +23,9 @@ export default async function LkMedPage() {
 
   let doctor: ApiDoctor | null = null
   let appointments: ApiAppointment[] = []
+  // Непрочитанные из БД: chat-store живёт в памяти и на свежей загрузке пуст,
+  // поэтому без снимка точка «новое сообщение» не появлялась бы вовсе.
+  let unreadCounts: Record<number, number> = {}
 
   try {
     // Make server-side request to /api/doctors/me with no caching
@@ -35,6 +38,7 @@ export default async function LkMedPage() {
     // If doctor is authenticated, fetch their appointments - explicitly filter by doctor ID
     if (doctor) {
       appointments = await AppointmentsApi.fetchDoctorAppointmentsServer({ cookie, doctorId: doctor.id })
+      unreadCounts = await MessagesApi.fetchUnreadCountsServer({ cookie, currentSenderType: "doctor" })
     }
   } catch (error) {
     // If request fails, doctor is not authenticated
@@ -57,7 +61,11 @@ export default async function LkMedPage() {
       <BackgroundDecor id="lk-med" position="fixed" ecg={false} />
       {/* Декор — fixed-элемент со своим z, поэтому контент поднимаем над ним. */}
       <div className="relative z-10 flex flex-1 flex-col">
-        <LkMedContent initialDoctor={doctor} initialAppointments={appointments} />
+        <LkMedContent
+          initialDoctor={doctor}
+          initialAppointments={appointments}
+          initialUnreadCounts={unreadCounts}
+        />
       </div>
       <Footer />
     </div>

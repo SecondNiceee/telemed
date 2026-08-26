@@ -4,6 +4,7 @@ import Link from "next/link"
 import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor, getInitials } from "@/lib/utils/date"
 import { cn } from "@/lib/utils"
+import { UnreadDot } from "@/components/unread-dot"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -26,9 +27,14 @@ const STATUS_RAIL: Record<string, string> = {
 
 interface UserAppointmentCardProps {
   appointment: ApiAppointment
+  /** Есть непрочитанные сообщения от врача — на кнопке чата загорается точка. */
+  hasUnreadMessages?: boolean
 }
 
-export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
+export function UserAppointmentCard({
+  appointment,
+  hasUnreadMessages = false,
+}: UserAppointmentCardProps) {
   const doc = getDoctorFromAppointment(appointment)
 
   // Бронь истекла, но status ещё 'pending_payment': sweep отменяет её не мгновенно
@@ -112,9 +118,10 @@ export function UserAppointmentCard({ appointment }: UserAppointmentCardProps) {
                 {displayStatus !== "cancelled" && (
                   <Link
                     href={`/lk/chat?appointment=${appointment.id}`}
-                    className="inline-flex items-center rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    className="relative inline-flex items-center rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
                     Чат
+                    {hasUnreadMessages && <UnreadDot />}
                   </Link>
                 )}
                 <Link

@@ -11,6 +11,7 @@ import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
 import { FeedbackPrompt } from "@/components/feedback-prompt"
 import { ConsultationGuide } from "@/components/consultation-guide"
+import { useUnreadMessages } from "@/hooks/use-unread-messages"
 import { cn } from "@/lib/utils"
 import {
   Select,
@@ -24,6 +25,8 @@ import {
 interface LkContentProps {
   user: User | null
   appointments: ApiAppointment[]
+  /** Снимок непрочитанных из БД на момент рендера страницы: id записи → количество. */
+  initialUnreadCounts: Record<number, number>
 }
 
 type FilterType = 'all' | 'upcoming' | 'completed' | 'cancelled'
@@ -56,10 +59,15 @@ const EMPTY_STATE: Record<FilterType, { title: string; hint: string }> = {
   },
 }
 
-export function LkContent({ user, appointments: serverAppointments }: LkContentProps) {
+export function LkContent({
+  user,
+  appointments: serverAppointments,
+  initialUnreadCounts,
+}: LkContentProps) {
   const { loading: userLoading, setUser, user: storeUser, fetched: userFetched, logout } = useUserStore()
   const { appointments, setAppointments, loading: apptLoading, fetched: apptFetched } = useUserAppointmentStore()
   const [filter, setFilter] = useState<FilterType>('all')
+  const { hasUnread, hasAnyUnread } = useUnreadMessages(initialUnreadCounts)
 
   useEffect(() => {
     const saved = window.localStorage.getItem(FILTER_STORAGE_KEY)
@@ -143,6 +151,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
         completedCount={completedAppointments.length}
         onLogout={logout}
         appointments={appointments}
+        hasUnreadMessages={hasAnyUnread}
       />
 
       {/* Appointments list */}
@@ -243,7 +252,7 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
         {isLoading ? (
           <div className="flex items-center justify-center gap-3 py-16">
             <span className="h-7 w-7 animate-spin rounded-full border-2 border-teal border-t-transparent" />
-            <span className="text-sm text-muted-foreground">Загружаем записи…</span>
+            <span className="text-sm text-muted-foreground">Загру��аем записи…</span>
           </div>
         ) : filteredAppointments.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-14 text-center shadow-[0_0_0_1px_oklch(0_0_0_/_0.07)]">
@@ -281,7 +290,11 @@ export function LkContent({ user, appointments: serverAppointments }: LkContentP
         ) : (
           <div className="flex flex-col gap-3">
             {filteredAppointments.map((appt) => (
-              <UserAppointmentCard key={appt.id} appointment={appt} />
+              <UserAppointmentCard
+                key={appt.id}
+                appointment={appt}
+                hasUnreadMessages={hasUnread(appt.id)}
+              />
             ))}
           </div>
         )}

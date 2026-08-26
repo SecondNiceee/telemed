@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { Phone, PhoneOff } from 'lucide-react'
 import { io, type Socket } from 'socket.io-client'
 import { toast } from 'sonner'
@@ -12,6 +12,51 @@ import { getSenderType, getSenderId } from '@/lib/api/messages'
 import { isInCallRoom } from '@/lib/chat/call-chat-bridge'
 
 type OutgoingCallStatus = 'waiting' | 'answered' | 'rejected'
+
+/**
+ * Статусы исходящих приглашений живут вне состояния компонента.
+ *
+ * Начав звонок из чата, врач сразу уходит на /appointment/[id]/call: страница
+ * чата размонтируется вместе со своим SocketProvider, а страница звонка читает
+ * уже другой экземпляр провайдера. Пока статус лежал в useState, он исчезал
+ * при этом переходе - комната звонка не знала, что звонок только что начат, и
+ * запускала проверку «а не закрыт ли он», которая для ещё не отвеченного
+ * приглашения заканчивалась «Комната уже закрыта».
+ *
+ * Модульный стор общий для всех провайдеров, поэтому статус переживает и
+ * переход между страницами, и параллельно смонтированные провайдеры.
+ */
+let outgoingCallStatusesSnapshot: Record<string, OutgoingCallStatus> = {}
+const outgoingCallStatusListeners = new Set<() => void>()
+
+function notifyOutgoingCallStatusListeners() {
+  outgoingCallStatusListeners.forEach((listener) => listener())
+}
+
+function setOutgoingCallStatus(callId: string, status: OutgoingCallStatus) {
+  if (outgoingCallStatusesSnapshot[callId] === status) return
+  outgoingCallStatusesSnapshot = { ...outgoingCallStatusesSnapshot, [callId]: status }
+  notifyOutgoingCallStatusListeners()
+}
+
+function clearOutgoingCallStatus(callId: string) {
+  if (!(callId in outgoingCallStatusesSnapshot)) return
+  const next = { ...outgoingCallStatusesSnapshot }
+  delete next[callId]
+  outgoingCallStatusesSnapshot = next
+  notifyOutgoingCallStatusListeners()
+}
+
+function subscribeToOutgoingCallStatuses(listener: () => void) {
+  outgoingCallStatusListeners.add(listener)
+  return () => {
+    outgoingCallStatusListeners.delete(listener)
+  }
+}
+
+function getOutgoingCallStatusesSnapshot() {
+  return outgoingCallStatusesSnapshot
+}
 
 interface SocketContextValue {
   socket: Socket | null
@@ -82,7 +127,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const [isConnected, setIsConnected] = useState(false)
   const [hasConnectionError, setHasConnectionError] = useState(false)
   const [incomingCall, setIncomingCall] = useState<{ appointmentId: number; callId: string; callerName: string; isAudioOnly: boolean } | null>(null)
-  const [outgoingCallStatuses, setOutgoingCallStatuses] = useState<Record<string, OutgoingCallStatus>>({})
+  const outgoingCallStatuses = useSyncExternalStore(
+    subscribeToOutgoingCallStatuses,
+    getOutgoingCallStatusesSnapshot,
+    getOutgoingCallStatusesSnapshot,
+  )
   // Use refs for store functions to avoid reconnection on store changes
   const chatStoreRef = useRef(useChatStore.getState())
   
@@ -262,11 +311,11 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
     })
 
     newSocket.on('call-answered', ({ callId }) => {
-      setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'answered' }))
+      setOutgoingCallStatus(callId, 'answered')
     })
     newSocket.on('call-rejected', ({ callId }) => {
       setIncomingCall((current) => current?.callId === callId ? null : current)
-      setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'rejected' }))
+      setOutgoingCallStatus(callId, 'rejected')
     })
 
     newSocket.on('call-ended', async ({ appointmentId, callId }) => {
@@ -306,13 +355,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
         if (callId) return current.callId === callId ? null : current
         return current.appointmentId === appointmentId ? null : current
       })
-      if (callId) {
-        setOutgoingCallStatuses((statuses) => {
-          const nextStatuses = { ...statuses }
-          delete nextStatuses[callId]
-          return nextStatuses
-        })
-      }
+      if (callId) clearOutgoingCallStatus(callId)
     })
 
     // Consultation status events
@@ -442,7 +485,7 @@ export function SocketProvider({ children, currentSenderType, currentSenderId }:
   const initiateCall = useCallback((appointmentId: number, callerPeerId: string, callerName: string, isAudioOnly?: boolean) => {
     if (!socket?.connected) return null
     const callId = crypto.randomUUID()
-    setOutgoingCallStatuses((statuses) => ({ ...statuses, [callId]: 'waiting' }))
+    setOutgoingCallStatus(callId, 'waiting')
     socket.emit('call-initiate', { appointmentId, callId, callerPeerId, callerName, isAudioOnly })
     return callId
   }, [socket])

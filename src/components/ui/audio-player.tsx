@@ -19,6 +19,13 @@ interface AudioPlayerProps {
   durationHint?: number
 }
 
+/**
+ * Сколько ждать, пока браузер вычислит длительность потокового WebM.
+ * По истечении сдаёмся: лучше приблизительная длительность, чем замерший
+ * на 0:00 таймер.
+ */
+const PROBE_TIMEOUT_MS = 3000
+
 function formatTime(seconds: number): string {
   if (!isFinite(seconds) || isNaN(seconds)) return '0:00'
   const mins = Math.floor(seconds / 60)
@@ -37,10 +44,15 @@ export function AudioPlayer({ src, title, className, onDownload, durationHint }:
   const [isLoaded, setIsLoaded] = useState(false)
   // Флаг «идёт зондирование длительности» - см. probeInfiniteDuration.
   const probingRef = useRef(false)
+  // Страховочный таймер: без него probingRef залипал в true, и таймер стоял
+  // на 0:00, пока запись играла.
+  const probeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
+
+    const hasDurationHint = !!durationHint && durationHint > 0
 
     const applyDuration = () => {
       if (audio.duration && isFinite(audio.duration)) {
@@ -52,25 +64,52 @@ export function AudioPlayer({ src, title, className, onDownload, durationHint }:
 
     /**
      * Потоковый WebM от MediaRecorder отдаёт duration = Infinity. Прыжок на
-     * "бесконечную" позицию заставляет браузер дочитать файл, вычислить
-     * настоящую длительность и построить индекс для перемотки.
+     * "бесконечную" позицию заставляет браузер дочитать файл и вычислить
+     * настоящую длительность.
+     *
+     * Применяем только как последнее средство: при известной длительности из
+     * БД зондировать нечего, а на длинной записи прыжок в конец тянет весь
+     * файл. И зондирование обязано завершиться по таймауту — иначе на больших
+     * WebM без индекса Cues probingRef залипал навсегда, timeupdate
+     * игнорировался, и время стояло на 0:00 при играющей записи.
      */
     const probeInfiniteDuration = () => {
+      if (hasDurationHint) return
       if (probingRef.current || isFinite(audio.duration)) return
+
       probingRef.current = true
+      const resumeFrom = audio.currentTime
+
+      const finishProbe = (restorePosition: boolean) => {
+        audio.removeEventListener('durationchange', onDurationChange)
+        if (probeTimeoutRef.current) {
+          clearTimeout(probeTimeoutRef.current)
+          probeTimeoutRef.current = null
+        }
+        probingRef.current = false
+        if (restorePosition) {
+          try {
+            audio.currentTime = resumeFrom
+          } catch {
+            // Позицию подхватит следующий timeupdate.
+          }
+        }
+        setCurrentTime(audio.currentTime)
+      }
+
       const onDurationChange = () => {
         if (!isFinite(audio.duration)) return
-        audio.removeEventListener('durationchange', onDurationChange)
         applyDuration()
-        audio.currentTime = 0
-        probingRef.current = false
+        finishProbe(true)
       }
+
       audio.addEventListener('durationchange', onDurationChange)
+      probeTimeoutRef.current = setTimeout(() => finishProbe(true), PROBE_TIMEOUT_MS)
+
       try {
         audio.currentTime = Number.MAX_SAFE_INTEGER
       } catch {
-        audio.removeEventListener('durationchange', onDurationChange)
-        probingRef.current = false
+        finishProbe(false)
       }
     }
 
@@ -126,8 +165,22 @@ export function AudioPlayer({ src, title, className, onDownload, durationHint }:
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
+      if (probeTimeoutRef.current) {
+        clearTimeout(probeTimeoutRef.current)
+        probeTimeoutRef.current = null
+      }
+      probingRef.current = false
     }
-  }, [])
+  }, [durationHint])
+
+  // Подсказка из БД может приехать после монтирования — подхватываем её, не
+  // перетирая настоящую длительность, если браузер её уже вычислил.
+  useEffect(() => {
+    if (!durationHint || durationHint <= 0) return
+    const audio = audioRef.current
+    if (audio && isFinite(audio.duration)) return
+    setDuration((prev) => (prev > 0 ? prev : durationHint))
+  }, [durationHint])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current

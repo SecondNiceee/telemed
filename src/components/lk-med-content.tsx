@@ -11,13 +11,21 @@ import { formatDate, getStatusLabel, getStatusColor, getUpcomingAppointment } fr
 import { AppointmentCountdownBanner } from "@/components/appointment-countdown-banner"
 import { cn } from "@/lib/utils"
 import { AppointmentsApi } from "@/lib/api/appointments"
+import { useUnreadMessages } from "@/hooks/use-unread-messages"
+import { UnreadDot } from "@/components/unread-dot"
 
 interface LkMedContentProps {
   initialDoctor: ApiDoctor
   initialAppointments: ApiAppointment[]
+  /** Снимок непрочитанных из БД на момент рендера страницы: id записи → количество. */
+  initialUnreadCounts: Record<number, number>
 }
 
-export function LkMedContent({ initialDoctor, initialAppointments }: LkMedContentProps) {
+export function LkMedContent({
+  initialDoctor,
+  initialAppointments,
+  initialUnreadCounts,
+}: LkMedContentProps) {
   const { doctor: storeDoctor, setDoctor, logout } = useDoctorStore()
   const {
     appointments: storeAppointments,
@@ -28,6 +36,8 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
   const doctor = storeDoctor || initialDoctor
   const appointments = apptFetched ? storeAppointments : initialAppointments
   const upcomingAppointment = getUpcomingAppointment(appointments)
+
+  const { hasUnread, hasAnyUnread } = useUnreadMessages(initialUnreadCounts)
 
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'active' | 'completed'>('all')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -99,10 +109,11 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
             <p className="text-muted-foreground mt-1">{doctor.email}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2" asChild>
+            <Button variant="outline" size="sm" className="relative gap-2" asChild>
               <Link href="/lk-med/chat">
                 <MessageSquare className="w-4 h-4" />
                 <span>Сообщения</span>
+                {hasAnyUnread && <UnreadDot />}
               </Link>
             </Button>
             <Button
@@ -316,10 +327,11 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
                   </div>
                   <Link
                     href={`/lk-med/chat?appointment=${appt.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
+                    className="relative inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
                     Чат
+                    {hasUnread(appt.id) && <UnreadDot />}
                   </Link>
                 </div>
               </div>
@@ -331,7 +343,7 @@ export function LkMedContent({ initialDoctor, initialAppointments }: LkMedConten
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
             <p className="text-sm text-muted-foreground">
-              Страница {currentPage} из {totalPages}
+              Стр��ница {currentPage} из {totalPages}
             </p>
             <div className="flex items-center gap-2">
               <button
