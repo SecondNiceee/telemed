@@ -7,6 +7,7 @@ import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, PhoneOff, Refres
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCallRecorder } from '@/hooks/use-call-recorder'
+import { isClientRecordingEnabled } from '@/lib/recording-mode'
 import { useMediasoup } from '@/hooks/use-mediasoup'
 import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
 import { useSocket } from '@/components/socket-provider'
@@ -118,7 +119,12 @@ export function CallRoom({
   const handledClosedRoomRef = useRef(false)
   const restoreCheckStartedRef = useRef(false)
   const recorder = useCallRecorder({
-    enabled: recordingDoctorId !== null,
+    // Клиентская запись работает только в режиме 'client'. В режиме 'server'
+    // пишет mediasoup через FFmpeg, и включать браузерную запись параллельно
+    // нельзя: это и вторая запись на ту же консультацию, и лишняя нагрузка на
+    // аплинк врача. Условие recordingDoctorId !== null сохранено - пациент не
+    // пишет никогда.
+    enabled: isClientRecordingEnabled && recordingDoctorId !== null,
     appointmentId,
     doctorId: recordingDoctorId,
     localStream: call.localStream,
@@ -180,7 +186,7 @@ export function CallRoom({
     // Могли успеть войти в комнату и включить камеру: отпускаем устройства и
     // дописываем запись, иначе микрофон останется занятым после ухода.
     callLeave()
-    toast.info('Комната уже закрыта — звонок завершён', { position: 'top-center' })
+    toast.info('Комната уже закрыта — звон��к завершён', { position: 'top-center' })
     void stopRecording().finally(() => router.replace(`${chatPath}?appointment=${appointmentId}`))
   }, [appointmentId, callLeave, chatPath, isRoomClosed, router, stopRecording])
 

@@ -39,18 +39,34 @@ function collectParticipants(room: Room): ParticipantProducers[] {
 class RecordingController {
   private readonly startTimers = new Map<string, NodeJS.Timeout>()
   private readonly finalizing = new Set<string>()
+  /** Чтобы не засорять лог отсутствием ffmpeg на каждом продюсере. */
+  private warnedMissingFfmpeg = false
 
   /**
    * Called after any producer is created. Debounced so that a participant's
    * audio and video producers (published back to back) land in one segment.
    */
   onProducersChanged(room: Room): void {
-    // По умолчанию выключено: запись ведёт браузер врача. Остановка и
-    // финализация ниже намеренно работают всегда - если сегмент всё же был
-    // запущен (флаг включали на ходу), его нужно корректно закрыть.
+    // Режим выбирается в src/lib/recording-mode.ts. Остановка и финализация
+    // ниже намеренно работают всегда - если сегмент всё же был запущен
+    // (режим меняли на ходу), его нужно корректно закрыть.
     if (!recordingConfig.enabled) return
     if (recorder.getActiveRecordingForRoom(room.id)) return
-    if (!recorder.checkFfmpegAvailable()) return
+
+    // Без ffmpeg серверная запись не стартует. Раньше это был молчаливый
+    // return: режим 'server' выставлен, консультация прошла, записи нет и в
+    // логах ни строчки. Предупреждаем один раз на процесс.
+    if (!recorder.checkFfmpegAvailable()) {
+      if (!this.warnedMissingFfmpeg) {
+        this.warnedMissingFfmpeg = true
+        console.error(
+          '[RecordingController] RECORDING_MODE=server, но ffmpeg не найден ' +
+            `(${recordingConfig.ffmpegPath}). Записи не будет. Установите ffmpeg, ` +
+            'задайте FFMPEG_PATH или переключитесь на NEXT_PUBLIC_RECORDING_MODE=client.',
+        )
+      }
+      return
+    }
 
     const existingTimer = this.startTimers.get(room.id)
     if (existingTimer) clearTimeout(existingTimer)

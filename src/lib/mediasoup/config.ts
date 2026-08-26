@@ -6,6 +6,7 @@
  */
 
 import type { types as mediasoupTypes } from 'mediasoup'
+import { isServerRecordingEnabled, recordingMode } from '../recording-mode'
 
 type WorkerSettings = mediasoupTypes.WorkerSettings
 type RouterOptions = mediasoupTypes.RouterOptions
@@ -27,6 +28,7 @@ if (!Number.isInteger(RTC_MIN_PORT) || !Number.isInteger(RTC_MAX_PORT) || RTC_MI
 console.log('[MediaSoup Config] ANNOUNCED_IP:', ANNOUNCED_IP)
 console.log('[MediaSoup Config] LISTEN_IP:', LISTEN_IP)
 console.log('[MediaSoup Config] RTC_PORT_RANGE:', `${RTC_MIN_PORT}-${RTC_MAX_PORT}`)
+console.log('[MediaSoup Config] RECORDING_MODE:', recordingMode)
 
 /**
  * MediaSoup Worker settings
@@ -170,13 +172,11 @@ export const serverConfig = {
  * You can override with RECORDING_OUTPUT_DIR env variable.
  */
 export const recordingConfig = {
-  // Серверная запись (PlainTransport + FFmpeg) ОТКЛЮЧЕНА: запись ведётся в
-  // браузере врача (src/hooks/use-call-recorder.ts). Причина - FFmpeg-схема
-  // требовала синхронизировать 4 независимых RTP-потока, и любой обрыв
-  // (выход участника, выключенная камера) ломал контейнер или уводил
-  // дорожки в рассинхрон. Включить обратно: RECORDING_SERVER_SIDE=1
-  // (тогда на одну консультацию появятся ДВЕ записи).
-  enabled: process.env.RECORDING_SERVER_SIDE === '1',
+  // Способ записи выбирается ОДНИМ переключателем на весь проект -
+  // src/lib/recording-mode.ts (NEXT_PUBLIC_RECORDING_MODE). Клиентская запись
+  // в браузере врача выключается тем же значением, поэтому две записи на одну
+  // консультацию теперь невозможны по построению.
+  enabled: isServerRecordingEnabled,
   // Directory to store temporary recordings (before upload to Payload).
   // Must match the default in app/api/mediasoup-recording/finalize-server.
   outputDir: process.env.RECORDING_OUTPUT_DIR || '/tmp/mediasoup-recordings',
