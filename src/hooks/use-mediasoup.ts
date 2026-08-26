@@ -297,9 +297,21 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
 
         try {
           const joined = await emitAck<{ routerRtpCapabilities: types.RtpCapabilities; otherPeersOnline?: number }>(socket, 'joinRoom', token)
-          if (!socket.connected || socket.id !== socketId || socketRef.current !== socket) {
+
+          // Сокет заменён более новым подключением: этот вход уже не нужен.
+          // Раньше здесь стоял `continue` вместе с проверками ниже, и живой,
+          // но осиротевший сокет крутил joinRoom без остановки - сервер
+          // заливало логами `repeat=true` по несколько раз в секунду.
+          if (socketRef.current !== socket) {
+            socket.disconnect()
+            return
+          }
+
+          // Сокет переподключается: повторный вход запустит обработчик
+          // 'connect', ждать его в этом цикле нельзя - получится busy loop.
+          if (!socket.connected || socket.id !== socketId) {
             pendingJoinRef.current = true
-            continue
+            return
           }
           // Сервер сразу говорит, есть ли в комнате живой собеседник. Без этого
           // нельзя отличить «жду, пока он войдёт» от «звонок давно закончился».
@@ -326,9 +338,11 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
             void broadcastMediaState()
           }
         } catch (reason) {
+          // Вход сорвался из-за обрыва связи, а не из-за отказа сервера:
+          // повторит обработчик 'connect', когда сокет вернётся.
           if (!socket.connected || socket.id !== socketId) {
             pendingJoinRef.current = true
-            continue
+            return
           }
           throw reason
         }
@@ -380,6 +394,18 @@ export function useMediasoup(appointmentId: number, audioOnly = false) {
     leftRef.current = false
     setError(null)
     setStatus('connecting')
+
+    // Повторный вызов (кнопка «Повторить», перезапуск эффекта) не должен
+    // оставлять позади живой сокет: он продолжал бы держать место участника в
+    // комнате и соперничать с новым подключением за вход.
+    const previousSocket = socketRef.current
+    if (previousSocket) {
+      socketRef.current = null
+      previousSocket.removeAllListeners()
+      previousSocket.disconnect()
+      closeMediaSession()
+    }
+
     try {
       const tokenResponse = await fetch('/api/mediasoup/token', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId }),

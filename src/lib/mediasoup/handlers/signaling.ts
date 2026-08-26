@@ -78,7 +78,12 @@ export function registerMediaSignaling(io: Server, socket: MediaSocket): void {
       if (!isSameSocketJoin) {
         socket.to(claims.roomId).emit('peerJoined', { peerId: claims.peerId, peerName: claims.peerName, role: claims.role })
       }
-      console.log(`[MediaSoup] joined socket=${socket.id} room=${claims.roomId} peer=${claims.peerId} repeat=${isSameSocketJoin}`)
+      // Повторный вход того же сокета не меняет состояние комнаты, поэтому в
+      // лог не идёт: при сбое на клиенте такие входы шли по несколько раз в
+      // секунду и забивали вывод, скрывая настоящие события звонка.
+      if (!isSameSocketJoin) {
+        console.log(`[MediaSoup] joined socket=${socket.id} room=${claims.roomId} peer=${claims.peerId}`)
+      }
       // Сообщаем, есть ли в комнате живой собеседник. Это единственный надёжный
       // источник: он идёт по тому же каналу, что и сам звонок, поэтому работает
       // и там, где HTTP-проверка состояния комнаты недоступна.
