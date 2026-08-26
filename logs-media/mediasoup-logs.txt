@@ -1,78 +1,16 @@
 /root/.pm2/logs/mediasoup-out.log last 15 lines:
-2|mediasou | [Room] Created room appointment_5
-2|mediasou | [MediaSoup] joined socket=HCkrG24SxGXX9U7KAAAG room=appointment_5 peer=patient-2 repeat=false
-2|mediasou | [MediaSoup] joined socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 repeat=false
-2|mediasou | [Recorder] Starting FFmpeg [a-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.mkv
-2|mediasou | [Recorder] Starting FFmpeg [b-video]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.mkv
-2|mediasou | [Recorder] Starting FFmpeg [a-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-audio.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.a-audio.mkv
-2|mediasou | [Recorder] b-audio media start captured (rtp)
-2|mediasou | [Recorder] Starting FFmpeg [b-audio]: ffmpeg -loglevel warning -protocol_whitelist file,rtp,udp -analyzeduration 5M -probesize 5M -buffer_size 8388608 -max_delay 1000000 -reorder_queue_size 2048 -thread_queue_size 8192 -use_wallclock_as_timestamps 1 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-audio.sdp -map 0 -c copy -f matroska -y /tmp/mediasoup-recordings/appointment_5-1787500155249.b-audio.mkv
-2|mediasou | [Recorder] Started video segment appointment_5-1787500155249 for room appointment_5 (4 independent FFmpeg processes)
-2|mediasou | [Recorder] a-audio media start captured (rtp)
-2|mediasou | [Recorder] a-video media start captured (keyframe)
-2|mediasou | [Recorder] b-video media start captured (keyframe)
-2|mediasou | [Recorder] FFmpeg [appointment_5-1787500155249/b-video]: [sdp @ 0x575d05991fc0] max delay reached. need to consume packet
-2|mediasou | [sdp @ 0x575d05991fc0] RTP: missed 1 packets
-
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video]: [sdp @ 0x6034861b2fc0] max delay reached. need to consume packet
-2|mediasoup  | [sdp @ 0x6034861b2fc0] RTP: missed 1 packets
-2|mediasoup  | [MediaSoup] removed socket=HCkrG24SxGXX9U7KAAAG room=appointment_5 peer=patient-2 reason=participant-ended removed=true
-2|mediasoup  | [MediaSoup] disconnect grace socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 timeout=10000
-0|site       | [LkMedChatPage] Doctor found: 27 Врач Ниокоалай 2
-1|socket     | [Socket] Client connected: e9ZmjWaxe6a8KD_9AAAc, type: doctor, id: 27
-1|socket     | [Socket] Checking pending calls for doctor:27
-1|socket     | [Socket] Found 0 pending calls
-1|socket     | [Socket] Client connected: tx7o2a5zfNqz9vo9AAAd, type: user, id: 2
-1|socket     | [Socket] Checking pending calls for user:2
-1|socket     | [Socket] Found 0 pending calls
-1|socket     | [Socket] user:2 joined room appointment:5
-1|socket     | [Socket] doctor:27 joined room appointment:5
-1|socket     | [Socket] user:2 joined room appointment:4
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] ignored "q", sending SIGTERM
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] ignored "q", sending SIGTERM
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] ignored "q", sending SIGTERM
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] ignored "q", sending SIGTERM
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] did not exit, killing
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] did not exit, killing
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] did not exit, killing
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] did not exit, killing
-2|mediasoup  | [Recorder] Composing: ffmpeg -loglevel warning -nostdin -f lavfi -i color=c=black:s=1280x480:r=15 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.a-video.mkv -itsoffset 0.508 -i /tmp/mediasoup-recordings/appointment_5-1787500155249.b-video.mkv -filter_complex [1:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w0];[0:v][w0]overlay=x=0:y=0:eof_action=pass:repeatlast=0[b0];[2:v]fps=15,scale=640:480:force_original_aspect_ratio=decrease,pad=640:480:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w1];[b0][w1]overlay=x=640:y=0:eof_action=pass:repeatlast=0,format=yuv420p[v] -map [v] -t 53 -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -avoid_negative_ts make_zero -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_5-1787500155249.webm
-2|mediasoup  | [Recorder] Skipping empty tracks: a-audio, b-audio
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-audio] exited with code null
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-audio] exited with code null
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/a-video] exited with code null
-2|mediasoup  | [Recorder] FFmpeg [appointment_5-1787500155249/b-video] exited with code null
-2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [out#0/webm @ 0x5fd001aef8c0] Codec AVOption b:a (set bitrate (in bits/s)) has not been used for any stream. The most likely reason is either wrong type (e.g. a video option with no video streams) or that it is a private option of some decoder which was not actually used for any stream.
-2|mediasoup  | [MediaSoup] removed socket=DdW0bXzZzt8i_DOLAAAH room=appointment_5 peer=doctor-27 reason=participant-disconnected removed=true
-2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [matroska,webm @ 0x5fd001ae7c40]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: File ended prematurely
-2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: [matroska,webm @ 0x5fd001ae5140]
-2|mediasoup  | [Recorder] Compose [appointment_5-1787500155249]: File ended prematurely
-2|mediasoup  | [Recorder] Stopped segment appointment_5-1787500155249 (53s, completed)
-0|site       | [MediaSoupRecording/FinalizeServer] Starting server-side finalization
-0|site       | [MediaSoupRecording/FinalizeServer] Request data: {
-0|site       |   appointmentId: 5,
-0|site       |   sessionId: 'appointment_5-1787500155249',
-0|site       |   durationSeconds: 53,
-0|site       |   recordingType: 'video'
-0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Looking for recording at: /tmp/mediasoup-recordings/appointment_5-1787500155249.webm
-0|site       | [MediaSoupRecording/FinalizeServer] Recording file found, size: 10152131
-0|site       | [MediaSoupRecording/FinalizeServer] Read recording buffer, size: 10152131
-0|site       | [MediaSoupRecording/FinalizeServer] Uploading to media via Payload...
-0|site       | [media] create incoming {
-0|site       |   filename: 'consultation-5-1787500223175-mt5zhbd46id3yk.webm',
-0|site       |   mimeType: 'video/webm',
-0|site       |   size: 10152131
-0|site       | }
-0|site       | [media] afterChange {
-0|site       |   operation: 'create',
-0|site       |   id: 90,
-0|site       |   filename: 'consultation-5-1787500223175-mt5zhbd46id3yk.webm',
-0|site       |   mimeType: 'video/webm',
-0|site       |   filesize: 10152131
-0|site       | }
-0|site       | [MediaSoupRecording/FinalizeServer] Media uploaded, ID: 90
-0|site       | [MediaSoupRecording/FinalizeServer] CallRecording created, ID: 17
-0|site       | [MediaSoupRecording/FinalizeServer] Cleaned up recording file
-2|mediasoup  | [RecordingController] Finalized video segment appointment_5-1787500155249
+2|mediasou | [Recorder] Track a-video: 786432 bytes -> usable
+2|mediasou | [Recorder] Track b-video: 3407872 bytes -> usable
+2|mediasou | [Recorder] Track a-audio: 0 bytes -> EMPTY (dropped)
+2|mediasou | [Recorder] Track b-audio: 0 bytes -> EMPTY (dropped)
+2|mediasou | [Recorder] Composing: ffmpeg -loglevel warning -nostdin -f lavfi -i color=c=black:s=1280x360:r=15 -itsoffset 0.296 -i /tmp/mediasoup-recordings/appointment_3-1787737830033.a-video.mkv -i /tmp/mediasoup-recordings/appointment_3-1787737830033.b-video.mkv -filter_complex [1:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w0];[0:v][w0]overlay=x=0:y=0:eof_action=pass:repeatlast=0[b0];[2:v]fps=15,scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[w1];[b0][w1]overlay=x=640:y=0:eof_action=pass:repeatlast=0,format=yuv420p[v] -map [v] -t 41 -c:v libvpx -deadline good -cpu-used 4 -b:v 1500k -g 60 -r 15 -avoid_negative_ts make_zero -c:a libopus -b:a 128k -f webm -y /tmp/mediasoup-recordings/appointment_3-1787737830033.webm
+2|mediasou | [Recorder] FFmpeg [appointment_3-1787737830033/a-video] exited with code null
+2|mediasou | [Recorder] FFmpeg [appointment_3-1787737830033/b-video] exited with code null
+2|mediasou | [Recorder] FFmpeg [appointment_3-1787737830033/b-audio] exited with code null
+2|mediasou | [Recorder] FFmpeg [appointment_3-1787737830033/a-audio] exited with code null
+2|mediasou | [Recorder] Compose [appointment_3-1787737830033]: [out#0/webm @ 0x5fe33454b8c0] Codec AVOption b:a (set bitrate (in bits/s)) has not been used for any stream. The most likely reason is either wrong type (e.g. a video option with no video streams) or that it is a private option of some decoder which was not actually used for any stream.
+2|mediasou | [MediaSoup] removed socket=StVYIINg0Hivb5bdAAAB room=appointment_3 peer=doctor-27 reason=participant-disconnected removed=true
+2|mediasou | [Recorder] Compose [appointment_3-1787737830033]: [matroska,webm @ 0x5fe334541200] File ended prematurely
+2|mediasou | [Recorder] Compose [appointment_3-1787737830033]: [matroska,webm @ 0x5fe334548dc0] File ended prematurely
+2|mediasou | [Recorder] Stopped segment appointment_3-1787737830033 (41s, completed)
+2|mediasou | [RecordingController] Finalized video segment appointment_3-1787737830033
