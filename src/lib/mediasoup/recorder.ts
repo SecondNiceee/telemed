@@ -26,102 +26,46 @@
  * Этап 2 (после звонка): офлайн-склейка. Мы САМИ задаём смещения дорожек
  * через -itsoffset на основе замеров этапа 1. Синхронизация становится
  * детерминированной: ею управляем мы, а не демуксер FFmpeg.
+ *
+ * СТРУКТУРА. Этот файл - оркестратор: он владеет сессиями, создаёт входы и
+ * ведёт сегмент от старта до склейки. Детали вынесены в ./recording:
+ * - ffmpeg-args      сборка SDP и аргументов (чистые функции)
+ * - process-lifecycle запуск/остановка процессов и склейка
+ * - media-clock      замер старта дорожек и смещения между ними
+ * - port-pool        выделение RTP-портов
+ * - layout, types    геометрия кадра и общие типы
  */
 
-import { spawn, ChildProcess, execSync } from 'child_process'
-import { existsSync, statSync } from 'fs'
+import { execSync } from 'child_process'
 import { writeFile, unlink } from 'fs/promises'
 import path from 'path'
-import type { types as mediasoupTypes } from 'mediasoup'
 import { recordingConfig, plainTransportOptions } from './config'
 import { assertEnoughFreeSpace, getFreeBytes } from '../recordings-dir'
+import { generateSdp } from './recording/ffmpeg-args'
+import { KEYFRAME_RECOVERY_INTERVAL_MS } from './recording/layout'
+import { trackMediaStart } from './recording/media-clock'
+import { PortPool } from './recording/port-pool'
+import {
+  composeSegment,
+  hasUsableData,
+  startInputFfmpeg,
+  stopInputProcesses,
+} from './recording/process-lifecycle'
+import type {
+  ParticipantProducers,
+  Producer,
+  RecordingInput,
+  RecordingSession,
+  Router,
+} from './recording/types'
 
-type Router = mediasoupTypes.Router
-type Producer = mediasoupTypes.Producer
-type PlainTransport = mediasoupTypes.PlainTransport
-type Consumer = mediasoupTypes.Consumer
-
-/** Один медиапоток одного участника: свой порт, свой SDP, свой FFmpeg, свой файл */
-interface RecordingInput {
-  producerId: string
-  kind: 'audio' | 'video'
-  /** Читаемая метка для логов и раскладки: a-video, b-video, a-audio, b-audio */
-  label: string
-  /** Порядок участника: 0 - левое окно, 1 - правое окно */
-  slot: 0 | 1
-  transport: PlainTransport
-  consumer: Consumer
-  rtpPort: number
-  rtcpPort: number
-  sdpPath: string
-  rawPath: string
-  ffmpeg: ChildProcess | null
-  /**
-   * Момент начала медиа этой дорожки по часам mediasoup-воркера (мс).
-   * Все дорожки замеряются одним и тем же клоком, поэтому разности
-   * корректны - именно они превращаются в -itsoffset на этапе склейки.
-   */
-  startTs: number | null
-  /** Резервный замер по часам Node, если trace не дал timestamp */
-  startTsFallback: number | null
-}
-
-/** Producers of one participant to include in a segment */
-export interface ParticipantProducers {
-  peerId: string
-  audio: Producer
-  video?: Producer
-}
-
-export interface RecordingSession {
-  id: string
-  roomId: string
-  appointmentId: number | null
-  recordingType: 'video' | 'audio'
-  startedAt: Date
-  status: 'starting' | 'recording' | 'stopping' | 'composing' | 'completed' | 'failed'
-  filePath: string
-  durationSeconds: number
-  inputs: RecordingInput[]
-  keyFrameTimer: NodeJS.Timeout | null
-  /**
-   * Участник переопубликовал дорожки посреди сегмента (реконнект), поэтому
-   * сегмент закрывается и начинается новый. Флаг нужен, чтобы перезапуск
-   * произошёл один раз, а не на каждый закрытый продюсер.
-   */
-  interrupted: boolean
-  error?: string
-}
-
-const PORT_RANGE_START = 5000
-const PORT_RANGE_END = 5998
-
-/** Файл меньше этого размера считаем пустым (FFmpeg не получил медиа) */
-const MIN_USABLE_FILE_BYTES = 2048
-
-/**
- * Редкая страховка на случай, если FFmpeg всё же потерял опорный кадр.
- * Раньше здесь было 2000 мс - именно это и роняло частоту кадров до ~2 fps
- * (подробности в scheduleKeyFrameRequests).
- */
-const KEYFRAME_RECOVERY_INTERVAL_MS = 30_000
-
-/** Частота кадров итоговой записи: одна и та же для фильтров и для вывода. */
-const OUTPUT_FPS = 15
-
-/**
- * Раскладка 2x1. Панели 16:9 под вебкамеру: раньше стояло 640x480 (4:3), и
- * кадр 16:9 вписывался туда с чёрными полосами сверху и снизу - четверть
- * площади уходила впустую и всё равно кодировалась.
- */
-const PANE_W = 640
-const PANE_H = 360
-const CANVAS_W = PANE_W * 2
-const CANVAS_H = PANE_H
+// Публичная поверхность модуля не изменилась: потребители (RecordingController)
+// по-прежнему берут и recorder, и типы сессии из этого файла.
+export type { ParticipantProducers, RecordingSession } from './recording/types'
 
 class Recorder {
   private readonly sessions = new Map<string, RecordingSession>()
-  private readonly usedPorts = new Set<number>()
+  private readonly ports = new PortPool()
   private ffmpegAvailable: boolean | null = null
 
   /**
@@ -144,55 +88,6 @@ class Recorder {
     return this.ffmpegAvailable
   }
 
-  /** Allocate an even RTP port + odd RTCP port pair, tracking usage. */
-  private allocatePortPair(): { rtpPort: number; rtcpPort: number } {
-    for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port += 2) {
-      if (!this.usedPorts.has(port)) {
-        this.usedPorts.add(port)
-        return { rtpPort: port, rtcpPort: port + 1 }
-      }
-    }
-    throw new Error('No free RTP ports for recording')
-  }
-
-  private releasePorts(session: RecordingSession): void {
-    for (const input of session.inputs) this.usedPorts.delete(input.rtpPort)
-  }
-
-  /**
-   * Замер момента старта дорожки через mediasoup trace.
-   *
-   * Для аудио опорная точка - первый RTP-пакет. Для видео - первый КЛЮЧЕВОЙ
-   * КАДР: FFmpeg отбрасывает видеопакеты до него, поэтому файл фактически
-   * начинается с keyframe, и именно его надо б����������ать за ноль дорожки.
-   * После замера trace отключаем, чтобы не грузить воркер.
-   */
-  private trackMediaStart(input: RecordingInput): void {
-    const traceType = input.kind === 'video' ? 'keyframe' : 'rtp'
-
-    input.consumer.on('trace', (trace: { type: string; timestamp?: number }) => {
-      // Раньше здесь стояла проверка startTs !== null. Если mediasoup не дал
-      // валидный timestamp, startTs оставался null - и обработчик срабатывал
-      // на КАЖДОМ следующем trace, каждый раз перезаписывая startTsFallback.
-      // В итоге для аудио (trace на каждый RTP-пакет) в fallback оказывалось
-      // время ПОСЛЕДНЕГО пакета вместо первого, и смещения дорожек считались
-      // от мусорных значений. Сторожим по fallback: он выставляется всегда.
-      if (input.startTsFallback !== null) return
-      if (trace.type !== traceType) return
-
-      input.startTs = typeof trace.timestamp === 'number' && trace.timestamp > 0 ? trace.timestamp : null
-      input.startTsFallback = Date.now()
-      console.log(`[Recorder] ${input.label} media start captured (${traceType})`)
-
-      // Больше trace не нужен.
-      input.consumer.enableTraceEvent([]).catch(() => {})
-    })
-
-    input.consumer.enableTraceEvent([traceType]).catch((error) => {
-      console.warn(`[Recorder] Cannot enable trace for ${input.label}:`, error)
-    })
-  }
-
   /**
    * Pipe one producer to FFmpeg: PlainTransport consumes the producer and
    * sends RTP to 127.0.0.1:<rtpPort> where FFmpeg is listening (per SDP).
@@ -203,7 +98,7 @@ class Recorder {
     producer: Producer,
     slot: 0 | 1,
   ): Promise<RecordingInput> {
-    const { rtpPort, rtcpPort } = this.allocatePortPair()
+    const { rtpPort, rtcpPort } = this.ports.allocatePair()
     const transport = await router.createPlainTransport({
       ...plainTransportOptions,
       listenInfo: { ...plainTransportOptions.listenInfo, ip: '127.0.0.1', announcedAddress: undefined },
@@ -269,12 +164,12 @@ class Recorder {
         startTsFallback: null,
       }
 
-      this.trackMediaStart(input)
+      trackMediaStart(input)
       this.watchProducerClose(session, input)
       this.watchProducerPauseResume(session, input)
       return input
     } catch (error) {
-      this.usedPorts.delete(rtpPort)
+      this.ports.release(rtpPort)
       transport.close()
       throw error
     }
@@ -363,426 +258,6 @@ class Recorder {
   }
 
   /**
-   * SDP ровно с ОДНОЙ m=-секцией. Это ключ к новой схеме: у процесса FFmpeg
-   * нет второго потока, с которым надо что-то синхронизировать.
-   */
-  private generateSdp(input: RecordingInput): string {
-    const codec = input.consumer.rtpParameters.codecs[0]
-    const payloadType = codec.payloadType
-    const codecName = codec.mimeType.split('/')[1]
-
-    const lines = ['v=0', 'o=- 0 0 IN IP4 127.0.0.1', 's=MediaSoup Recording', 'c=IN IP4 127.0.0.1', 't=0 0']
-
-    if (input.kind === 'video') {
-      lines.push(`m=video ${input.rtpPort} RTP/AVP ${payloadType}`)
-      lines.push(`a=rtpmap:${payloadType} ${codecName}/${codec.clockRate}`)
-    } else {
-      lines.push(`m=audio ${input.rtpPort} RTP/AVP ${payloadType}`)
-      lines.push(`a=rtpmap:${payloadType} ${codecName}/${codec.clockRate}/${codec.channels || 2}`)
-    }
-
-    const fmtp = Object.entries(codec.parameters ?? {})
-      .map(([key, value]) => `${key}=${value}`)
-      .join(';')
-    if (fmtp) lines.push(`a=fmtp:${payloadType} ${fmtp}`)
-    lines.push(`a=rtcp:${input.rtcpPort}`)
-    lines.push('a=recvonly')
-
-    return lines.join('\r\n') + '\r\n'
-  }
-
-  /**
-   * ЭТАП 1: приём одного потока и запись в файл без перекодирования.
-   *
-   * -use_wallclock_as_timestamps ставит метки по времени прихода пакетов. Для
-   * ОДНОГО потока это идеально: метки монотонны, длительность файла равна
-   * реальному времени, и никакие RTP-таймстампы уже ничего не портят.
-   * Без -nostdin: остановка идёт командой "q" через stdin - только так FFmpeg
-   * гарантированно финализирует контейнер.
-   */
-  private buildInputFfmpegArgs(input: RecordingInput): string[] {
-    const isAudio = input.kind === 'audio'
-
-    return [
-      '-loglevel', 'warning',
-      '-protocol_whitelist', 'file,rtp,udp',
-
-      // Анализ входа для аудио отключён - см. ниже про пустые файлы.
-      //
-      // Факт из логов: процессы a-audio/b-audio жили все 53 секунды, но файлы
-      // остались настолько пустыми, что hasUsableData их отбросил
-      // ("Skipping empty tracks: a-audio, b-audio"), и в склейку не попало
-      // -map '[a]'. При этом в stderr по аудио не было НИ ОДНОГО сообщения,
-      // тогда как видео исправно писало "max delay reached".
-      //
-      // Пустой файл при живом процессе означает, что дело было до/на записи
-      // заголовка: FFmpeg пишет заголовок только ПОСЛЕ
-      // avformat_find_stream_info(), а для аудио анализ требует РАСКОДИРОВАТЬ
-      // пакет, чтобы узнать sample_fmt. Кодек, частоту и каналы мы и так
-      // знаем из SDP, поэтому анализ здесь - чистый риск без пользы: с
-      // analyzeduration 0 заголовок пишется сразу.
-      //
-      // Для видео лимиты не трогаем: оно писалось исправно, и менять то, что
-      // работает, смысла нет.
-      '-analyzeduration', isAudio ? '0' : '5M',
-      '-probesize', isAudio ? '32' : '5M',
-
-      '-buffer_size', '8388608',
-      '-max_delay', '1000000',
-      '-reorder_queue_size', '2048',
-      '-thread_queue_size', '8192',
-
-      // Ставится и аудио, и видео - НЕ РАЗДЕЛЯТЬ.
-      //
-      // Была попытка оставить аудио родные RTP-таймстампы (они сэмпл-точные),
-      // чтобы убрать уплыв звука. Так делать нельзя: чтобы перевести
-      // RTP-таймстамп в реальное время, FFmpeg должен получить RTCP Sender
-      // Report, а здесь его фактически нет - PlainTransport recvonly, и
-      // rtcpFeedback мы вырезаем в createInput. Без SR у демуксера нет
-      // надёжной привязки к таймлинии, и после той правки звук пропал совсем.
-      //
-      // Уплыв звука лечится не здесь, а в aresample на этапе склейки: метки по
-      // времени прихода не имеют система��ич��ского дрейфа (они привязаны к
-      // реальному времени), в них есть т��ль��о джиттер ±десятки мс.
-      '-use_wallclock_as_timestamps', '1',
-
-      '-i', input.sdpPath,
-      '-map', '0',
-
-      // ЭТО ПРИЧИНА ТОГО, ЧТО КАРТИНКА ВРАЧА ПРОПАДАЕТ ЗА ПОЛМИНУТЫ ДО КОНЦА.
-      //
-      // Все дорожки обрываются на SIGKILL, поэтому запись обязана быть
-      // устойчивой к обрыву. Логи это доказывают: размеры файлов - ТОЧНЫЕ
-      // кратные 64 КБ (786432 = 12x65536, 4980736 = 76x65536), то есть на диск
-      // попали только целые блоки буфера AVIO, а хвост пропал вместе с
-      // процессом. У кого буфер не успел наполниться, тот и теряет больше:
-      // дорожка врача обрывается заметно раньше дорожки пациента, а
-      // eof_action=pass обнажает чёрный базовый слой - отсюда "видео врача
-      // кончилось раньше".
-      //
-      // -flush_packets 1 убирает саму причину: каждый пакет сбрасывается на
-      // диск сразу, поэтому на SIGKILL теряется один пакет вместо 64 КБ.
-      '-flush_packets', '1',
-
-      ...(isAudio
-        // СЫРОЙ PCM без контейнера. WAV хранит размер данных в заголовке и
-        // правит его при закрытии - у оборванного файла он остаётся нулевым,
-        // отсюда "Ignoring maximum wav data size" и "Packet corrupt" в логах
-        // склейки. У сырого PCM заголовка нет вообще, поэтому обрыв не портит
-        // ничего: читается ровно то, что записано.
-        //
-        // Моно 48 кГц: речь, дальше всё равно amix в ��дин канал. Это ~96 КБ/с,
-        // то есть ~350 МБ на час на участника в /tmp - временные файлы
-        // удаляются сразу после склейки.
-        ? ['-c:a', 'pcm_s16le', '-ac', '1', '-ar', '48000', '-f', 's16le']
-        // Matroska в режиме live: без cues и seekhead в конце файла, размеры
-        // кластеров не проставляются задним числом. Именно эта финализация и
-        // не происходит при SIGKILL, из-за чего склейка ругалась "File ended
-        // prematurely". В live-режиме оборванный файл читается до последнего
-        // целого кластера.
-        : ['-c', 'copy', '-f', 'matroska', '-live', '1']),
-
-      '-y', input.rawPath,
-    ]
-  }
-
-  private startInputFfmpeg(session: RecordingSession, input: RecordingInput): ChildProcess {
-    const args = this.buildInputFfmpegArgs(input)
-    console.log(`[Recorder] Starting FFmpeg [${input.label}]:`, recordingConfig.ffmpegPath, args.join(' '))
-
-    const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
-
-    ffmpeg.stderr?.on('data', (data: Buffer) => {
-      const text = data.toString().trim()
-      if (text) console.log(`[Recorder] FFmpeg [${session.id}/${input.label}]: ${text}`)
-    })
-
-    ffmpeg.on('close', (code) => {
-      console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] exited with code ${code}`)
-    })
-
-    ffmpeg.on('error', (error) => {
-      console.error(`[Recorder] FFmpeg [${session.id}/${input.label}] error:`, error)
-    })
-
-    return ffmpeg
-  }
-
-  /**
-   * Дорожка пригодна для склейки, только если FFmpeg реально что-то записал.
-   * Размер логируем всегда: пустая дорожка молча выпадает из склейки, и без
-   * этой строки "звука нет" выглядит как необъяснимое поведение.
-   */
-  private hasUsableData(input: RecordingInput): boolean {
-    try {
-      const size = existsSync(input.rawPath) ? statSync(input.rawPath).size : 0
-      const usable = size >= MIN_USABLE_FILE_BYTES
-      console.log(
-        `[Recorder] Track ${input.label}: ${size} bytes -> ${usable ? 'usable' : 'EMPTY (dropped)'}`,
-      )
-      return usable
-    } catch {
-      console.warn(`[Recorder] Track ${input.label}: cannot stat ${input.rawPath}`)
-      return false
-    }
-  }
-
-  /**
-   * Смещения дорожек в секундах относительно самой ранней из них.
-   * Используем trace-часы mediasoup, если они есть у ВСЕХ дорожек (иначе
-   * единицы измерения смешались бы), иначе часы Node, иначе нули.
-   */
-  private computeOffsets(inputs: RecordingInput[]): Map<RecordingInput, number> {
-    const offsets = new Map<RecordingInput, number>()
-
-    const pickClock = (): ((input: RecordingInput) => number) | null => {
-      if (inputs.every((i) => i.startTs !== null)) return (i) => i.startTs as number
-      if (inputs.every((i) => i.startTsFallback !== null)) return (i) => i.startTsFallback as number
-      return null
-    }
-
-    const clock = pickClock()
-    if (!clock) {
-      console.warn('[Recorder] No common clock for all tracks - composing without offsets')
-      for (const input of inputs) offsets.set(input, 0)
-      return offsets
-    }
-
-    const base = Math.min(...inputs.map(clock))
-    for (const input of inputs) {
-      // Отрицательных смещений быть не может: base - минимум.
-      const offsetSeconds = Math.max(0, (clock(input) - base) / 1000)
-      offsets.set(input, Number(offsetSeconds.toFixed(3)))
-    }
-    return offsets
-  }
-
-  /**
-   * ЭТАП 2: офлайн-склейка отдельных файлов в итоговый WebM.
-   *
-   * Каждый файл подключается со своим -itsoffset, поэтому дорожки встают на
-   * общую таймлинию ровно так, как они шли в реальности. Чёрный канвас задаёт
-   * геометрию кадра и живёт всю запись, поэтому пауза или обрыв одного видео
-   * не роняет картинку целиком. Здесь нет реального времени: FFmpeg считает
-   * столько, сколько нужно, и кадры не теряются.
-   */
-  private buildComposeArgs(session: RecordingSession, usable: RecordingInput[]): string[] {
-    const videos = usable.filter((i) => i.kind === 'video').sort((a, b) => a.slot - b.slot)
-    const audios = usable.filter((i) => i.kind === 'audio').sort((a, b) => a.slot - b.slot)
-    const withVideo = videos.length > 0
-    const offsets = this.computeOffsets(usable)
-
-    // -progress pipe:1 даёт машинный отчёт о прогрессе в stdout примерно раз в
-    // полсекунды. Он нужен composeSegment, чтобы отличать "медленно считает" от
-    // "завис": при -loglevel warning в stderr во время нормальной работы тишина,
-    // и по нему судить о живости процесса нельзя.
-    //
-    // ВАЖНО: раз мы это включаем, stdout ОБЯЗАН кто-то читать. Иначе пайп
-    // заполнится и FFmpeg встанет на записи в него - то есть ровно то зависание,
-    // которое мы пытаемся ловить.
-    const args: string[] = ['-loglevel', 'warning', '-nostdin', '-progress', 'pipe:1']
-    const streamIndex = new Map<RecordingInput, number>()
-    let nextIndex = 0
-
-    if (withVideo) {
-      args.push('-f', 'lavfi', '-i', `color=c=black:s=${CANVAS_W}x${CANVAS_H}:r=${OUTPUT_FPS}`)
-      nextIndex = 1
-    }
-
-    for (const input of [...videos, ...audios]) {
-      const offset = offsets.get(input) ?? 0
-      // У сырого PCM нет заголовка, поэтому параметры потока задаём здесь -
-      // иначе FFmpeg не знает ни частоту, ни разрядность, ни число каналов.
-      // Значения обязаны совпадать с записью в buildInputFfmpegArgs.
-      if (input.kind === 'audio') {
-        args.push('-f', 's16le', '-ar', '48000', '-ac', '1')
-      }
-      if (offset > 0) args.push('-itsoffset', String(offset))
-      args.push('-i', input.rawPath)
-      streamIndex.set(input, nextIndex)
-      nextIndex += 1
-    }
-
-    const filters: string[] = []
-    const windowChain = (index: number, name: string) =>
-      `[${index}:v]fps=${OUTPUT_FPS},scale=${PANE_W}:${PANE_H}:force_original_aspect_ratio=decrease,` +
-      `pad=${PANE_W}:${PANE_H}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p[${name}]`
-
-    if (withVideo) {
-      // Каждое видео кладём на канвас. eof_action=pass + repeatlast=0: когда
-      // поток участника заканчивается, его половина просто становится чёрной,
-      // а запись продолжается (раньше конец одного потока обрезал всё видео).
-      let base = '[0:v]'
-      videos.forEach((input, position) => {
-        const name = position === 0 ? 'w0' : 'w1'
-        filters.push(windowChain(streamIndex.get(input) as number, name))
-        const x = input.slot === 0 ? 0 : PANE_W
-        const isLast = position === videos.length - 1
-        const out = isLast ? '[v]' : `[b${position}]`
-        const tail = isLast ? ',format=yuv420p' : ''
-        filters.push(`${base}[${name}]overlay=x=${x}:y=0:eof_action=pass:repeatlast=0${tail}${out}`)
-        base = out
-      })
-    }
-
-    // Тут лечится уплыв звука. async=1000 (было изначально) разрешал
-    // ресемплеру растягивать/сжимать до 1000 сэмплов в секунду, подгоняя звук
-    // под джиттерные м��тки - на часовой записи это давало накопительный уплыв
-    // и слышимую порчу тембра. async=1 оставляет только то, что реально нужно:
-    // заполнение настоящих разрывов тишиной, с порогом 100 мс, бе��
-    // растягивания сэмплов.
-    //
-    // first_pts=0 здесь БЫТЬ НЕ ДОЛЖНО: он прибивает начало дорожки к нулю и
-    // тем самым отменяет -itsoffset этого входа, то есть ломает ровно ту
-    // синхронизацию, ради которой смещения и считаются.
-    const RESAMPLE = 'aresample=async=1:min_hard_comp=0.100'
-
-    if (audios.length === 2) {
-      const [first, second] = audios
-      filters.push(`[${streamIndex.get(first)}:a]${RESAMPLE}[a0]`)
-      filters.push(`[${streamIndex.get(second)}:a]${RESAMPLE}[a1]`)
-      filters.push(`[a0][a1]amix=inputs=2:duration=longest:normalize=0${withVideo ? ',apad' : ''}[a]`)
-    } else if (audios.length === 1) {
-      filters.push(`[${streamIndex.get(audios[0])}:a]${RESAMPLE}${withVideo ? ',apad' : ''}[a]`)
-    }
-
-    args.push('-filter_complex', filters.join(';'))
-
-    if (withVideo) args.push('-map', '[v]')
-    if (audios.length > 0) args.push('-map', '[a]')
-
-    if (withVideo) {
-      args.push(
-        // Канвас бесконечен, а apad добавляет тишину - длительность задаём сами
-        // по реальному времени сегмента.
-        '-t', String(session.durationSeconds),
-        '-c:v', recordingConfig.videoCodec,
-        '-deadline', 'good',
-        '-cpu-used', '4',
-        '-b:v', '1500k',
-        '-g', '60',
-        // Постоянная частота кадров на выводе: входные дорожки принципиально
-        // VFR (wallclock-метки), и рваные PTS дали бы "плавающий" fps.
-        // Осознанно только -r, без -fps_mode cfr: -fps_mode появился в FFmpeg
-        // 5.0, а на Ubuntu 20.04 штатный ffmpeg - 4.2, где эта опция валит
-        // процесс целиком. CFR и без неё гарантиро��ан: фильтр fps= на каждом
-        // окне, чёрный канвас с r=OUTPUT_FPS как база overlay и это -r.
-        '-r', String(OUTPUT_FPS),
-      )
-    }
-
-    args.push(
-      '-avoid_negative_ts', 'make_zero',
-      '-c:a', recordingConfig.audioCodec,
-      '-b:a', '128k',
-      '-f', recordingConfig.format,
-      '-y', session.filePath,
-    )
-    return args
-  }
-
-  /**
-   * Запускает офлайн-склейку и ждёт её завершения.
-   *
-   * Раньше здесь стоял фиксированный лимит 30 минут, и для часовой консультации
-   * он был опасен: склейка перекодирует запись в VP8 (54 000 кадров на час),
-   * идёт быстрее реального времени в несколько раз, но при нескольких
-   * консультациях одновременно они делят CPU. Упёршись в лимит, процесс
-   * получал SIGKILL - и запись пропадала ЦЕЛИКОМ, уже после звонка.
-   *
-   * Теперь лимита по календарному времени нет. Вместо него две проверки:
-   *   - зависание: прогресс не двигался STALL_MS - процесс мёртв, убиваем;
-   *   - абсолютный предел: пропорционален длине записи, а не константа.
-   * Медленная, но живая склейка доводится до конца.
-   */
-  private composeSegment(session: RecordingSession, usable: RecordingInput[]): Promise<void> {
-    const args = this.buildComposeArgs(session, usable)
-    console.log('[Recorder] Composing:', recordingConfig.ffmpegPath, args.join(' '))
-
-    // Нет прогресса 5 минут - это не медленный кодек, а зависший процесс.
-    const STALL_MS = 5 * 60 * 1000
-    // Даже на очень загруженной машине склейка укладывается в несколько единиц
-    // реального времени записи. 8x + 15 минут запаса - предел, за которым
-    // происходящее уже ненормально. Для часа это ~8.25 часа против прежних 30
-    // минут, при которых час не имел шансов.
-    const HARD_CAP_MS = session.durationSeconds * 8000 + 15 * 60 * 1000
-
-    return new Promise<void>((resolve, reject) => {
-      const ffmpeg = spawn(recordingConfig.ffmpegPath, args)
-      const startedAt = Date.now()
-
-      let lastProgressAt = Date.now()
-      let lastLogAt = 0
-      let encodedMs = 0
-      let killedReason: string | null = null
-
-      ffmpeg.stderr?.on('data', (data: Buffer) => {
-        const text = data.toString().trim()
-        if (text) console.log(`[Recorder] Compose [${session.id}]: ${text}`)
-      })
-
-      // Читать stdout ОБЯЗАТЕЛЬНО - см. комментарий про -progress в
-      // buildComposeArgs. Заодно это и есть наш индикатор живости.
-      ffmpeg.stdout?.on('data', (data: Buffer) => {
-        lastProgressAt = Date.now()
-
-        const match = /out_time_us=(\d+)/.exec(data.toString())
-        if (match) encodedMs = Number(match[1]) / 1000
-
-        // Прогресс приходит дважды в секунду - в лог пишем раз в 30 с, иначе он
-        // станет нечитаемым. Зато по нему видно реальную скорость склейки.
-        const now = Date.now()
-        if (now - lastLogAt >= 30_000) {
-          lastLogAt = now
-          const wallSeconds = (now - startedAt) / 1000
-          const speed = wallSeconds > 0 ? encodedMs / 1000 / wallSeconds : 0
-          console.log(
-            `[Recorder] Compose [${session.id}]: ` +
-              `${Math.round(encodedMs / 1000)}s / ${Math.round(session.durationSeconds)}s ` +
-              `(${speed.toFixed(1)}x realtime, ${Math.round(wallSeconds)}s elapsed)`,
-          )
-        }
-      })
-
-      const watchdog = setInterval(() => {
-        if (ffmpeg.exitCode !== null || ffmpeg.signalCode !== null) return
-
-        const idleMs = Date.now() - lastProgressAt
-        if (idleMs >= STALL_MS) {
-          killedReason = `no progress for ${Math.round(idleMs / 1000)}s`
-        } else if (Date.now() - startedAt >= HARD_CAP_MS) {
-          killedReason = `exceeded hard cap of ${Math.round(HARD_CAP_MS / 60000)} min`
-        }
-
-        if (killedReason) {
-          console.error(`[Recorder] Compose [${session.id}] killed: ${killedReason}`)
-          ffmpeg.kill('SIGKILL')
-        }
-      }, 30_000)
-      watchdog.unref()
-
-      const cleanup = (): void => clearInterval(watchdog)
-
-      ffmpeg.on('error', (error) => {
-        cleanup()
-        reject(error)
-      })
-      ffmpeg.on('close', (code) => {
-        cleanup()
-        if (code === 0) {
-          const wallSeconds = Math.round((Date.now() - startedAt) / 1000)
-          console.log(`[Recorder] Compose [${session.id}] finished in ${wallSeconds}s`)
-          resolve()
-        } else if (killedReason) {
-          reject(new Error(`Compose FFmpeg killed: ${killedReason}`))
-        } else {
-          reject(new Error(`Compose FFmpeg exited with code ${code}`))
-        }
-      })
-    })
-  }
-
-  /**
    * Start recording one call segment with both participants.
    * recordingType is derived from the inputs: video when both have video.
    */
@@ -833,8 +308,8 @@ class Recorder {
 
       // Каждому потоку - свой SDP и свой процесс FFmpeg.
       for (const input of session.inputs) {
-        await writeFile(input.sdpPath, this.generateSdp(input))
-        input.ffmpeg = this.startInputFfmpeg(session, input)
+        await writeFile(input.sdpPath, generateSdp(input))
+        input.ffmpeg = startInputFfmpeg(session, input)
       }
 
       session.status = 'recording'
@@ -850,9 +325,9 @@ class Recorder {
     } catch (error) {
       session.status = 'failed'
       session.error = error instanceof Error ? error.message : 'Unknown error'
-      await this.stopInputProcesses(session)
+      await stopInputProcesses(session)
       this.closeInputs(session)
-      this.releasePorts(session)
+      this.ports.releaseSession(session)
       console.error('[Recorder] Failed to start segment:', error)
       throw error
     }
@@ -883,7 +358,7 @@ class Recorder {
    * продюсера ОДИН и общий для живого звонка и для записи. Ключевой кадр
    * весит в 5-15 раз больше разностного, а битрейт задан жёстко (см.
    * encodings в use-mediasoup). Прося keyframe каждые 2 с, мы заставляли
-   * кодировщик тратить по��ти весь бюджет на опорные кадры - на разностные не
+   * кодировщик тратить почти весь бюджет на опорные кадры - на разностные не
    * оставалось ничего, и он ронял частоту кадров до считанных единиц. То есть
    * 2 fps приходили УЖЕ ТАКИМИ от браузера, склейка тут ни при чём. Хуже
    * того, это одновременно портило картинку живому собеседнику.
@@ -891,7 +366,7 @@ class Recorder {
    * Правильно: запросить keyframe только на старте (чтобы FFmpeg начал писать
    * без долгого чёрного участка) и дальше не мешать - у VP8 есть свой
    * интервал опорных кадров, а потери на loopback-UDP практически исключены.
-   * Оставляем редкую с��раховку раз в 30 с: на дистанции часа это ~120 лишних
+   * Оставляем редкую страховку раз в 30 с: на дистанции часа это ~120 лишних
    * кадров вместо ~1800 и не ломает бюджет кодировщика.
    */
   private scheduleKeyFrameRequests(session: RecordingSession): void {
@@ -921,97 +396,6 @@ class Recorder {
       if (!input.consumer.closed) input.consumer.close()
       if (!input.transport.closed) input.transport.close()
     }
-  }
-
-  /**
-   * ЭТО ПРИЧИНА ОБРЕЗАННЫХ ФАЙЛОВ И ЧЁРНОЙ ПОЛОВИНЫ КАНВАСА.
-   *
-   * Раньше killTimer вызывал resolve() СРАЗУ после отправки SIGKILL, не дожидаясь
-   * события 'close'. Из-за этого stopInputProcesses завершался, пока процессы
-   * ещё умирали, и hasUsableData мерил файлы до того, как FFmpeg сбросил буферы
-   * и дописал контейнер.
-   *
-   * В логах это видно буквально: строки "Track a-video: ... bytes" напечатаны
-   * РАНЬШЕ, чем "FFmpeg [a-video] exited with code null". Размеры при этом
-   * оказались точными кратными 64 КБ (786432 = 12x65536, 3407872 = 52x65536) -
-   * то есть на диск попали только целые блоки буфера, а хвост потерялся. Отсюда
-   * же "File ended prematurely" на склейке: SIGKILL не даёт дописать ни данные,
-   * ни индекс.
-   *
-   * Дальше это превращалось в симптом "у врача видео кончилось раньше": его
-   * дорожка обрезана сильнее (768 КБ против 3.3 МБ у пациента), а в фильтре
-   * стоит eof_action=pass:repeatlast=0 - после EOF окно перестаёт
-   * дорисовываться и обнажает чёрный базовый слой.
-   *
-   * Теперь эскалация "q" -> SIGINT -> SIGKILL, и resolve() происходит ТОЛЬКО по
-   * 'close'. SIGINT выбран вместо SIGTERM осознанно: FFmpeg обрабатывает его как
-   * штатное прерывание и дописывает контейнер.
-   */
-  private stopInputProcess(session: RecordingSession, input: RecordingInput): Promise<void> {
-    const ffmpeg = input.ffmpeg
-    if (!ffmpeg || ffmpeg.exitCode !== null || ffmpeg.signalCode !== null) return Promise.resolve()
-
-    return new Promise<void>((resolve) => {
-      const timers: NodeJS.Timeout[] = []
-      let settled = false
-
-      const finish = (): void => {
-        if (settled) return
-        settled = true
-        for (const timer of timers) clearTimeout(timer)
-        resolve()
-      }
-
-      const isAlive = (): boolean => ffmpeg.exitCode === null && ffmpeg.signalCode === null
-
-      const later = (ms: number, fn: () => void): void => {
-        const timer = setTimeout(fn, ms)
-        timer.unref()
-        timers.push(timer)
-      }
-
-      // Файл дописан - только теперь можно мерить размер.
-      ffmpeg.once('close', finish)
-
-      later(4000, () => {
-        if (settled || !isAlive()) return
-        console.log(`[Recorder] FFmpeg [${session.id}/${input.label}] ignored "q", sending SIGINT`)
-        ffmpeg.kill('SIGINT')
-      })
-
-      later(9000, () => {
-        if (settled || !isAlive()) return
-        console.warn(
-          `[Recorder] FFmpeg [${session.id}/${input.label}] did not exit, killing ` +
-            '(файл останется недописанным)',
-        )
-        ffmpeg.kill('SIGKILL')
-      })
-
-      // Страховка от вечного зависания: SIGKILL послан на 9-й секунде, 'close'
-      // после него приходит за миллисекунды, ��ак что сюда доходить не должно.
-      later(12000, () => {
-        if (settled) return
-        console.error(`[Recorder] FFmpeg [${session.id}/${input.label}] no 'close' after SIGKILL`)
-        finish()
-      })
-
-      try {
-        if (ffmpeg.stdin && ffmpeg.stdin.writable) {
-          ffmpeg.stdin.write('q')
-          ffmpeg.stdin.end()
-        } else {
-          ffmpeg.kill('SIGINT')
-        }
-      } catch {
-        ffmpeg.kill('SIGINT')
-      }
-    })
-  }
-
-  /** Все дорожки останавливаем параллельно, пока RTP ещё идёт. */
-  private async stopInputProcesses(session: RecordingSession): Promise<void> {
-    await Promise.all(session.inputs.map((input) => this.stopInputProcess(session, input)))
   }
 
   /**
@@ -1068,11 +452,11 @@ class Recorder {
     // процесс не заблокирован в recvfrom и сразу читает "q"), и только потом
     // закрываем консюмеры mediasoup.
     await this.logConsumerStats(session)
-    await this.stopInputProcesses(session)
+    await stopInputProcesses(session)
     this.closeInputs(session)
-    this.releasePorts(session)
+    this.ports.releaseSession(session)
 
-    const usable = session.inputs.filter((input) => this.hasUsableData(input))
+    const usable = session.inputs.filter((input) => hasUsableData(input))
     const skipped = session.inputs.filter((input) => !usable.includes(input))
     if (skipped.length > 0) {
       console.warn(`[Recorder] Skipping empty tracks: ${skipped.map((i) => i.label).join(', ')}`)
@@ -1105,7 +489,7 @@ class Recorder {
 
     try {
       session.status = 'composing'
-      await this.composeSegment(session, usable)
+      await composeSegment(session, usable)
       session.status = 'completed'
     } catch (error) {
       session.status = 'failed'
