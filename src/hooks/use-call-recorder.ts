@@ -18,11 +18,32 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * незакрытый хвост, а не вся запись.
  */
 
-const CHUNK_INTERVAL_MS = 5000
-const CANVAS_WIDTH = 1280
-const CANVAS_HEIGHT = 480
+/**
+ * Параметры подобраны так, чтобы запись как можно меньше отбирала у звонка.
+ *
+ * Запись конкурирует с исходящим потоком врача: чанки уходят обычным POST по
+ * TCP, а TCP-загрузка, в отличие от WebRTC, никому не уступает канал. Поэтому
+ * важен не только средний битрейт, но и РОВНОСТЬ профиля: при интервале 5 с
+ * канвас 1280x480 давал пачки ~1 МБ, каждая из которых выгребала аплинк под
+ * ноль, WebRTC фиксировал потери и ронял simulcast-слой - на приёмной стороне
+ * это выглядело как замутнение картинки врача с периодом 5 с.
+ *
+ * 2 с вместо 5 с: средний объём тот же, но пачка ~136 КБ вместо ~1 МБ - частые
+ * мелкие загрузки congestion control переносит заметно легче.
+ * 960x360 вместо 1280x480: -44% пикселей. canvas.captureStream кодируется
+ * программно (аппаратного кодировщика ему не достаётся), так что это прямая
+ * разгрузка CPU, а значит меньше риска уехать в qualityLimitationReason=cpu,
+ * когда браузер начинает срезать разрешение ИСХОДЯЩЕГО потока.
+ * 750k вместо 1500k: на говорящих головах в 960x360@15 разница визуально
+ * почти не читается, а вклад записи в борьбу за канал падает вдвое.
+ */
+const CHUNK_INTERVAL_MS = 2000
+const CANVAS_WIDTH = 960
+const CANVAS_HEIGHT = 360
 const PANE_WIDTH = CANVAS_WIDTH / 2
 const FPS = 15
+const VIDEO_BITS_PER_SECOND = 750_000
+const AUDIO_BITS_PER_SECOND = 128_000
 
 const VIDEO_MIME_CANDIDATES = [
   'video/webm;codecs=vp8,opus',
@@ -390,8 +411,8 @@ export function useCallRecorder({
     try {
       recorder = new MediaRecorder(new MediaStream(recordedTracks), {
         mimeType,
-        videoBitsPerSecond: 1_500_000,
-        audioBitsPerSecond: 128_000,
+      videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
+      audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
       })
     } catch (error) {
       console.error('[CallRecorder] Failed to create MediaRecorder', error)
