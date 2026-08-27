@@ -6,7 +6,7 @@ import { AppointmentsApi } from "@/lib/api/appointments"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
-  title: "Кабинет организации | smartcardio",
+  title: "Кабинет организации",
   description: "Управление врачами организации на платформе smartcardio Видеоконсультация с врачом",
 }
 

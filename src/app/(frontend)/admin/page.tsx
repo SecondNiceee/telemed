@@ -6,7 +6,7 @@ import { getAdminFromCookieHeader, hasAnyUser } from '@/lib/auth/adminSession'
 import type { AdminOrganisation } from '@/components/admin/types'
 
 export const metadata = {
-  title: 'Панель управления | smartcardio',
+  title: 'Панель управления',
   description: 'Управление организациями платформы smartcardio',
 }
 

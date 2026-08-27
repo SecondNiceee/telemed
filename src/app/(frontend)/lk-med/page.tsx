@@ -7,7 +7,7 @@ import { serverApiFetch, AppointmentsApi, MessagesApi } from "@/lib/api/index"
 import type { ApiDoctor, ApiAppointment } from "@/lib/api/types"
 
 export const metadata = {
-  title: "Кабинет врача | smartcardio",
+  title: "Кабинет врача",
   description: "Личный кабинет врача на платформе smartcardio Видеоконсультация с врачом",
 }
 

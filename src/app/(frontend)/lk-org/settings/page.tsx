@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
-  title: "Настройки организации | smartcardio",
+  title: "Настройки организации",
   description: "Настройки профиля организации на платформе smartcardio",
 }
 

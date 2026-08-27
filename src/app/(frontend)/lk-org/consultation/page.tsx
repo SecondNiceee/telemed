@@ -9,7 +9,7 @@ import { OrgConsultationView } from "@/components/lk-org/consultation/OrgConsult
 import { Footer } from "@/components/footer"
 
 export const metadata = {
-  title: "Просмотр консультации | smartcardio",
+  title: "Просмотр консультации",
   description: "Просмотр чата консультации в кабинете организации",
 }
 

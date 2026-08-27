@@ -12,7 +12,7 @@ import { PaymentPageClient } from "./payment-client";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Оплата консультации - smartcardio",
+  title: "Оплата консультации",
   description: "Оплатите консультацию, чтобы завершить запись к врачу",
 };
 

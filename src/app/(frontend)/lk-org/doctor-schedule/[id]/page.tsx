@@ -6,7 +6,7 @@ import { LkOrgDoctorSchedule } from "@/components/lk-org-doctor-schedule"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata: Metadata = {
-  title: "Расписание врача | smartcardio",
+  title: "Расписание врача",
   description: "Настройка расписания врача по датам",
 }
 

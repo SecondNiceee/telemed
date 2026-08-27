@@ -6,7 +6,7 @@ import { DoctorDashboardContent } from "@/components/doctor-dashboard-content"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
-  title: "Личный кабинет врача | smartcardio",
+  title: "Личный кабинет врача",
   description: "Личный кабинет врача на платформе smartcardio Видеоконсультация с врачом",
 }
 

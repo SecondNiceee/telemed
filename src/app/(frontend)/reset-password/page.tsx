@@ -3,15 +3,21 @@ import { Button } from "@/components/ui/button"
 import { KeyRound, Mail, XCircle } from "lucide-react"
 import Link from "next/link"
 import { ResetPasswordForm } from "./reset-password-form"
+import { buildMetadata } from "@/lib/seo"
 
 interface ResetPasswordPageProps {
   searchParams: Promise<{ token?: string }> | { token?: string }
 }
 
-export const metadata = {
-  title: "Восстановление пароля — smartcardio",
+/**
+ * Токен сброса передаётся в параметрах адреса, поэтому страница закрыта от
+ * индексации: иначе ссылка с действующим токеном могла бы попасть в выдачу.
+ */
+export const metadata = buildMetadata({
+  title: "Восстановление пароля",
   description: "Создайте новый пароль для входа в личный кабинет smartcardio.",
-}
+  index: false,
+})
 
 export default async function ResetPasswordPage({ searchParams }: ResetPasswordPageProps) {
   const params = await Promise.resolve(searchParams)

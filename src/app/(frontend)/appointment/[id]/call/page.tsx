@@ -6,6 +6,15 @@ import { getPayload } from 'payload'
 import { getPayloadJwtSecret } from '@/lib/server/payload-jwt-secret'
 import { CallRoom } from './call-room'
 
+/**
+ * Запрет индексации наследуется из layout раздела /appointment/[id].
+ * Здесь задан только заголовок — он виден на вкладке браузера во время звонка.
+ */
+export const metadata = {
+  title: 'Видеоконсультация',
+  description: 'Комната видеоконсультации с врачом.',
+}
+
 type ParticipantCollection = 'users' | 'doctors'
 type SessionClaims = jwt.JwtPayload & { id: number | string; collection: ParticipantCollection }
 

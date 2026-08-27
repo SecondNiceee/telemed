@@ -1,5 +1,17 @@
 // app/verify-email/page.tsx
 import { VerifyEmailClient } from "./verify-email-client"
+import { buildMetadata } from "@/lib/seo"
+
+/**
+ * Страница открывается только по одноразовой ссылке из письма, и токен лежит
+ * в параметрах адреса. Индексация запрещена: попадание такой ссылки в выдачу
+ * означало бы утечку токена подтверждения.
+ */
+export const metadata = buildMetadata({
+  title: "Подтверждение email",
+  description: "Подтверждение адреса электронной почты.",
+  index: false,
+})
 
 interface VerifyEmailPageProps {
   searchParams: Promise<{ token?: string }> | { token?: string }

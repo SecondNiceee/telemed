@@ -10,7 +10,7 @@ import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
 import type { Media } from "@/payload-types"
 
 export const metadata = {
-  title: "Консультации врача | smartcardio",
+  title: "Консультации врача",
   description: "Просмотр консультаций врача в кабинете организации",
 }
 

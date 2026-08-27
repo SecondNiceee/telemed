@@ -7,7 +7,7 @@ import { AdminCategoriesScreen } from '@/components/admin/admin-categories-scree
 import type { AdminCategory } from '@/components/admin/types'
 
 export const metadata = {
-  title: 'Специальности | smartcardio',
+  title: 'Специальности',
   description: 'Управление специальностями врачей платформы smartcardio',
 }
 

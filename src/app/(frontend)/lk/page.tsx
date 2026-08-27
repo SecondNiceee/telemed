@@ -10,6 +10,12 @@ import { releaseExpiredHolds } from "@/lib/server/appointment-holds"
 
 export const dynamic = "force-dynamic"
 
+// Запрет индексации наследуется из layout раздела /lk.
+export const metadata = {
+  title: "Личный кабинет",
+  description: "Ваши записи на консультации, сообщения и профиль.",
+}
+
 export default async function LkPage() {
   let user = null;
   let appointments: ApiAppointment[] = [];

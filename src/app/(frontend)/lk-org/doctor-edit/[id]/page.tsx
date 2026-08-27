@@ -6,7 +6,7 @@ import { LkOrgDoctorEdit } from "@/components/lk-org-doctor-edit"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata: Metadata = {
-  title: "Редактирование врача | smartcardio",
+  title: "Редактирование врача",
   description: "Редактирование информации врача в системе smartcardio",
 }
 

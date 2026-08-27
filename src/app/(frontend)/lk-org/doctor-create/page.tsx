@@ -5,7 +5,7 @@ import { LkOrgDoctorCreate } from "@/components/lk-org-doctor-create"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
 
 export const metadata = {
-  title: "Добавить врача | smartcardio",
+  title: "Добавить врача",
   description: "Добавление нового врача в кабинете организации на платформе smartcardio Видеоконсультация с врачом",
 }
 

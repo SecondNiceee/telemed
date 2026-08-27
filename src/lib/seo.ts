@@ -52,6 +52,19 @@ export const PRIVATE_PATHS = [
   '/verify-email',
 ] as const
 
+/**
+ * Метаданные для layout закрытого раздела.
+ *
+ * Next наследует метаданные по сегментам: поля, которые страница не задала,
+ * берутся у родителя. Поэтому одного noindex в layout раздела достаточно —
+ * вложенные страницы могут спокойно объявлять свои title и description, и
+ * запрет индексации к ним всё равно применится. Это надёжнее, чем повторять
+ * robots в каждом файле: новая страница внутри раздела закрыта сразу.
+ */
+export const PRIVATE_SECTION_METADATA: Metadata = {
+  robots: { index: false, follow: false, nocache: true, noimageindex: true },
+}
+
 interface BuildMetadataOptions {
   /** Заголовок без названия бренда: суффикс добавляет шаблон в корневом layout. */
   title: string

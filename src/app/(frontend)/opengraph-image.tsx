@@ -22,13 +22,31 @@ const MUTED = '#63697a'
 const PRIMARY = '#704ca6'
 const TEAL = '#009ba3'
 
+/**
+ * Логотип читается с диска, а не через fetch(new URL(..., import.meta.url)).
+ *
+ * Turbopack (бандлер по умолчанию в Next 16) заменяет такой импорт на путь вида
+ * /_next/static/media/logo.<hash>.jpg. Это относительный путь, а fetch требует
+ * абсолютный, поэтому вариант с import.meta.url падал с ERR_INVALID_URL.
+ *
+ * Ошибка чтения не должна ломать страницу целиком: без картинки превью ссылки
+ * просто останется текстовым, а вот ImageResponse с исключением отдаёт 500 и
+ * мессенджеры показывают пустоту.
+ */
+async function readLogo(): Promise<ArrayBuffer | null> {
+  try {
+    const { readFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const file = await readFile(join(process.cwd(), 'public', 'images', 'logo.jpg'))
+    return Uint8Array.from(file).buffer
+  } catch (error) {
+    console.log('[og] Не удалось прочитать логотип:', error)
+    return null
+  }
+}
+
 export default async function OpengraphImage() {
-  // Официальный способ подключить локальный ассет в next/og: путь относительно
-  // самого модуля, а не process.cwd(). В serverless-функции каталог public
-  // на файловой системе может отсутствовать, поэтому fs.readFile ненадёжен.
-  const logo = await fetch(new URL('../../../public/images/logo.jpg', import.meta.url)).then(
-    (response) => response.arrayBuffer(),
-  )
+  const logo = await readLogo()
 
   return new ImageResponse(
     (
@@ -51,14 +69,30 @@ export default async function OpengraphImage() {
             flex: 1,
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse рендерит в PNG, next/image здесь неприменим */}
-          <img src={logo as unknown as string} alt="" width={260} height={204} />
+          {logo ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- ImageResponse рендерит в PNG, next/image здесь неприменим */
+            <img src={logo as unknown as string} alt="" width={260} height={204} />
+          ) : null}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div style={{ fontSize: 62, fontWeight: 700, color: FOREGROUND, lineHeight: 1.1 }}>
-              Видеоконсультации
-              <br />
-              с врачами
+            {/*
+              Satori (движок ImageResponse) требует явный display у любого div
+              с несколькими детьми. Здесь две строки заголовка, поэтому вместо
+              <br /> они разложены в колонку — иначе рендер падает с ошибкой
+              «Expected <div> to have explicit display: flex».
+            */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                fontSize: 62,
+                fontWeight: 700,
+                color: FOREGROUND,
+                lineHeight: 1.1,
+              }}
+            >
+              <span>Видеоконсультации</span>
+              <span>с врачами</span>
             </div>
             <div style={{ fontSize: 30, color: MUTED, lineHeight: 1.4 }}>
               Приём онлайн, не выходя из дома

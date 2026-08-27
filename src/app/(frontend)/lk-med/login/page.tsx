@@ -5,7 +5,7 @@ import type { ApiDoctor } from "@/lib/api/types"
 import { DoctorLoginForm } from "@/components/doctor-login-form"
 
 export const metadata = {
-  title: "Вход для врачей | smartcardio",
+  title: "Вход для врачей",
   description: "Авторизация в личном кабинете врача на платформе smartcardio Видеоконсультация с врачом",
 }
 
