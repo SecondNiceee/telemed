@@ -315,6 +315,23 @@ export interface Organisation {
   id: number;
   name: string;
   supportPhone?: string | null;
+  /**
+   * Как в ЕГРЮЛ. Подставляется в согласие пациента как оператор его медицинских данных.
+   */
+  legalName?: string | null;
+  inn?: string | null;
+  ogrn?: string | null;
+  legalAddress?: string | null;
+  /**
+   * Сюда пациент направляет отзыв согласия и требование об удалении данных о здоровье: по этим данным оператор - организация, а не платформа.
+   */
+  privacyEmail?: string | null;
+  /**
+   * Медицинскую услугу оказывает организация по своей лицензии, а не платформа.
+   */
+  licenceNumber?: string | null;
+  licenceIssuedBy?: string | null;
+  licenceIssuedAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -781,6 +798,14 @@ export interface DoctorsSelect<T extends boolean = true> {
 export interface OrganisationsSelect<T extends boolean = true> {
   name?: T;
   supportPhone?: T;
+  legalName?: T;
+  inn?: T;
+  ogrn?: T;
+  legalAddress?: T;
+  privacyEmail?: T;
+  licenceNumber?: T;
+  licenceIssuedBy?: T;
+  licenceIssuedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
