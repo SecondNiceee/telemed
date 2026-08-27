@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, PhoneOff, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react'
+import { Camera, CameraOff, LogOut, MessageSquare, Mic, MicOff, PhoneOff, RefreshCw, ShieldCheck, VideoOff, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useCallRecorder } from '@/hooks/use-call-recorder'
+import { useRecordingConsent } from '@/hooks/use-recording-consent'
+import type { RecordingConsentStatus } from '@/lib/recording-consent'
+import { RecordingConsentGate } from './recording-consent-gate'
 import { isClientRecordingEnabled } from '@/lib/recording-mode'
 import { useMediasoup } from '@/hooks/use-mediasoup'
 import { useSpeakingDetector } from '@/hooks/use-speaking-detector'
@@ -68,6 +71,8 @@ interface CallRoomProps {
   currentSenderId: number
   /** Врач заблокировал чат пациенту (значение на момент загрузки страницы). */
   chatBlocked: boolean
+  /** Решение пациента по записи на момент загрузки страницы. */
+  initialRecordingConsent: RecordingConsentStatus
 }
 
 export function CallRoom({
@@ -79,6 +84,7 @@ export function CallRoom({
   currentSenderType,
   currentSenderId,
   chatBlocked,
+  initialRecordingConsent,
 }: CallRoomProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -118,13 +124,29 @@ export function CallRoom({
   const handledRejectionRef = useRef(false)
   const handledClosedRoomRef = useRef(false)
   const restoreCheckStartedRef = useRef(false)
+  // Пациент - тот, у кого нет id врача для записи. Он же и принимает решение.
+  const isPatient = recordingDoctorId === null
+  const consent = useRecordingConsent({
+    appointmentId,
+    isPatient,
+    initialStatus: initialRecordingConsent,
+  })
+
+  // Пациент не входит в комнату, пока не ответил: согласие спрашивается до
+  // записи, а не во время. Врача это не задерживает - он ждёт как обычно.
+  const awaitingConsent = isPatient && consent.status === 'pending'
+
   const recorder = useCallRecorder({
     // Клиентская запись работает только в режиме 'client'. В режиме 'server'
     // пишет mediasoup через FFmpeg, и включать браузерную запись параллельно
     // нельзя: это и вторая запись на ту же консультацию, и лишняя нагрузка на
     // аплинк врача. Условие recordingDoctorId !== null сохранено - пациент не
     // пишет никогда.
-    enabled: isClientRecordingEnabled && recordingDoctorId !== null,
+    //
+    // Согласие - обязательное условие: сервер всё равно отклонит чанки без
+    // него, но браузер не должен и начинать писать данные, на которые нет
+    // разрешения.
+    enabled: isClientRecordingEnabled && recordingDoctorId !== null && consent.status === 'granted',
     appointmentId,
     doctorId: recordingDoctorId,
     localStream: call.localStream,
@@ -134,8 +156,11 @@ export function CallRoom({
   const stopRecording = recorder.stop
 
   useEffect(() => {
+    // Пока пациент не ответил про запись, медиа не поднимаем: иначе в
+    // серверном режиме сегмент мог бы начаться раньше решения.
+    if (awaitingConsent) return
     if (invitationStatus === 'answered') void connect()
-  }, [connect, invitationStatus])
+  }, [awaitingConsent, connect, invitationStatus])
 
   // Сокет после перезагрузки поднимается не мгновенно. Ждём его недолго, но не
   // бесконечно: если связи нет, проверку всё равно нужно довести до конца.
@@ -261,10 +286,21 @@ export function CallRoom({
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {isCallActive && call.online ? <CallQualityBadge quality={call.quality} /> : null}
-            {recorder.isRecording ? (
+            {/*
+              Индикатор идёт от согласия, а не от recorder.isRecording. Тот
+              знает только про клиентскую запись, а по умолчанию включён
+              серверный режим - в нём пациент не видел бы ничего. Отказ тоже
+              показываем: участникам важно видеть, что записи нет.
+            */}
+            {consent.status === 'granted' ? (
               <span className="flex items-center gap-2 rounded-full border border-destructive/30 bg-destructive/10 px-3 py-1 font-medium text-destructive" role="status" aria-live="polite">
                 <span className="size-2 animate-pulse rounded-full bg-destructive" aria-hidden="true" />
                 Идёт запись
+              </span>
+            ) : consent.status === 'declined' ? (
+              <span className="flex items-center gap-2 rounded-full border px-3 py-1 font-medium" role="status" aria-live="polite">
+                <VideoOff className="size-4" aria-hidden="true" />
+                Без записи
               </span>
             ) : null}
             <div className="flex items-center gap-2" role="status" aria-live="polite">
@@ -297,7 +333,13 @@ export function CallRoom({
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            {!isCallActive ? (
+            {awaitingConsent ? (
+              <RecordingConsentGate
+                isSaving={consent.isSaving}
+                error={consent.error}
+                onDecide={(granted) => void consent.decide(granted)}
+              />
+            ) : !isCallActive ? (
               <section className="flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border bg-card p-8 text-center shadow-sm" role="status" aria-live="polite">
                 {isRoomClosed ? (
                   <PhoneOff className="size-8 text-muted-foreground" aria-hidden="true" />

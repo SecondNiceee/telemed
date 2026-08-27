@@ -443,6 +443,20 @@ export interface Appointment {
    */
   recording?: (number | null) | Media;
   /**
+   * Решение пациента по записи этой консультации. Запись не ведётся, пока согласие не получено.
+   */
+  recordingConsent?: {
+    /**
+     * Значение по умолчанию - «не спрашивали», и запись при нём не стартует: молчание согласием не считается.
+     */
+    status?: ('pending' | 'granted' | 'declined') | null;
+    decidedAt?: string | null;
+    /**
+     * Текст сохраняется целиком на момент ответа. Формулировка со временем меняется, а подтверждать придётся то, что человек видел на экране в тот день.
+     */
+    consentText?: string | null;
+  };
+  /**
    * Состояние текущего видеозвонка для поддержки переподключения
    */
   activeCall?: {
@@ -836,6 +850,13 @@ export interface AppointmentsSelect<T extends boolean = true> {
   connectionType?: T;
   chatBlocked?: T;
   recording?: T;
+  recordingConsent?:
+    | T
+    | {
+        status?: T;
+        decidedAt?: T;
+        consentText?: T;
+      };
   activeCall?:
     | T
     | {
