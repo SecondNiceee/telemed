@@ -82,7 +82,29 @@ export const Users: CollectionConfig = {
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
   access: {
-    read: () => true,
+    /**
+     * Чтение: только свой профиль и админ.
+     *
+     * Было `read: () => true`, то есть публичный REST отдавал бы список всех
+     * пользователей с email и телефонами. Это тот же паттерн, который уже дал
+     * утечку записей консультаций: открытым оказывается не один документ, а
+     * весь список, и защита «никто не знает id» перестаёт работать.
+     *
+     * Ограничение безопасно для серверного кода: он ходит через Local API, где
+     * overrideAccess по умолчанию true, и ни одного вызова с
+     * overrideAccess: false в проекте нет - проверено grep-ом. Логин, /me,
+     * подтверждение email и сброс пароля - отдельные операции Payload, они
+     * правами на read не ограничены.
+     */
+    read: ({ req, id }) => {
+      const caller = getCallerFromRequest(req, 'users')
+      if (caller.role === 'admin') return true
+      if (!caller.id) return false
+      // id есть при чтении одного документа; для списка сужаем выборку до себя,
+      // чтобы find() не возвращал чужие записи.
+      if (id !== undefined) return String(id) === caller.id
+      return { id: { equals: caller.id } }
+    },
     // Регистрация идёт только через /api/auth/register (Local API, overrideAccess: true),
     // поэтому публичное создание через REST закрыто
     create: ({ req }) => getCallerFromRequest(req, 'users').role === 'admin',
@@ -146,6 +168,43 @@ export const Users: CollectionConfig = {
       name: 'name',
       type: 'text',
       label: 'Имя',
+    },
+    /**
+     * Отметка о согласии на обработку персональных данных.
+     *
+     * Хранится не галочка, а доказательство: дата, версия и полный текст. Текст
+     * копируется целиком по той же причине, что и в согласии на запись -
+     * формулировка со временем меняется, а подтверждать придётся ту, которую
+     * человек видел в день регистрации. Ссылка на «действующую редакцию» этого
+     * не доказывает.
+     *
+     * Правка закрыта для всех, кроме админа: отметка о согласии, которую
+     * пользователь может выставить себе сам запросом к API, ничего не значит.
+     */
+    {
+      name: 'pdnConsent',
+      type: 'group',
+      label: 'Согласие на обработку персональных данных',
+      admin: { description: 'Заполняется при регистрации, вручную не изменяется' },
+      access: { update: adminOnlyField, create: adminOnlyField },
+      fields: [
+        {
+          name: 'acceptedAt',
+          type: 'date',
+          label: 'Дата и время согласия',
+          admin: { date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'version',
+          type: 'text',
+          label: 'Версия текста',
+        },
+        {
+          name: 'text',
+          type: 'textarea',
+          label: 'Текст согласия на момент принятия',
+        },
+      ],
     },
   ],
 }

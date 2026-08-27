@@ -182,6 +182,14 @@ export interface User {
   phone: string;
   role: 'user' | 'admin';
   name?: string | null;
+  /**
+   * Заполняется при регистрации, вручную не изменяется
+   */
+  pdnConsent?: {
+    acceptedAt?: string | null;
+    version?: string | null;
+    text?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -675,6 +683,13 @@ export interface UsersSelect<T extends boolean = true> {
   phone?: T;
   role?: T;
   name?: T;
+  pdnConsent?:
+    | T
+    | {
+        acceptedAt?: T;
+        version?: T;
+        text?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   email?: T;

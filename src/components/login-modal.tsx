@@ -17,6 +17,7 @@ import { AuthApi } from "@/lib/api/auth"
 import { getErrorMessage } from "@/lib/api/errors"
 import { ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { formatPhoneInput, normalizePhone } from "@/utils/phone"
+import { PDN_CONSENT_CHECKBOX_LABEL } from "@/lib/legal/pdn-consent"
 
 type Tab = "login" | "register"
 
@@ -35,6 +36,8 @@ export interface RegisterValues {
   email: string
   phone: string
   password: string
+  /** Отметка о согласии на обработку персональных данных. */
+  pdnConsentAccepted: boolean
 }
 
 /**
@@ -186,6 +189,13 @@ const RegisterForm = memo(function RegisterForm({
   const [phone, setPhone] = useState("+7")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  /**
+   * Согласие на обработку персональных данных.
+   *
+   * Снят по умолчанию намеренно: заранее проставленная галочка согласием не
+   * считается - оно должно быть конкретным и активным действием.
+   */
+  const [consent, setConsent] = useState(false)
   /** Ошибки клиентской валидации — отдельно от серверных, которые приходят пропом */
   const [localError, setLocalError] = useState("")
 
@@ -205,8 +215,12 @@ const RegisterForm = memo(function RegisterForm({
       setLocalError("Пароль должен содержать минимум 8 символов")
       return
     }
+    if (!consent) {
+      setLocalError("Без согласия на обработку персональных данных регистрация невозможна")
+      return
+    }
 
-    onSubmit({ name, email, phone, password })
+    onSubmit({ name, email, phone, password, pdnConsentAccepted: consent })
   }
 
   return (
@@ -271,6 +285,41 @@ const RegisterForm = memo(function RegisterForm({
           required
           autoComplete="new-password"
         />
+      </div>
+      <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
+        <input
+          id="reg-consent"
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-primary"
+          aria-describedby="reg-consent-hint"
+        />
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="reg-consent" className="text-sm font-normal leading-5 text-pretty">
+            {PDN_CONSENT_CHECKBOX_LABEL}
+          </Label>
+          <p id="reg-consent-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
+            <a
+              href="/legal/consent"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              Текст согласия
+            </a>
+            {" и "}
+            <a
+              href="/legal/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              политика обработки данных
+            </a>
+            {". Запись консультации - отдельное согласие перед звонком."}
+          </p>
+        </div>
       </div>
       {(localError || error) && (
         <p className="text-sm text-destructive text-center">{localError || error}</p>
