@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
@@ -17,6 +18,7 @@ import {
 import { Media } from "@/payload-types";
 import { getFreshDoctorSchedule, releaseExpiredHolds } from "@/lib/server/appointment-holds";
 import { DoctorPageClient } from "./doctor-page-client";
+import { buildMetadata } from "@/lib/seo";
 
 export const dynamic = 'force-dynamic';
 
@@ -24,21 +26,49 @@ interface DoctorPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: DoctorPageProps) {
+export async function generateMetadata({ params }: DoctorPageProps): Promise<Metadata> {
   const { id } = await params;
 
   try {
     const doctor = await fetchDoctorById(id);
     const specialty = getDoctorSpecialty(doctor);
-    return {
-      title: `${doctor.name} - smartcardio`,
-      description: `Профиль врача ${doctor.name} - ${specialty}`,
-    };
+    // getDoctorSpecialty отдаёт 'Врач', когда категории не заданы. В этом случае
+    // строка «Иванов И.И. — врач» ничего не сообщает, поэтому специальность
+    // упоминаем только когда она реальная.
+    const hasSpecialty = specialty !== "Врач";
+    const name = doctor.name?.trim();
+
+    if (!name) {
+      // Имя — единственное, что делает страницу врача осмысленной в выдаче.
+      return buildMetadata({
+        title: "Профиль врача",
+        description: "Профиль врача и запись на видеоконсультацию.",
+        index: false,
+      });
+    }
+
+    // Стаж добавляем в описание, только если он заполнен: описание видно в
+    // выдаче, и «стаж 0 лет» отталкивает сильнее, чем его отсутствие.
+    const experience =
+      typeof doctor.experience === "number" && doctor.experience > 0
+        ? ` Стаж ${doctor.experience} лет.`
+        : "";
+
+    return buildMetadata({
+      title: hasSpecialty ? `${name} — ${specialty}` : name,
+      description: hasSpecialty
+        ? `${name} — ${specialty}.${experience} Запишитесь на онлайн-консультацию в удобное время.`
+        : `${name}.${experience} Запишитесь на онлайн-консультацию в удобное время.`,
+      path: `/doctor/${id}`,
+      keywords: hasSpecialty ? [name, specialty, `${specialty} онлайн`] : [name],
+    });
   } catch {
-    return {
-      title: "Врач - smartcardio",
-      description: "Профиль врача",
-    };
+    // Врач не найден или база недоступна: индексировать такую страницу нельзя.
+    return buildMetadata({
+      title: "Профиль врача",
+      description: "Профиль врача и запись на видеоконсультацию.",
+      index: false,
+    });
   }
 }
 

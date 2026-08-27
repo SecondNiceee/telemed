@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/header";
@@ -15,26 +16,46 @@ import { CategoryPageClient } from "./category-client";
 import { BackButton } from "@/components/back-button";
 import { BackgroundDecor } from "@/components/background-decor";
 import { SectionBadge } from "@/components/section-badge";
+import { buildMetadata } from "@/lib/seo";
 
 interface CategoryPageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ date?: string }>;
 }
 
-export async function generateMetadata({ params }: CategoryPageProps) {
-  const { id } = await params;
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { id: slug } = await params;
 
   try {
-    const category = await fetchCategoryBySlug(id);
-    return {
-      title: category ? `${category.name} - smartcardio` : "Категория не найдена",
-      description: category?.description || "Найдите врача и запишитесь на прием",
-    };
+    const category = await fetchCategoryBySlug(slug);
+
+    if (!category) {
+      // Страница отдаст notFound, поэтому закрываем её от индексации:
+      // иначе поисковик запомнит адрес несуществующей категории.
+      return buildMetadata({
+        title: "Категория не найдена",
+        description: "Такой специальности нет. Посмотрите список доступных специалистов.",
+        index: false,
+      });
+    }
+
+    return buildMetadata({
+      title: `${category.name} — врачи онлайн`,
+      // Описание категории приходит из CMS. Если его не заполнили, берём
+      // формулировку с названием специальности вместо выдуманного текста.
+      description:
+        category.description ||
+        `Врачи по специальности «${category.name}»: выберите специалиста и запишитесь на видеоконсультацию.`,
+      path: `/category/${slug}`,
+      keywords: [category.name, `${category.name} онлайн`, "консультация врача онлайн"],
+    });
   } catch {
-    return {
-      title: "Категория - smartcardio",
-      description: "Найдите врача и запишитесь на прием",
-    };
+    // Ошибка загрузки — не повод отдавать поисковику случайный заголовок.
+    return buildMetadata({
+      title: "Специалисты",
+      description: "Найдите врача и запишитесь на видеоконсультацию.",
+      index: false,
+    });
   }
 }
 

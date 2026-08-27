@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/header";
 import { Hero } from "@/components/hero";
 import { CategoriesSection } from "@/components/categories-section";
@@ -20,6 +21,24 @@ import { AuthApi } from "@/lib/api/auth";
 // Enable ISR - revalidate on-demand via revalidateTag, 
 // or automatically every 60 seconds as fallback
 export const revalidate = 60;
+
+/**
+ * У главной задаётся только canonical и ключевые слова.
+ *
+ * Заголовок и описание намеренно не дублируются: главная должна показывать
+ * ровно title.default и description из корневого layout, а повторное
+ * объявление тех же строк в двух файлах рано или поздно разъедется.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+  keywords: [
+    'видеоконсультация врача',
+    'онлайн консультация врача',
+    'приём врача онлайн',
+    'телемедицина',
+    'smartcardio',
+  ],
+};
 
 export default async function HomePage() {
   // Use Payload Local API directly to avoid fetch issues during build
