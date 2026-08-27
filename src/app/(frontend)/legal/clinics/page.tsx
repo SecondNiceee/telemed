@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
-import { getPayload } from 'payload'
-import config from '@payload-config'
 import { LegalShell } from '@/components/legal/legal-shell'
+import {
+  fetchClinicRegistryCached,
+  type ClinicRegistryRow,
+} from '@/lib/api/organisations.server'
 
 export const metadata: Metadata = {
   title: 'Медицинские организации на платформе — smartcardio',
@@ -25,22 +27,12 @@ export const metadata: Metadata = {
  * не вправе заявлять реквизиты за клинику.
  */
 
-// Реестр меняется редко, поэтому кэшируем на час, а не собираем на каждый запрос.
-export const revalidate = 3600
-
-interface ClinicRow {
-  id: number
-  name: string
-  legalName?: string | null
-  inn?: string | null
-  ogrn?: string | null
-  legalAddress?: string | null
-  privacyEmail?: string | null
-  licenceNumber?: string | null
-  licenceIssuedBy?: string | null
-  licenceIssuedAt?: string | null
-}
-
+/**
+ * Кэш реестра сбрасывается ТЕГОМ из хука коллекции, а не по таймеру: подключение
+ * новой клиники и исправление реквизитов должны попадать на страницу сразу.
+ * Раньше здесь стоял revalidate = 3600, из-за чего юридическая страница до часа
+ * показывала неверного ответственного за данные о здоровье.
+ */
 function formatDate(value?: string | null): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -48,37 +40,8 @@ function formatDate(value?: string | null): string | null {
   return date.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-async function loadClinics(): Promise<ClinicRow[]> {
-  try {
-    const payload = await getPayload({ config })
-    const { docs } = await payload.find({
-      collection: 'organisations',
-      depth: 0,
-      limit: 200,
-      sort: 'name',
-      // Читаются только публичные сведения: наименование, реквизиты и лицензия.
-      // Адрес электронной почты для входа в кабинет сюда намеренно не попадает.
-      select: {
-        name: true,
-        legalName: true,
-        inn: true,
-        ogrn: true,
-        legalAddress: true,
-        privacyEmail: true,
-        licenceNumber: true,
-        licenceIssuedBy: true,
-        licenceIssuedAt: true,
-      },
-    })
-    return docs as ClinicRow[]
-  } catch (error) {
-    console.error('[legal/clinics] Не удалось загрузить реестр организаций:', error)
-    return []
-  }
-}
-
 export default async function LegalClinicsPage() {
-  const clinics = await loadClinics()
+  const clinics: ClinicRegistryRow[] = await fetchClinicRegistryCached()
 
   return (
     <LegalShell
