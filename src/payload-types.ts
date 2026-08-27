@@ -356,6 +356,15 @@ export interface DoctorCategory {
 export interface Media {
   id: number;
   alt?: string | null;
+  visibility?: ('public' | 'private') | null;
+  /**
+   * Заполняется автоматически для приватных файлов.
+   */
+  allowedUser?: (number | null) | User;
+  /**
+   * Заполняется автоматически для приватных файлов.
+   */
+  allowedDoctor?: (number | null) | Doctor;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -766,6 +775,9 @@ export interface OrganisationsSelect<T extends boolean = true> {
  */
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
+  visibility?: T;
+  allowedUser?: T;
+  allowedDoctor?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

@@ -1,4 +1,6 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig, PayloadRequest, Where } from 'payload'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth';
 import { MEDIA_DIR, ensureMediaDir } from '@/lib/media-dir'
 
@@ -21,6 +23,79 @@ const checkAccessCookie = ({req} : {req:PayloadRequest}) => {
     hasCookieHeader: Boolean(req?.headers?.get?.('cookie')),
   })
   return false 
+}
+
+/**
+ * Условие «файл публичный».
+ *
+ * Документы, загруженные до появления поля visibility, значения не имеют
+ * вовсе, и запрос `visibility = public` их бы отбросил - каталог врачей
+ * мгновенно остался бы без фотографий. Поэтому отсутствие поля равносильно
+ * «публичный»: это сохраняет работу сайта на текущих данных.
+ *
+ * Обратная сторона: уже загруженные записи консультаций тоже попадают под это
+ * правило. Их нужно один раз пометить приватными скриптом
+ * scripts/backfill-media-visibility.ts - до этого старые записи остаются
+ * открытыми.
+ */
+const PUBLIC_FILE_CONDITIONS: Where[] = [
+  { visibility: { equals: 'public' } },
+  { visibility: { exists: false } },
+]
+
+/** Публичное + личное: свои приватные файлы поверх общедоступных. */
+const withOwnFiles = (own: Where): Where => ({ or: [...PUBLIC_FILE_CONDITIONS, own] })
+
+/**
+ * Кто какие файлы может читать.
+ *
+ * Правило возвращает не true/false, а условие выборки: так Payload применяет
+ * его и к отдаче самого файла, и к списку /api/media. Второе важнее всего -
+ * при `read: () => true` любой желающий мог получить список всех документов с
+ * именами файлов, и случайные имена перестали защищать записи приёмов.
+ */
+const readAccess = async ({ req }: { req: PayloadRequest }): Promise<boolean | Where> => {
+  const user = getCallerFromRequest(req, 'users')
+  if (user?.role === 'admin') return true
+
+  // Пациент: общедоступные файлы плюс те, где он указан явно (его записи
+  // консультаций и вложения его чатов).
+  if (user?.collection === 'users' && user.id != null) {
+    return withOwnFiles({ allowedUser: { equals: Number(user.id) } })
+  }
+
+  const doctor = getCallerFromRequest(req, 'doctors')
+  if (doctor?.collection === 'doctors' && doctor.id != null) {
+    return withOwnFiles({ allowedDoctor: { equals: Number(doctor.id) } })
+  }
+
+  // Организация видит файлы своих врачей - так же, как в call-recordings.
+  const organisation = getCallerFromRequest(req, 'organisations')
+  if (organisation?.collection === 'organisations' && organisation.id != null) {
+    try {
+      const payload = await getPayload({ config })
+      const doctors = await payload.find({
+        collection: 'doctors',
+        where: { organisation: { equals: Number(organisation.id) } },
+        limit: 1000,
+        depth: 0,
+        overrideAccess: true,
+      })
+      const doctorIds = doctors.docs.map((d) => d.id)
+      if (doctorIds.length > 0) {
+        return withOwnFiles({ allowedDoctor: { in: doctorIds } })
+      }
+    } catch (error) {
+      // Упасть здесь нельзя: тогда у организации пропадут и обычные картинки.
+      console.error('[media] Не удалось получить врачей организации', {
+        organisationId: organisation.id,
+        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      })
+    }
+  }
+
+  // Анонимный посетитель и все прочие: только публичные файлы.
+  return { or: PUBLIC_FILE_CONDITIONS }
 }
 
 /**
@@ -67,7 +142,7 @@ function makeFilenameUnique({
 export const Media: CollectionConfig = {
   slug: 'media',
   access: {
-    read: () => true,
+    read: readAccess,
     create: checkAccessCookie,
     update: checkAccessCookie,
     delete: checkAccessCookie
@@ -77,6 +152,43 @@ export const Media: CollectionConfig = {
       name: 'alt',
       type: 'text',
       required: false,
+    },
+    {
+      name: 'visibility',
+      type: 'select',
+      label: 'Доступность файла',
+      // По умолчанию публичный: подавляющая часть загрузок - это фото врачей
+      // и иконки категорий, которые обязаны открываться без входа.
+      // Приватность выставляется явно там, где создаётся запись консультации
+      // или вложение чата.
+      defaultValue: 'public',
+      index: true,
+      options: [
+        { label: 'Публичный (каталог, фото врачей)', value: 'public' },
+        { label: 'Приватный (записи приёмов, вложения чатов)', value: 'private' },
+      ],
+    },
+    {
+      name: 'allowedUser',
+      type: 'relationship',
+      relationTo: 'users',
+      label: 'Пациент с доступом',
+      index: true,
+      admin: {
+        description: 'Заполняется автоматически для приватных файлов.',
+        condition: (data) => data?.visibility === 'private',
+      },
+    },
+    {
+      name: 'allowedDoctor',
+      type: 'relationship',
+      relationTo: 'doctors',
+      label: 'Врач с доступом',
+      index: true,
+      admin: {
+        description: 'Заполняется автоматически для приватных файлов.',
+        condition: (data) => data?.visibility === 'private',
+      },
     },
   ],
   hooks: {

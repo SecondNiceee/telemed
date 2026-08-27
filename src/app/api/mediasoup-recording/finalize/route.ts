@@ -6,6 +6,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import jwt from 'jsonwebtoken'
 import { RECORDINGS_DIR } from '@/lib/recordings-dir'
+import { buildRecordingPrivacy } from '@/lib/server/media-privacy'
 
 interface DecodedToken {
   id: number
@@ -112,10 +113,14 @@ export async function POST(request: NextRequest) {
     
     console.log('[MediaSoupRecording/Finalize] Uploading to media via Payload...')
     
+    // Запись приёма - данные о здоровье, файл не должен открываться без входа.
+    const privacy = await buildRecordingPrivacy(payload, appointmentId, doctorId)
+
     const mediaDoc = await payload.create({
       collection: 'media',
       data: {
         alt: `Запись консультации #${appointmentId}`,
+        ...privacy,
       },
       file: {
         data: recordingBuffer,
