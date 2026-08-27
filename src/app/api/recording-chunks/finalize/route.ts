@@ -75,6 +75,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No chunks found' }, { status: 404 })
     }
 
+    if (result.status === 'no-consent') {
+      return NextResponse.json({ error: 'Recording consent not granted' }, { status: 403 })
+    }
+
     // Сессию уже забрал параллельный вызов (второй beacon или сборщик) -
     // для клиента это успех, дублировать запись не нужно.
     if (result.status === 'busy' || result.status === 'already-exists') {

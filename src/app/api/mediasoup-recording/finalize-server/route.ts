@@ -8,6 +8,7 @@ import path from 'path'
 import { MEDIA_DIR, ensureMediaDir } from '@/lib/media-dir'
 import { RECORDINGS_DIR } from '@/lib/recordings-dir'
 import { buildRecordingPrivacy } from '@/lib/server/media-privacy'
+import { isRecordingAllowedByConsent, type RecordingConsentStatus } from '@/lib/recording-consent'
 
 /**
  * Переносит файл, не загружая его в память.
@@ -91,6 +92,22 @@ export async function POST(request: NextRequest) {
     if (!doctorId) {
       console.log('[MediaSoupRecording/FinalizeServer] Doctor ID not found in appointment')
       return NextResponse.json({ error: 'Doctor not found in appointment' }, { status: 400 })
+    }
+
+    // Вторая проверка согласия. Контроллер уже спрашивал разрешение до старта
+    // сегмента, но решение могло измениться, пока шёл звонок, а сегмент к тому
+    // моменту уже писался. Без согласия готовый файл не попадает ни в media,
+    // ни в call-recordings - и удаляется с диска, чтобы не остался лежать
+    // рядом с разрешёнными записями.
+    const consentStatus = (appointment as { recordingConsent?: { status?: string | null } }).recordingConsent?.status
+    if (!isRecordingAllowedByConsent(consentStatus as RecordingConsentStatus | null | undefined)) {
+      console.log(
+        `[MediaSoupRecording/FinalizeServer] Консультация ${appointmentId}: согласия нет ` +
+          `(${consentStatus ?? 'pending'}), запись не сохраняем и удаляем файл`,
+      )
+      await fs.unlink(path.join(RECORDINGS_DIR, `${sessionId}.webm`)).catch(() => {})
+      await fs.unlink(path.join(RECORDINGS_DIR, `${sessionId}.sdp`)).catch(() => {})
+      return NextResponse.json({ error: 'Recording consent not granted' }, { status: 403 })
     }
 
     // Find the recording file
