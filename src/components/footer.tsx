@@ -65,6 +65,21 @@ export function Footer() {
           </div>
         </div>
 
+        <div className="mt-6 pt-6 border-t border-white/15 flex flex-wrap gap-x-6 gap-y-2">
+          <Link
+            href="/legal/privacy"
+            className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
+          >
+            Политика обработки персональных данных
+          </Link>
+          <Link
+            href="/legal/consent"
+            className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
+          >
+            Согласие на обработку персональных данных
+          </Link>
+        </div>
+
         <div className="mt-6 pt-6 border-t border-white/15">
           <p className="text-white/55 text-xs leading-relaxed max-w-3xl text-pretty">
             Сервис оказывает информационно-консультационные услуги. Консультации не являются
