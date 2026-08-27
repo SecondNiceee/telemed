@@ -3,22 +3,43 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 import { normalizePhone } from '@/utils/phone'
+import { PDN_CONSENT_VERSION, pdnConsentPlainText } from '@/lib/legal/pdn-consent'
 
 type RegisterBody = {
   name?: string
   email?: string
   phone?: string
   password?: string
+  /** Отметка пользователя о согласии на обработку персональных данных. */
+  pdnConsentAccepted?: boolean
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RegisterBody
-    const { name, email, phone: rawPhone, password } = body
+    const { name, email, phone: rawPhone, password, pdnConsentAccepted } = body
 
     // Basic validation
     if (!email || !password) {
       return NextResponse.json({ message: 'Email и пароль обязательны' }, { status: 400 })
+    }
+
+    // Согласие проверяется на сервере, а не только галочкой в форме: без него
+    // нет законного основания обрабатывать данные, а форму можно обойти прямым
+    // запросом. Отсутствие отметки - отказ, а не значение по умолчанию.
+    if (pdnConsentAccepted !== true) {
+      return NextResponse.json(
+        { message: 'Для регистрации нужно согласие на обработку персональных данных' },
+        { status: 400 },
+      )
+    }
+
+    // Снимок текста согласия на момент регистрации: подтверждать придётся именно
+    // ту редакцию, которую человек видел, а не текущую.
+    const pdnConsent = {
+      acceptedAt: new Date().toISOString(),
+      version: PDN_CONSENT_VERSION,
+      text: pdnConsentPlainText(),
     }
 
     const phone = normalizePhone(rawPhone)
@@ -88,6 +109,9 @@ export async function POST(req: NextRequest) {
           name: name ?? candidate.name ?? '',
           phone,
           password,
+          // Аккаунт не подтверждён, регистрация проходит заново - значит и
+          // согласие дано заново, с актуальной датой и версией текста.
+          pdnConsent,
         },
         overrideAccess: true,
         showHiddenFields: true,
@@ -119,6 +143,7 @@ export async function POST(req: NextRequest) {
         phone,
         password,
         role: 'user',
+        pdnConsent,
       },
       overrideAccess: true,
     })

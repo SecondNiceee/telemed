@@ -10,8 +10,7 @@
  * серверу - он сохраняет версию согласия рядом с отметкой пользователя.
  */
 
-import { OPERATOR, operatorName } from './operator'
-import { PDN_CONSENT_VERSION } from './operator'
+import { OPERATOR, operatorName, PDN_CONSENT_VERSION } from './operator'
 
 export { PDN_CONSENT_VERSION }
 

@@ -19,6 +19,11 @@ interface RegisterData {
   /** Телефон в любом виде — будет нормализован до +7XXXXXXXXXX */
   phone: string
   password: string
+  /**
+   * Отметка о согласии на обработку персональных данных.
+   * Сервер отклоняет регистрацию без неё - см. /api/auth/register.
+   */
+  pdnConsentAccepted: boolean
 }
 
 interface ServerOptions {
