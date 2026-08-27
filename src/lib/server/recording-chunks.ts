@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import { getPayload } from 'payload'
 import config from '@payload-config'
+import { buildRecordingPrivacy } from './media-privacy'
 
 /**
  * Общая логика сборки клиентской записи звонка из чанков.
@@ -216,11 +217,14 @@ export async function finalizeRecordingSession({
     // Два create разделены собственными catch: раньше любая ошибка тут
     // всплывала одним безликим «Failed to finalize recording», и было не
     // видно, упала загрузка файла или запись в БД.
+    // Запись приёма - данные о здоровье, файл не должен открываться без входа.
+    const privacy = await buildRecordingPrivacy(payload, appointmentId, doctorId)
+
     let mediaDoc: { id: number }
     try {
       mediaDoc = await payload.create({
         collection: 'media',
-        data: { alt: `Запись консультации #${appointmentId}` },
+        data: { alt: `Запись консультации #${appointmentId}`, ...privacy },
         file: {
           data: combined,
           mimetype: mimeType,

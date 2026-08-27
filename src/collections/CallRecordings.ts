@@ -1,4 +1,4 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig, PayloadRequest, Where } from 'payload'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { getCallerFromRequest } from './helpers/auth'
@@ -10,10 +10,26 @@ export const CallRecordings: CollectionConfig = {
     plural: 'Записи звонков',
   },
   access: {
-    read: async ({ req }: { req: PayloadRequest }) => {
+    // Тип возврата указан явно: иначе TypeScript выводит объединение веток с
+    // необязательными полями (doctor?: undefined), которое не подходит под Where.
+    read: async ({ req }: { req: PayloadRequest }): Promise<boolean | Where> => {
       // Admin can read all
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
+
+      // Пациент читает записи только своих консультаций.
+      //
+      // Раньше здесь для обычного пользователя срабатывал `return false`: приём
+      // записывался, а сам пациент доступа к записи не имел - при том что это
+      // его данные о здоровье. Право на доступ к своим персональным данным
+      // даёт ст. 14 152-ФЗ, отказать в нём нельзя.
+      //
+      // Фильтр по вложенному полю appointment.user безопаснее списка id: он
+      // не даёт промежуточного состояния, когда консультацию уже перепривязали,
+      // а выборка построена по старым данным.
+      if (callerAsUser?.collection === 'users' && callerAsUser.id != null) {
+        return { 'appointment.user': { equals: Number(callerAsUser.id) } }
+      }
 
       // Doctor can read their own recordings
       const callerAsDoctor = getCallerFromRequest(req, 'doctors')

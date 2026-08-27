@@ -7,6 +7,7 @@ import { pipeline } from 'stream/promises'
 import path from 'path'
 import { MEDIA_DIR, ensureMediaDir } from '@/lib/media-dir'
 import { RECORDINGS_DIR } from '@/lib/recordings-dir'
+import { buildRecordingPrivacy } from '@/lib/server/media-privacy'
 
 /**
  * Переносит файл, не загружая его в память.
@@ -132,6 +133,9 @@ export async function POST(request: NextRequest) {
     console.log('[MediaSoupRecording/FinalizeServer] Moving recording into media dir:', targetPath)
     await moveFile(recordingPath, targetPath)
 
+    // Запись приёма - данные о здоровье, файл не должен открываться без входа.
+    const privacy = await buildRecordingPrivacy(payload, appointmentId, doctorId)
+
     let mediaId: number | string
     try {
       const mediaDoc = await payload.create({
@@ -141,6 +145,7 @@ export async function POST(request: NextRequest) {
           filename,
           mimeType,
           filesize: fileStats.size,
+          ...privacy,
         },
       })
       mediaId = mediaDoc.id

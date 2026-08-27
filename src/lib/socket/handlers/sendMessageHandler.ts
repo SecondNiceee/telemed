@@ -6,6 +6,7 @@ import isValidAppointmentId from '../utils/isValidAppointmentId'
 import validateMessageText from '../utils/validateMessageText'
 import isValidSenderType from '../utils/isValidSenderType'
 import verifyAppointmentAccess from '../utils/verifyAppointmentAccess'
+import { buildParticipantsPrivacy } from '@/lib/server/media-privacy'
 
 type SendMessageAck = (result: { success: true } | { success: false; error: string }) => void
 
@@ -159,6 +160,45 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
           overrideAccess: true,
         })
         
+        // Вложение чата закрываем от посторонних.
+        //
+        // Файл загружается клиентом в media заранее, отдельным запросом, и до
+        // этого момента считается публичным (иначе фото врачей и иконки
+        // категорий пришлось бы помечать при каждой загрузке). Как только файл
+        // прикреплён к сообщению, участники переписки известны точно - здесь и
+        // выставляем приватность.
+        //
+        // Права считаем на сервере из самой консультации, а не из данных
+        // клиента: иначе отправитель мог бы выдать доступ кому угодно.
+        if (attachmentId && accessResult.appointment) {
+          const appointment = accessResult.appointment
+          const patientId =
+            typeof appointment.user === 'object'
+              ? (appointment.user as { id: number }).id
+              : (appointment.user as number)
+          const attachmentDoctorId =
+            typeof appointment.doctor === 'object'
+              ? (appointment.doctor as { id: number }).id
+              : (appointment.doctor as number)
+
+          try {
+            await payload.update({
+              collection: 'media',
+              id: attachmentId,
+              data: buildParticipantsPrivacy(patientId, attachmentDoctorId),
+              overrideAccess: true,
+            })
+          } catch (error) {
+            // Сообщение уже сохранено, ронять отправку нельзя. Но факт того,
+            // что файл остался публичным, обязан попасть в лог.
+            console.error('[chat] Не удалось закрыть вложение от посторонних', {
+              attachmentId,
+              appointmentId,
+              error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+            })
+          }
+        }
+
         // Fetch attachment details if present
         let attachmentData = null
         if (attachmentId) {
@@ -205,7 +245,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         ack?.({ success: true })
 
         // Глобальное уведомление второму участнику в его персональную комнату:
-        // доставляется на любой странице сайта, а не только в открытом чате.
+        // доставляетс�� на любой странице сайта, а не только в открытом чате.
         try {
           const appointment = accessResult.appointment!
           const recipientType = senderType === 'user' ? 'doctor' : 'user'
