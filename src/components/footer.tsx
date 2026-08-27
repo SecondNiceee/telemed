@@ -19,12 +19,20 @@ export function Footer() {
               <span className="text-xl font-semibold">smartcardio</span>
             </Link>
             <p className="text-white/70 text-sm leading-relaxed">
-              Современная платформа для видеоконсультаций с врачами онлайн.
+              Техническая платформа для видеоконсультаций. Медицинские услуги оказывают
+              медицинские организации по собственным лицензиям.
             </p>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4">Услуги</h4>
+            {/*
+              «Возможности платформы», а не «Услуги»: список под этим заголовком -
+              то, что можно сделать через платформу, а сами медицинские услуги
+              оказывают клиники по своим лицензиям. Заголовок «Услуги» на сайте
+              платформы читается как «услуги оказываем мы» и опровергает
+              разделение ответственности, на котором держится модель поручения.
+            */}
+            <h4 className="font-semibold mb-4">Возможности платформы</h4>
             <ul className="space-y-2 text-white/70 text-sm">
               <li>
                 <Link href="/#categories" className="hover:text-teal-on-dark transition-colors">
@@ -77,6 +85,12 @@ export function Footer() {
             className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
           >
             Согласие на обработку персональных данных
+          </Link>
+          <Link
+            href="/legal/clinics"
+            className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
+          >
+            Медицинские организации и лицензии
           </Link>
         </div>
 

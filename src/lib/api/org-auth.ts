@@ -5,9 +5,37 @@ export interface ApiOrganisation {
   name: string
   email: string
   supportPhone?: string | null
+  /**
+   * Юридические реквизиты организации.
+   *
+   * Клиника заполняет их сама: она оператор данных о здоровье своих пациентов,
+   * и подставлять эти сведения за неё нельзя - ошибка попадёт в согласие
+   * пациента и в публичный реестр как её собственное заявление.
+   */
+  legalName?: string | null
+  inn?: string | null
+  ogrn?: string | null
+  legalAddress?: string | null
+  privacyEmail?: string | null
+  licenceNumber?: string | null
+  licenceIssuedBy?: string | null
+  licenceIssuedAt?: string | null
   createdAt: string
   updatedAt: string
 }
+
+/** Поля реквизитов, которые организация правит в своём кабинете. */
+export type OrganisationRequisites = Pick<
+  ApiOrganisation,
+  | 'legalName'
+  | 'inn'
+  | 'ogrn'
+  | 'legalAddress'
+  | 'privacyEmail'
+  | 'licenceNumber'
+  | 'licenceIssuedBy'
+  | 'licenceIssuedAt'
+>
 
 interface OrgUpdateResponse {
   doc: ApiOrganisation
@@ -48,7 +76,7 @@ export class OrgAuthApi {
 
   static async update(
     id: number | string,
-    data: Partial<Pick<ApiOrganisation, 'name' | 'supportPhone'>>,
+    data: Partial<Pick<ApiOrganisation, 'name' | 'supportPhone'> & OrganisationRequisites>,
   ): Promise<ApiOrganisation> {
     const res = await apiFetch<OrgUpdateResponse>(`/api/organisations/${id}`, {
       method: 'PATCH',

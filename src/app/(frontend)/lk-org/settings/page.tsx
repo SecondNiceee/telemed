@@ -3,6 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ArrowLeft, Building2 } from "lucide-react"
 import { Footer } from "@/components/footer"
+import { OrgLegalRequisites } from "@/components/lk-org/OrgLegalRequisites"
 import { OrgSupportPhone } from "@/components/lk-org/OrgSupportPhone"
 import { Button } from "@/components/ui/button"
 import { getSessionFromCookie } from "@/lib/auth/getSessionFromCookie"
@@ -19,6 +20,14 @@ export default async function LkOrgSettingsPage() {
     name?: string
     email: string
     supportPhone?: string | null
+    legalName?: string | null
+    inn?: string | null
+    ogrn?: string | null
+    legalAddress?: string | null
+    privacyEmail?: string | null
+    licenceNumber?: string | null
+    licenceIssuedBy?: string | null
+    licenceIssuedAt?: string | null
   }>(requestHeaders, "organisations-token", "organisations")
 
   if (!org) {
@@ -56,6 +65,20 @@ export default async function LkOrgSettingsPage() {
           <OrgSupportPhone
             orgId={org.id}
             initialSupportPhone={org.supportPhone ?? ""}
+          />
+
+          <OrgLegalRequisites
+            orgId={org.id}
+            initial={{
+              legalName: org.legalName ?? "",
+              inn: org.inn ?? "",
+              ogrn: org.ogrn ?? "",
+              legalAddress: org.legalAddress ?? "",
+              privacyEmail: org.privacyEmail ?? "",
+              licenceNumber: org.licenceNumber ?? "",
+              licenceIssuedBy: org.licenceIssuedBy ?? "",
+              licenceIssuedAt: org.licenceIssuedAt ?? "",
+            }}
           />
         </div>
       </main>
