@@ -587,6 +587,51 @@ export const Appointments: CollectionConfig = {
         description: 'Видеозапись видеоконсультации (если проводилась)',
       },
     },
+    {
+      name: 'recordingConsent',
+      type: 'group',
+      label: 'Согласие на запись',
+      admin: {
+        description:
+          'Решение пациента по записи этой консультации. Запись не ведётся, ' +
+          'пока согласие не получено.',
+      },
+      fields: [
+        {
+          name: 'status',
+          type: 'select',
+          defaultValue: 'pending',
+          label: 'Решение пациента',
+          options: [
+            { label: 'Не спрашивали', value: 'pending' },
+            { label: 'Согласие получено', value: 'granted' },
+            { label: 'Пациент отказался', value: 'declined' },
+          ],
+          admin: {
+            description:
+              'Значение по умолчанию - «не спрашивали», и запись при нём не ' +
+              'стартует: молчание согласием не считается.',
+          },
+        },
+        {
+          name: 'decidedAt',
+          type: 'date',
+          label: 'Когда пациент ответил',
+          admin: { date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'consentText',
+          type: 'textarea',
+          label: 'С каким текстом согласился пациент',
+          admin: {
+            description:
+              'Текст сохраняется целиком на момент ответа. Формулировка со ' +
+              'временем меняется, а подтверждать придётся то, что человек ' +
+              'видел на экране в тот день.',
+          },
+        },
+      ],
+    },
     // Active call state - stored in DB for reconnection support
     {
       name: 'activeCall',

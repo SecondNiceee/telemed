@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { AlertCircle, ArrowLeft, User, RefreshCw, Video, MessageSquare, Clock, Mic } from "lucide-react"
+import { AlertCircle, ArrowLeft, User, RefreshCw, Video, VideoOff, MessageSquare, Clock, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatDate, getStatusLabel, getStatusColor } from "@/lib/utils/date"
@@ -43,6 +43,70 @@ export function OrgConsultationView({
     recordings.filter(r => r.recordingType === 'audio'), 
     [recordings]
   )
+
+  // Решение пациента по записи. Без него пустой список выглядел бы как сбой -
+  // организация не поняла бы, почему записи нет, и стала бы её искать.
+  const consentStatus = appointment.recordingConsent?.status ?? 'pending'
+  const consentDecidedAt = appointment.recordingConsent?.decidedAt
+
+  /** Причина отсутствия записи - подставляется в пустое состояние обоих табов. */
+  const renderEmptyRecordings = (kind: 'video' | 'audio') => {
+    if (consentStatus === 'declined') {
+      const decided = consentDecidedAt
+        ? new Date(consentDecidedAt).toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : null
+      return (
+        <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+          <VideoOff className="mb-3 h-12 w-12 text-muted-foreground/50" />
+          <p className="text-muted-foreground">Пациент отказался от записи</p>
+          <p className="mt-1 max-w-md text-pretty text-xs leading-5 text-muted-foreground">
+            Консультация прошла без записи по решению пациента{decided ? ` от ${decided}` : ''}.
+            Записи по ней не будет.
+          </p>
+        </div>
+      )
+    }
+
+    if (consentStatus === 'pending') {
+      return (
+        <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+          {kind === 'video' ? (
+            <Video className="mb-3 h-12 w-12 text-muted-foreground/50" />
+          ) : (
+            <Mic className="mb-3 h-12 w-12 text-muted-foreground/50" />
+          )}
+          <p className="text-muted-foreground">Согласие на запись не получено</p>
+          <p className="mt-1 max-w-md text-pretty text-xs leading-5 text-muted-foreground">
+            Пациент пока не ответил на запрос о записи, поэтому запись не ведётся.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center py-12 text-center">
+        {kind === 'video' ? (
+          <Video className="mb-3 h-12 w-12 text-muted-foreground/50" />
+        ) : (
+          <Mic className="mb-3 h-12 w-12 text-muted-foreground/50" />
+        )}
+        <p className="text-muted-foreground">
+          {kind === 'video' ? 'Пока что нет видеозаписей' : 'Пока что нет аудиозаписей'}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {kind === 'video'
+            ? 'Записи видеоконсультаций будут отображаться здесь'
+            : 'Записи аудиоконсультаций будут отображаться здесь'}
+        </p>
+      </div>
+    )
+  }
 
   const specialty = DoctorsApi.getSpecialty(doctor)
   
@@ -216,13 +280,7 @@ export function OrgConsultationView({
           <TabsContent value="recordings">
             <div className="rounded-xl border border-border bg-card min-h-[400px] p-4">
               {videoRecordings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-                  <Video className="w-12 h-12 text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">Пока что нет видеозаписей</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Записи видеоконсультаций будут отображаться здесь
-                  </p>
-                </div>
+                renderEmptyRecordings('video')
               ) : (
                 <div className="space-y-3">
                   {videoRecordings.map((recording) => {
@@ -283,13 +341,7 @@ export function OrgConsultationView({
           <TabsContent value="audio-recordings">
             <div className="rounded-xl border border-border bg-card min-h-[400px] p-4">
               {audioRecordings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-                  <Mic className="w-12 h-12 text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">Пока что нет аудиозаписей</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Записи аудиоконсультаций будут отображаться здесь
-                  </p>
-                </div>
+                renderEmptyRecordings('audio')
               ) : (
                 <div className="space-y-3">
                   {audioRecordings.map((recording) => {

@@ -117,6 +117,14 @@ export interface ApiAppointment {
   chatBlocked?: boolean | null
   activeCall?: ApiActiveCall | null
   recording?: ApiMedia | number | null
+  /**
+   * Решение пациента по записи консультации. Нужно интерфейсу, чтобы отличать
+   * «записи нет, потому что пациент отказался» от «записи почему-то нет».
+   */
+  recordingConsent?: {
+    status?: 'pending' | 'granted' | 'declined' | null
+    decidedAt?: string | null
+  } | null
   createdAt: string
   updatedAt: string
 }

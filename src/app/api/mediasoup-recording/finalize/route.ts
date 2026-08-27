@@ -7,6 +7,7 @@ import path from 'path'
 import jwt from 'jsonwebtoken'
 import { RECORDINGS_DIR } from '@/lib/recordings-dir'
 import { buildRecordingPrivacy } from '@/lib/server/media-privacy'
+import { isRecordingAllowed } from '@/lib/server/recording-consent'
 
 interface DecodedToken {
   id: number
@@ -79,6 +80,18 @@ export async function POST(request: NextRequest) {
     if (doctorIdFromToken !== doctorId) {
       console.log('[MediaSoupRecording/Finalize] Doctor ID mismatch:', doctorIdFromToken, '!=', doctorId)
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Согласие пациента обязательно и здесь. Маршрут сейчас не вызывается из
+    // интерфейса, но он умеет создавать документ call-recordings по токену
+    // врача, то есть остаётся работающим путём появления записи в системе.
+    // Проверка стоит рядом со всеми остальными, чтобы такой путь не оказался
+    // единственным без неё.
+    if (!(await isRecordingAllowed(payload, appointmentId))) {
+      console.log(`[MediaSoupRecording/Finalize] Консультация ${appointmentId}: согласия нет, запись не сохраняем`)
+      await fs.unlink(path.join(RECORDINGS_DIR, `${sessionId}.webm`)).catch(() => {})
+      await fs.unlink(path.join(RECORDINGS_DIR, `${sessionId}.sdp`)).catch(() => {})
+      return NextResponse.json({ error: 'Recording consent not granted' }, { status: 403 })
     }
 
     // Find the recording file

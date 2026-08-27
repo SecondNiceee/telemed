@@ -132,6 +132,47 @@ class RecordingController {
     }
   }
 
+  /**
+   * Дал ли пациент согласие на запись этой консультации.
+   *
+   * Процесс mediasoup к базе не обращается, поэтому спрашивает Next.js тем же
+   * серверным секретом, что и finalize.
+   *
+   * При любой неопределённости отвечаем «нет»: нет appointmentId, не настроены
+   * NEXTJS_URL / секрет, сеть не ответила, код ответа не 200. Запись - данные о
+   * здоровье, и «не смогли проверить» не может означать «пишем».
+   */
+  private async isRecordingAllowed(appointmentId: number | null): Promise<boolean> {
+    if (appointmentId === null) return false
+
+    const { nextjsUrl, serverSecret } = recordingFinalizeConfig
+    if (!nextjsUrl || !serverSecret) {
+      console.warn('[RecordingController] NEXTJS_URL или MEDIASOUP_SERVER_SECRET не заданы, согласие не проверить - запись не начинаем')
+      return false
+    }
+
+    try {
+      const response = await fetch(`${nextjsUrl}/api/mediasoup-recording/consent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId, serverSecret }),
+      })
+      if (!response.ok) {
+        console.error(`[RecordingController] Проверка согласия вернула ${response.status}, запись не начинаем`)
+        return false
+      }
+      const result = (await response.json()) as { allowed?: boolean; status?: string }
+      if (result.allowed !== true) {
+        console.log(`[RecordingController] Консультация ${appointmentId}: согласия нет (${result.status ?? 'unknown'}), запись не ведём`)
+        return false
+      }
+      return true
+    } catch (error) {
+      console.error(`[RecordingController] Не удалось проверить согласие для консультации ${appointmentId}:`, error)
+      return false
+    }
+  }
+
   private async tryStartSegment(room: Room): Promise<void> {
     if (room.router.closed) return
     if (recorder.getActiveRecordingForRoom(room.id)) return
@@ -140,8 +181,19 @@ class RecordingController {
     // Record only real conversations: both participants publishing audio.
     if (participants.length < 2) return
 
+    // Согласие проверяем до старта сегмента: при отказе файл не создаётся
+    // вообще, а не удаляется потом. Проверка здесь, а не в onProducersChanged,
+    // чтобы не ходить по сети на каждого продюсера - только когда сегмент
+    // реально готов начаться.
+    const appointmentId = parseAppointmentId(room.id)
+    if (!(await this.isRecordingAllowed(appointmentId))) return
+
+    // Пока шёл запрос, комната могла закрыться или сегмент - начаться.
+    if (room.router.closed) return
+    if (recorder.getActiveRecordingForRoom(room.id)) return
+
     try {
-      await recorder.startSegment(room.id, room.router, participants[0], participants[1], parseAppointmentId(room.id))
+      await recorder.startSegment(room.id, room.router, participants[0], participants[1], appointmentId)
     } catch (error) {
       console.error(`[RecordingController] Failed to start segment for room ${room.id}:`, error)
     }

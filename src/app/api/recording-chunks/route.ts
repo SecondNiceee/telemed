@@ -6,6 +6,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import jwt from 'jsonwebtoken'
 import { CHUNKS_DIR, getSessionId } from '@/lib/server/recording-chunks'
+import { isRecordingAllowed } from '@/lib/server/recording-consent'
 
 interface DecodedToken {
   id: number
@@ -91,6 +92,15 @@ export async function POST(request: NextRequest) {
     if (doctorIdFromToken !== doctorId) {
       console.log('[RecordingChunks] Doctor ID mismatch:', doctorIdFromToken, '!=', doctorId)
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Без согласия пациента чанки не принимаем. Браузер врача сюда и не
+    // постучится (запись включается только при согласии), но проверка серверная:
+    // разрешение на запись данных о здоровье не должно зависеть от того, что
+    // решил клиентский код.
+    if (!(await isRecordingAllowed(payload, appointmentId))) {
+      console.log(`[RecordingChunks] Консультация ${appointmentId}: согласия на запись нет, чанк отклонён`)
+      return NextResponse.json({ error: 'Recording consent not granted' }, { status: 403 })
     }
 
     await ensureChunksDir()

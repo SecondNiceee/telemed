@@ -85,6 +85,9 @@ export default async function AppointmentCallPage({ params }: { params: Promise<
       currentSenderType={isDoctor ? 'doctor' : 'user'}
       currentSenderId={Number(session.id)}
       chatBlocked={appointment.chatBlocked === true}
+      // Значение с сервера, чтобы после перезагрузки страницы экран согласия не
+      // появился снова у пациента, который уже ответил.
+      initialRecordingConsent={appointment.recordingConsent?.status ?? 'pending'}
     />
   )
 }

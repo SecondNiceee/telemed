@@ -3,6 +3,7 @@ import path from 'path'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { buildRecordingPrivacy } from './media-privacy'
+import { isRecordingAllowed } from './recording-consent'
 
 /**
  * Общая логика сборки клиентской записи звонка из чанков.
@@ -139,6 +140,8 @@ export type FinalizeResult =
   | { status: 'no-chunks' }
   | { status: 'busy' }
   | { status: 'already-exists' }
+  /** Пациент не давал согласия на запись - чанки удалены, документа нет. */
+  | { status: 'no-consent' }
 
 interface FinalizeArgs {
   appointmentId: number
@@ -197,6 +200,17 @@ export async function finalizeRecordingSession({
     }
 
     const payload = await getPayload({ config })
+
+    // Согласие проверяем и здесь, а не только на приёме чанков. Приём чанков
+    // отсекает нормальный сценарий отказа, но эту функцию вызывает ещё и
+    // фоновый сборщик недособранных сессий: чанки могли попасть на диск, пока
+    // согласие было, а к моменту сборки пациент его отозвал. Собранный файл в
+    // таком случае создавать нельзя.
+    if (!(await isRecordingAllowed(payload, appointmentId))) {
+      console.log(`[RecordingChunks] Консультация ${appointmentId}: согласия нет, чанки удаляем без сборки`)
+      await cleanupSession(sessionId, fresh.chunks)
+      return { status: 'no-consent' }
+    }
 
     const buffers: Buffer[] = []
     for (const index of fresh.chunks) {
