@@ -69,10 +69,11 @@ export default async function OpengraphImage() {
             flex: 1,
           }}
         >
-          {logo ? (
-            /* eslint-disable-next-line @next/next/no-img-element -- ImageResponse рендерит в PNG, next/image здесь неприменим */
-            <img src={logo as unknown as string} alt="" width={260} height={204} />
-          ) : null}
+          {/*
+            img, а не next/image: ImageResponse рендерит разметку в PNG через
+            Satori, и компоненты Next здесь недоступны.
+          */}
+          {logo ? <img src={logo as unknown as string} alt="" width={260} height={204} /> : null}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/*
