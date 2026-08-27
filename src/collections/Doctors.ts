@@ -233,6 +233,48 @@ function validateSchedule({ data }: { data?: Record<string, unknown> }) {
   return data
 }
 
+/**
+ * Принадлежит ли врач этой организации.
+ *
+ * Раньше в update/delete стояла проверка вида «вызывающий - организация», без
+ * сверки, ЧЬЕГО врача он правит. С одной клиникой это незаметно, но платформа
+ * маркетплейсная: любая авторизованная клиника могла отредактировать или удалить
+ * врача другой клиники - включая его расписание и цену приёма.
+ *
+ * Это тот же класс ошибки, что `read: () => true` в записях консультаций: право
+ * проверено по факту авторизации, но не по владельцу объекта.
+ *
+ * findByID с overrideAccess: true - намеренно: это внутренняя проверка права, и
+ * она не должна снова уходить в access-контроль (иначе рекурсия). Читается
+ * только поле organisation, наружу ничего не отдаётся.
+ */
+async function doctorBelongsToOrganisation(
+  req: PayloadRequest,
+  doctorId: number | string | undefined,
+  organisationId: number | string,
+): Promise<boolean> {
+  if (!doctorId) return false
+
+  try {
+    const doctor = await req.payload.findByID({
+      collection: 'doctors',
+      id: doctorId,
+      depth: 0,
+      overrideAccess: true,
+      req,
+    })
+
+    const owner = doctor?.organisation
+    const ownerId = typeof owner === 'object' && owner !== null ? owner.id : owner
+
+    return ownerId != null && String(ownerId) === String(organisationId)
+  } catch {
+    // Врач не найден или запрос не удался - в доступе отказываем.
+    // Ошибка чтения не должна превращаться в разрешение.
+    return false
+  }
+}
+
 export const Doctors: CollectionConfig = {
   slug: 'doctors',
   admin: {
@@ -315,31 +357,40 @@ export const Doctors: CollectionConfig = {
   },
   access: {
     read: () => true,
-    create: ({ req }) => {
+    create: ({ req, data }) => {
       // Organisation creates doctors; admin can too
       const user = getCallerFromRequest(req, "users");
       if (user?.role === "admin") return true;
       const organistion = getCallerFromRequest(req, 'organisations');
-      if (organistion?.collection === "organisations") return true;
+      if (organistion?.collection === "organisations" && organistion.id) {
+        // Организация создаёт врача ТОЛЬКО в своей организации.
+        // Без этой проверки клиника могла указать в поле organisation чужой id
+        // и завести врача от имени другой клиники.
+        return String(data?.organisation ?? organistion.id) === String(organistion.id)
+      }
       return false
     },
-    update: ({ req, id }) => {
+    update: async ({ req, id }) => {
       // Admin
       const user = getCallerFromRequest(req, 'users')
       if (user?.role === 'admin') return true
       // Doctor updates themselves
       const doctor = getCallerFromRequest(req, 'doctors')
       if (doctor?.collection === 'doctors' && doctor.id && String(doctor.id) === String(id)) return true
-      // Organisation updates its doctors
+      // Organisation updates its OWN doctors only
       const callerAsOrg = getCallerFromRequest(req, 'organisations')
-      if (callerAsOrg?.collection === 'organisations') return true
+      if (callerAsOrg?.collection === 'organisations' && callerAsOrg.id) {
+        return await doctorBelongsToOrganisation(req, id, callerAsOrg.id)
+      }
       return false
     },
-    delete: ({ req }) => {
+    delete: async ({ req, id }) => {
       const callerAsUser = getCallerFromRequest(req, 'users')
       if (callerAsUser?.role === 'admin') return true
       const callerAsOrg = getCallerFromRequest(req, 'organisations')
-      if (callerAsOrg?.collection === 'organisations') return true
+      if (callerAsOrg?.collection === 'organisations' && callerAsOrg.id) {
+        return await doctorBelongsToOrganisation(req, id, callerAsOrg.id)
+      }
       return false
     },
     admin: () => false, // Doctors don't access Payload Admin Panel
@@ -375,7 +426,7 @@ export const Doctors: CollectionConfig = {
     {
       name: 'degree',
       type: 'text',
-      label: 'Степень / Категория',
+      label: 'Сте��ень / Категория',
       admin: {
         description: 'Например: Врач высшей категории, Кандидат медицинских наук',
       },
