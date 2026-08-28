@@ -152,7 +152,7 @@ function sanitizeDate(raw: unknown): string | undefined {
 
 /**
  * Вырезать из `data` всё, что не входит в whitelist.
- * Возвращает имена отброшенных полей — полезно для логов.
+ * Возвращает имена отброшенных полей ��� полезно для логов.
  */
 function stripToWhitelist(data: Record<string, unknown>, allowed: Set<string>): string[] {
   const dropped: string[] = []
