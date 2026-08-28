@@ -24,6 +24,12 @@ interface RegisterData {
    * Сервер отклоняет регистрацию без неё - см. /api/auth/register.
    */
   pdnConsentAccepted: boolean
+  /**
+   * Отметка о принятии условий публичной оферты.
+   * Отдельно от согласия на ПДн: это разные сделки, и сервер проверяет их
+   * независимо друг от друга - см. /api/auth/register.
+   */
+  offerAccepted: boolean
 }
 
 interface ServerOptions {
