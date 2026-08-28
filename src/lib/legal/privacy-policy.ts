@@ -8,7 +8,7 @@
  * расходящаяся с фактической обработкой, при проверке хуже отсутствующей.
  */
 
-import { OPERATOR, operatorName } from './operator'
+import { operatorName, type OperatorRequisites } from './operator'
 
 export interface PolicyBlock {
   /** Абзац обычного текста. */
@@ -27,8 +27,14 @@ export interface PolicySection {
 
 export const POLICY_TITLE = 'Политика обработки персональных данных'
 
-export function policySections(): PolicySection[] {
-  const name = operatorName()
+/**
+ * Реквизиты приходят параметром: они лежат в глобале `site-settings` и читаются
+ * сервером (`fetchOperatorRequisitesCached`). Чтение внутри этой функции сделало
+ * бы весь модуль серверным, а короткие подписи из соседних документов нужны
+ * форме регистрации в браузере.
+ */
+export function policySections(requisites: OperatorRequisites): PolicySection[] {
+  const name = operatorName(requisites)
 
   return [
     {
@@ -52,8 +58,8 @@ export function policySections(): PolicySection[] {
           text:
             `${name} (далее - Оператор) обеспечивает работу Сервиса: личные кабинеты, ` +
             `запись на консультации, видеосвязь, чат и приём платежей. ` +
-            `ИНН ${OPERATOR.inn}, ОГРН ${OPERATOR.ogrn}, ` +
-            `адрес: ${OPERATOR.address}.`,
+            `ИНН ${requisites.inn}, ОГРН ${requisites.ogrn}, ` +
+            `адрес: ${requisites.address}.`,
         },
         {
           text:
@@ -80,7 +86,7 @@ export function policySections(): PolicySection[] {
         {
           text:
             `Обращения по вопросам обработки персональных данных направляются по ` +
-            `адресу ${OPERATOR.email}, по телефону ${OPERATOR.phone} либо письменно ` +
+            `адресу ${requisites.email}, по телефону ${requisites.phone} либо письменно ` +
             `по адресу Оператора, указанному выше. Оператор рассматривает обращение ` +
             `в течение 30 дней.`,
         },
@@ -161,7 +167,7 @@ export function policySections(): PolicySection[] {
             rows: [
               [
                 'Регистрация и доступ в личный кабинет',
-                'согласие субъекта; исполнение договора (п. 5 ч. 1 ст. 6 152-ФЗ)',
+                'согласи�� субъекта; исполнение договора (п. 5 ч. 1 ст. 6 152-ФЗ)',
               ],
               [
                 'Запись на консультацию и её проведение',
@@ -267,7 +273,7 @@ export function policySections(): PolicySection[] {
         {
           text:
             `Данные хранятся в базе данных и файловом хранилище Сервиса. Размещение ` +
-            `оборудования: ${OPERATOR.hostingLocation}.`,
+            `оборудования: ${requisites.hostingLocation}.`,
         },
         {
           text:
@@ -316,7 +322,7 @@ export function policySections(): PolicySection[] {
         },
         {
           text:
-            `Обращение направляется на ${OPERATOR.email} с указанием фамилии, имени и ` +
+            `Обращение направляется на ${requisites.email} с указанием фамилии, имени и ` +
             `адреса электронной почты, использованного при регистрации. Оператор ` +
             `отвечает в течение 30 дней со дня получения обращения. Если данные ` +
             `обрабатываются по поручению медицинской организации, Оператор ` +

@@ -5,6 +5,7 @@ import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 import { normalizePhone } from '@/utils/phone'
 import { PDN_CONSENT_VERSION, pdnConsentPlainText } from '@/lib/legal/pdn-consent'
 import { OFFER_VERSION, offerPlainText } from '@/lib/legal/offer'
+import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
 
 type RegisterBody = {
   name?: string
@@ -58,10 +59,15 @@ export async function POST(req: NextRequest) {
     // ту редакцию, которую человек видел, а не текущую.
     const acceptedAt = new Date().toISOString()
 
+    // Реквизиты берутся из БД, а не из кода: в сохранённом тексте должно стоять
+    // то же наименование оператора, которое человек видел на странице документа.
+    // Иначе снимок расходится с показанной редакцией и ничего не доказывает.
+    const requisites = await fetchOperatorRequisitesCached()
+
     const pdnConsent = {
       acceptedAt,
       version: PDN_CONSENT_VERSION,
-      text: pdnConsentPlainText(),
+      text: pdnConsentPlainText(requisites),
     }
 
     // Снимок оферты - по той же логике: редакция меняется, а доказывать придётся
@@ -69,7 +75,7 @@ export async function POST(req: NextRequest) {
     const offerAcceptance = {
       acceptedAt,
       version: OFFER_VERSION,
-      text: offerPlainText(),
+      text: offerPlainText(requisites),
     }
 
     const phone = normalizePhone(rawPhone)

@@ -2,21 +2,28 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalShell } from '@/components/legal/legal-shell'
 import { hasUnfilledRequisites } from '@/lib/legal/operator'
+import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
 import { PDN_CONSENT_TITLE, pdnConsentClauses } from '@/lib/legal/pdn-consent'
 
-export const metadata: Metadata = {
-  title: `${PDN_CONSENT_TITLE} — smartcardio`,
-  description:
-    'Текст согласия на обработку персональных данных, включая данные о состоянии здоровья, которое даётся при регистрации в сервисе smartcardio.',
-  robots: hasUnfilledRequisites() ? { index: false, follow: false } : undefined,
+export async function generateMetadata(): Promise<Metadata> {
+  const requisites = await fetchOperatorRequisitesCached()
+
+  return {
+    title: `${PDN_CONSENT_TITLE} — smartcardio`,
+    description:
+      'Текст согласия на обработку персональных данных, включая данные о состоянии здоровья, которое даётся при регистрации в сервисе smartcardio.',
+    robots: hasUnfilledRequisites(requisites) ? { index: false, follow: false } : undefined,
+  }
 }
 
-export default function PdnConsentPage() {
-  const clauses = pdnConsentClauses()
+export default async function PdnConsentPage() {
+  const requisites = await fetchOperatorRequisitesCached()
+  const clauses = pdnConsentClauses(requisites)
 
   return (
     <LegalShell
       title={PDN_CONSENT_TITLE}
+      requisitesUnfilled={hasUnfilledRequisites(requisites)}
       lead="Текст согласия, которое пользователь даёт при регистрации в сервисе. Согласие на запись консультации запрашивается отдельно — перед началом каждой консультации."
     >
       <div className="flex flex-col gap-8">

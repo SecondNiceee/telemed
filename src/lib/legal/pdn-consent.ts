@@ -10,7 +10,11 @@
  * серверу - он сохраняет версию согласия рядом с отметкой пользователя.
  */
 
-import { OPERATOR, operatorName, PDN_CONSENT_VERSION } from './operator'
+import {
+  operatorName,
+  PDN_CONSENT_VERSION,
+  type OperatorRequisites,
+} from './operator'
 
 export { PDN_CONSENT_VERSION }
 
@@ -26,13 +30,13 @@ export interface ConsentClause {
   items?: string[]
 }
 
-export function pdnConsentClauses(): ConsentClause[] {
-  const name = operatorName()
+export function pdnConsentClauses(requisites: OperatorRequisites): ConsentClause[] {
+  const name = operatorName(requisites)
 
   return [
     {
       text:
-        `Я даю согласие ${name} (адрес: ${OPERATOR.address}, ИНН ${OPERATOR.inn}) ` +
+        `Я даю согласие ${name} (адрес: ${requisites.address}, ИНН ${requisites.inn}) ` +
         `и медицинской организации, врача которой я выбираю в сервисе «smartcardio», ` +
         `на обработку моих персональных данных на условиях, изложенных ниже.`,
     },
@@ -85,7 +89,7 @@ export function pdnConsentClauses(): ConsentClause[] {
       title: 'Срок действия и отзыв',
       text:
         `Согласие действует до достижения целей обработки или до его отзыва. Я могу ` +
-        `отозвать согласие, направив обращение на ${OPERATOR.email}. Я понимаю, что ` +
+        `отозвать согласие, направив обращение на ${requisites.email}. Я понимаю, что ` +
         `отзыв согласия может сделать дальнейшее использование сервиса невозможным, а ` +
         `хранение отдельных данных может продолжиться, если это требуется по закону ` +
         `(медицинская документация, бухгалтерский учёт).`,
@@ -108,8 +112,8 @@ export function pdnConsentClauses(): ConsentClause[] {
  * временем меняется, а подтверждать придётся ту, которую человек видел в день
  * регистрации.
  */
-export function pdnConsentPlainText(): string {
-  return pdnConsentClauses()
+export function pdnConsentPlainText(requisites: OperatorRequisites): string {
+  return pdnConsentClauses(requisites)
     .map((clause) => {
       const head = clause.title ? `${clause.title}:\n` : ''
       const body = clause.text ? clause.text : (clause.items ?? []).map((i) => `- ${i}`).join('\n')

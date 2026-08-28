@@ -2,23 +2,30 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalShell } from '@/components/legal/legal-shell'
 import { hasUnfilledRequisites } from '@/lib/legal/operator'
+import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
 import { OFFER_TITLE, OFFER_VERSION, offerClauses } from '@/lib/legal/offer'
 
-export const metadata: Metadata = {
-  title: `${OFFER_TITLE} — smartcardio`,
-  description:
-    'Условия использования сервиса smartcardio: порядок записи на консультацию, оплата, отмена и возврат средств, ответственность сторон.',
-  // Черновик не должен попадать в поиск: документ без реквизитов оператора
-  // выглядит как действующий договор, но им не является.
-  robots: hasUnfilledRequisites() ? { index: false, follow: false } : undefined,
+export async function generateMetadata(): Promise<Metadata> {
+  const requisites = await fetchOperatorRequisitesCached()
+
+  return {
+    title: `${OFFER_TITLE} — smartcardio`,
+    description:
+      'Условия использования сервиса smartcardio: порядок записи на консультацию, оплата, отмена и возврат средств, ответственность сторон.',
+    // Черновик не должен попадать в поиск: документ без реквизитов оператора
+    // выглядит как действующий договор, но им не является.
+    robots: hasUnfilledRequisites(requisites) ? { index: false, follow: false } : undefined,
+  }
 }
 
-export default function OfferPage() {
-  const clauses = offerClauses()
+export default async function OfferPage() {
+  const requisites = await fetchOperatorRequisitesCached()
+  const clauses = offerClauses(requisites)
 
   return (
     <LegalShell
       title={OFFER_TITLE}
+      requisitesUnfilled={hasUnfilledRequisites(requisites)}
       // Версия оферты, а не общая дата документов: в шапке должна стоять та же
       // редакция, что сохраняется пользователю при акцепте.
       version={OFFER_VERSION}

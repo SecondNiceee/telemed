@@ -50,11 +50,6 @@ export interface OperatorRequisites {
   /** Телефон для обращений. */
   phone: string
   /**
-   * Дата, с которой действует редакция документов.
-   * Формат ISO (YYYY-MM-DD) - выводится через toLocaleDateString('ru-RU').
-   */
-  documentsDate: string
-  /**
    * Где физически размещены серверы с базой и файлами - страна и, если
    * известно, город или провайдер.
    *
@@ -74,12 +69,19 @@ export interface OperatorRequisites {
 }
 
 /**
- * ЗАПОЛНИТЬ ПЕРЕД ПУБЛИКАЦИЕЙ.
+ * Значения по умолчанию, когда реквизиты в админке ещё не заполнены.
+ *
+ * Реальные значения живут в глобале `site-settings` и правятся в админке -
+ * см. `operator.server.ts`. Здесь именно заглушки, а НЕ настоящие реквизиты:
+ * если БД недоступна или поля пустые, документ должен показать «не заполнено»
+ * и уйти из индекса поиска, а не подставить вчерашнее значение из кода.
+ * Иначе после смены реквизитов в админке страница молча печатала бы старое
+ * наименование оператора - то есть неверного ответственного за данные.
  *
  * Данные должны совпадать с ЕГРЮЛ: политика с чужим или неточным наименованием
  * оператора не защищает, а фиксирует нарушение.
  */
-export const OPERATOR: OperatorRequisites = {
+export const OPERATOR_FALLBACK: OperatorRequisites = {
   legalName: PLACEHOLDER,
   inn: PLACEHOLDER,
   ogrn: PLACEHOLDER,
@@ -87,9 +89,18 @@ export const OPERATOR: OperatorRequisites = {
   email: PLACEHOLDER,
   phone: PLACEHOLDER,
   hostingLocation: PLACEHOLDER,
-  documentsDate: '2026-08-27',
   rknNotificationSubmitted: false,
 }
+
+/**
+ * Дата редакции для документов, у которых нет своей версии.
+ *
+ * Намеренно НЕ выносится в админку, в отличие от реквизитов: «Редакция от» -
+ * это утверждение о том, что текст документа менялся. Возможность поменять дату
+ * в админке, не тронув текст, позволила бы объявить новую редакцию документа,
+ * которого никто не переписывал.
+ */
+export const DOCUMENTS_DATE = '2026-08-27'
 
 /**
  * Версия текста согласия на обработку персональных данных.
@@ -113,22 +124,31 @@ export const PDN_CONSENT_VERSION = '2026-08-27'
  */
 export const OFFER_VERSION = '2026-08-28'
 
-/** Есть ли незаполненные реквизиты - страницы показывают предупреждение. */
-export function hasUnfilledRequisites(): boolean {
+/**
+ * Есть ли незаполненные реквизиты - страницы показывают предупреждение.
+ *
+ * Реквизиты приходят параметром, а не читаются из модуля: они лежат в БД, и
+ * функция должна проверять именно то, что напечатано на странице. Скрытое
+ * чтение внутри означало бы, что предупреждение и текст документа берут данные
+ * из разных источников и могут разойтись.
+ */
+export function hasUnfilledRequisites(requisites: OperatorRequisites): boolean {
   return [
-    OPERATOR.legalName,
-    OPERATOR.inn,
-    OPERATOR.ogrn,
-    OPERATOR.address,
-    OPERATOR.email,
-    OPERATOR.phone,
-    OPERATOR.hostingLocation,
+    requisites.legalName,
+    requisites.inn,
+    requisites.ogrn,
+    requisites.address,
+    requisites.email,
+    requisites.phone,
+    requisites.hostingLocation,
   ].some((value) => value.trim() === '' || value.includes(PLACEHOLDER))
 }
 
 /** Наименование оператора для подстановки в текст документов. */
-export function operatorName(): string {
-  return OPERATOR.legalName.includes(PLACEHOLDER) ? 'Оператор (наименование не заполнено)' : OPERATOR.legalName
+export function operatorName(requisites: OperatorRequisites): string {
+  return requisites.legalName.includes(PLACEHOLDER)
+    ? 'Оператор (наименование не заполнено)'
+    : requisites.legalName
 }
 
 /**
@@ -136,14 +156,14 @@ export function operatorName(): string {
  *
  * Принимает версию КОНКРЕТНОГО документа, а не общую дату из OPERATOR: у оферты
  * и согласия версии независимы, и при общей дате оферта версии 2026-08-28
- * показывала «Редакция от 27 августа 2026 г.» - проверено в браузере. Для
+ * по��азывала «Редакция от 27 августа 2026 г.» - проверено в браузере. Для
  * юридического документа это прямое противоречие: в кабинете пользователя
  * сохранён один номер редакции, а на странице напечатан другой, и непонятно,
  * какой текст он на самом деле принял.
  *
  * Без аргумента возвращает общую дату - для страниц, у которых своей версии нет.
  */
-export function documentsDateLabel(version: string = OPERATOR.documentsDate): string {
+export function documentsDateLabel(version: string = DOCUMENTS_DATE): string {
   return new Date(version).toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: 'long',

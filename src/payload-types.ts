@@ -1013,6 +1013,25 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface SiteSetting {
   id: number;
+  /**
+   * Подставляются в Политику, Оферту и Согласие на обработку персональных данных. Должны совпадать с ЕГРЮЛ: документ с неточным наименованием оператора не защищает. Пока поля пустые, страницы показывают пометку «не заполнено» и закрыты от индексации поисковиками.
+   */
+  operator?: {
+    legalName?: string | null;
+    inn?: string | null;
+    ogrn?: string | null;
+    address?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    /**
+     * Страна и, если известно, город или провайдер. Для граждан РФ база должна находиться на территории России (ч. 5 ст. 18 152-ФЗ). По коду это не проверяется — значение заполняется руками.
+     */
+    hostingLocation?: string | null;
+    /**
+     * Памятка, код на этот флаг не опирается. Для данных о здоровье уведомление обязательно (ст. 22 152-ФЗ), и его отсутствие — самостоятельное нарушение, не зависящее от текста политики.
+     */
+    rknNotificationSubmitted?: boolean | null;
+  };
   heroTitle: string;
   heroSubtitle?: string | null;
   faq?:
@@ -1030,6 +1049,18 @@ export interface SiteSetting {
  * via the `definition` "site-settings_select".
  */
 export interface SiteSettingsSelect<T extends boolean = true> {
+  operator?:
+    | T
+    | {
+        legalName?: T;
+        inn?: T;
+        ogrn?: T;
+        address?: T;
+        email?: T;
+        phone?: T;
+        hostingLocation?: T;
+        rknNotificationSubmitted?: T;
+      };
   heroTitle?: T;
   heroSubtitle?: T;
   faq?:
