@@ -131,9 +131,20 @@ export function operatorName(): string {
   return OPERATOR.legalName.includes(PLACEHOLDER) ? 'Оператор (наименование не заполнено)' : OPERATOR.legalName
 }
 
-/** Дата редакции документов в человекочитаемом виде. */
-export function documentsDateLabel(): string {
-  return new Date(OPERATOR.documentsDate).toLocaleDateString('ru-RU', {
+/**
+ * Дата версии документа в человекочитаемом виде.
+ *
+ * Принимает версию КОНКРЕТНОГО документа, а не общую дату из OPERATOR: у оферты
+ * и согласия версии независимы, и при общей дате оферта версии 2026-08-28
+ * показывала «Редакция от 27 августа 2026 г.» - проверено в браузере. Для
+ * юридического документа это прямое противоречие: в кабинете пользователя
+ * сохранён один номер редакции, а на странице напечатан другой, и непонятно,
+ * какой текст он на самом деле принял.
+ *
+ * Без аргумента возвращает общую дату - для страниц, у которых своей версии нет.
+ */
+export function documentsDateLabel(version: string = OPERATOR.documentsDate): string {
+  return new Date(version).toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
