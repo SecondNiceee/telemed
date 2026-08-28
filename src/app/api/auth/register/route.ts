@@ -6,6 +6,7 @@ import { normalizePhone } from '@/utils/phone'
 import { PDN_CONSENT_VERSION, pdnConsentPlainText } from '@/lib/legal/pdn-consent'
 import { OFFER_VERSION, offerPlainText } from '@/lib/legal/offer'
 import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
+import { getClientIp } from '@/utils/clientIp'
 
 type RegisterBody = {
   name?: string
@@ -59,6 +60,10 @@ export async function POST(req: NextRequest) {
     // ту редакцию, которую человек видел, а не текущую.
     const acceptedAt = new Date().toISOString()
 
+    // Адрес читается из заголовков запроса, а не из тела: значение из body
+    // подставил бы сам клиент, и как реквизит акцепта оно ничего не стоило бы.
+    const acceptedIp = getClientIp(req)
+
     // Реквизиты берутся из БД, а не из кода: в сохранённом тексте должно стоять
     // то же наименование оператора, которое человек видел на странице документа.
     // Иначе снимок расходится с показанной редакцией и ничего не доказывает.
@@ -68,6 +73,7 @@ export async function POST(req: NextRequest) {
       acceptedAt,
       version: PDN_CONSENT_VERSION,
       text: pdnConsentPlainText(requisites),
+      ip: acceptedIp,
     }
 
     // Снимок оферты - по той же логике: редакция меняется, а доказывать придётся
@@ -76,6 +82,7 @@ export async function POST(req: NextRequest) {
       acceptedAt,
       version: OFFER_VERSION,
       text: offerPlainText(requisites),
+      ip: acceptedIp,
     }
 
     const phone = normalizePhone(rawPhone)

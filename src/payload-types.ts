@@ -183,12 +183,13 @@ export interface User {
   role: 'user' | 'admin';
   name?: string | null;
   /**
-   * Заполняется при регистрации, вручн��ю не изменяется
+   * Заполняется при регистрации, вручную не изменяется
    */
   pdnConsent?: {
     acceptedAt?: string | null;
     version?: string | null;
     text?: string | null;
+    ip?: string | null;
   };
   /**
    * Заполняется при регистрации, вручную не изменяется
@@ -196,6 +197,7 @@ export interface User {
   offerAcceptance?: {
     acceptedAt?: string | null;
     version?: string | null;
+    ip?: string | null;
     text?: string | null;
   };
   updatedAt: string;
@@ -714,12 +716,14 @@ export interface UsersSelect<T extends boolean = true> {
         acceptedAt?: T;
         version?: T;
         text?: T;
+        ip?: T;
       };
   offerAcceptance?:
     | T
     | {
         acceptedAt?: T;
         version?: T;
+        ip?: T;
         text?: T;
       };
   updatedAt?: T;
