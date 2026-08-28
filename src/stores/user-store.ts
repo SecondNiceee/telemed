@@ -17,14 +17,22 @@ interface UserState {
   setUser: (user: User | null) => void
   /** Login with email/password, stores user on success */
   login: (email: string, password: string) => Promise<User>
-  /** Register a new user (self-registration). Отправляет письмо для подтверждения email. */
-  register: (
-    name: string,
-    email: string,
-    phone: string,
-    password: string,
-    pdnConsentAccepted: boolean,
-  ) => Promise<void>
+  /**
+   * Register a new user (self-registration). Отправляет письмо для подтверждения email.
+   *
+   * Согласия передаются объектом, а не двумя булевыми аргументами подряд:
+   * `register(name, email, phone, pass, true, false)` при перестановке местами
+   * молча записал бы принятие оферты как согласие на обработку данных о здоровье,
+   * и компилятор бы этого не заметил.
+   */
+  register: (params: {
+    name: string
+    email: string
+    phone: string
+    password: string
+    pdnConsentAccepted: boolean
+    offerAccepted: boolean
+  }) => Promise<void>
   /** Logout and redirect to home */
   logout: () => Promise<void>
   /** Reset store to initial state */
@@ -82,12 +90,12 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
-  register: async (name, email, phone, password, pdnConsentAccepted) => {
+  register: async (params) => {
     set({ loading: true })
     try {
-      // Согласие приходит параметром, а не подставляется здесь: значение true
+      // Согласия приходят параметрами, а не подставляются здесь: значение true
       // по умолчанию было бы отметкой о согласии, которого никто не давал.
-      await AuthApi.register({ name, email, phone, password, pdnConsentAccepted })
+      await AuthApi.register(params)
       // Email ещё не подтверждён, поэтому пользователя в стор не пишем —
       // сначала нужно перейти по ссылке из письма.
     } finally {

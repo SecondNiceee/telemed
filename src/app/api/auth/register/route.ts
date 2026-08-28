@@ -4,6 +4,7 @@ import config from '@payload-config'
 import { sendVerificationEmail } from '@/utils/sendVerificationEmail'
 import { normalizePhone } from '@/utils/phone'
 import { PDN_CONSENT_VERSION, pdnConsentPlainText } from '@/lib/legal/pdn-consent'
+import { OFFER_VERSION, offerPlainText } from '@/lib/legal/offer'
 
 type RegisterBody = {
   name?: string
@@ -12,12 +13,21 @@ type RegisterBody = {
   password?: string
   /** Отметка пользователя о согласии на обработку персональных данных. */
   pdnConsentAccepted?: boolean
+  /** Отметка пользователя о принятии условий публичной оферты. */
+  offerAccepted?: boolean
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RegisterBody
-    const { name, email, phone: rawPhone, password, pdnConsentAccepted } = body
+    const {
+      name,
+      email,
+      phone: rawPhone,
+      password,
+      pdnConsentAccepted,
+      offerAccepted,
+    } = body
 
     // Basic validation
     if (!email || !password) {
@@ -34,12 +44,32 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Акцепт оферты проверяется отдельно от согласия на ПДн - это разные сделки.
+    // Проверка на сервере по той же причине: форму можно обойти прямым запросом,
+    // а договор без акцепта не заключён (ст. 438 ГК РФ).
+    if (offerAccepted !== true) {
+      return NextResponse.json(
+        { message: 'Для регистрации нужно принять условия публичной оферты' },
+        { status: 400 },
+      )
+    }
+
     // Снимок текста согласия на момент регистрации: подтверждать придётся именно
     // ту редакцию, которую человек видел, а не текущую.
+    const acceptedAt = new Date().toISOString()
+
     const pdnConsent = {
-      acceptedAt: new Date().toISOString(),
+      acceptedAt,
       version: PDN_CONSENT_VERSION,
       text: pdnConsentPlainText(),
+    }
+
+    // Снимок оферты - по той же логике: редакция меняется, а доказывать придётся
+    // ту, которую человек принял.
+    const offerAcceptance = {
+      acceptedAt,
+      version: OFFER_VERSION,
+      text: offerPlainText(),
     }
 
     const phone = normalizePhone(rawPhone)
@@ -110,8 +140,9 @@ export async function POST(req: NextRequest) {
           phone,
           password,
           // Аккаунт не подтверждён, регистрация проходит заново - значит и
-          // согласие дано заново, с актуальной датой и версией текста.
+          // согласие, и акцепт оферты даны заново, с актуальной датой и версией.
           pdnConsent,
+          offerAcceptance,
         },
         overrideAccess: true,
         showHiddenFields: true,
@@ -144,6 +175,7 @@ export async function POST(req: NextRequest) {
         password,
         role: 'user',
         pdnConsent,
+        offerAcceptance,
       },
       overrideAccess: true,
     })

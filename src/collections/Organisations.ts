@@ -1,15 +1,25 @@
-import type { CollectionConfig, PayloadRequest } from 'payload'
+import type { CollectionConfig } from 'payload'
 import { getCallerFromRequest } from './helpers/auth'
 
 const ORGANISATION_SUPPORT_PHONE_CACHE_TAG = 'organisation-support-phones'
+/** Тот же тег, что в organisations.server.ts: реестр /legal/clinics. */
+const ORGANISATION_REGISTRY_CACHE_TAG = 'organisations-registry'
 
-const revalidateOrganisationSupportPhones = async () => {
+/**
+ * Сбрасывает кэш телефона поддержки и публичного реестра клиник.
+ *
+ * Реестр добавлен сюда потому, что это юридическая страница: пока клиника не
+ * появилась в нём или в нём висит неисправленный ИНН, пациент видит неверные
+ * сведения о том, кто отвечает за его данные о здоровье.
+ */
+const revalidateOrganisationCaches = async () => {
   try {
     const { revalidateTag } = await import('next/cache')
     revalidateTag(ORGANISATION_SUPPORT_PHONE_CACHE_TAG)
+    revalidateTag(ORGANISATION_REGISTRY_CACHE_TAG)
   } catch (error) {
     console.warn(
-      '[organisations] Support phone cache revalidation skipped:',
+      '[organisations] Cache revalidation skipped:',
       error instanceof Error ? error.message : error,
     )
   }
@@ -44,12 +54,12 @@ export const Organisations: CollectionConfig = {
     ],
     afterChange: [
       async () => {
-        await revalidateOrganisationSupportPhones()
+        await revalidateOrganisationCaches()
       },
     ],
     afterDelete: [
       async () => {
-        await revalidateOrganisationSupportPhones()
+        await revalidateOrganisationCaches()
       },
     ],
   },
