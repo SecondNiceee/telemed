@@ -87,6 +87,12 @@ export function Footer() {
             Согласие на обработку персональных данных
           </Link>
           <Link
+            href="/legal/offer"
+            className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
+          >
+            Публичная оферта
+          </Link>
+          <Link
             href="/legal/clinics"
             className="text-white/70 text-sm hover:text-teal-on-dark transition-colors"
           >

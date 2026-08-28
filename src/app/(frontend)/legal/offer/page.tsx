@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalShell } from '@/components/legal/legal-shell'
 import { hasUnfilledRequisites } from '@/lib/legal/operator'
-import { OFFER_TITLE, offerClauses } from '@/lib/legal/offer'
+import { OFFER_TITLE, OFFER_VERSION, offerClauses } from '@/lib/legal/offer'
 
 export const metadata: Metadata = {
   title: `${OFFER_TITLE} — smartcardio`,
@@ -19,6 +19,9 @@ export default function OfferPage() {
   return (
     <LegalShell
       title={OFFER_TITLE}
+      // Версия оферты, а не общая дата документов: в шапке должна стоять та же
+      // редакция, что сохраняется пользователю при акцепте.
+      version={OFFER_VERSION}
       lead="Договор между сервисом и пользователем: доступ к платформе, запись на консультацию, оплата и возврат. Медицинскую помощь оказывает медицинская организация, врача которой вы выбираете."
     >
       <div className="flex flex-col gap-8">

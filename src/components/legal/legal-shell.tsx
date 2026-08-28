@@ -8,6 +8,15 @@ interface LegalShellProps {
   title: string
   /** Короткое пояснение под заголовком - зачем документ и к кому относится. */
   lead: string
+  /**
+   * Версия ЭТОГО документа в формате YYYY-MM-DD.
+   *
+   * Обязательна для документов, чья версия сохраняется у пользователя (оферта,
+   * согласие): дата в шапке должна совпадать с сохранённой, иначе непонятно,
+   * какую редакцию человек принял. Если не передана - берётся общая дата
+   * документов, этого достаточно для страниц без собственной версии.
+   */
+  version?: string
   children: ReactNode
 }
 
@@ -19,7 +28,7 @@ interface LegalShellProps {
  * не выполняет требование ст. 18.1 152-ФЗ, и честная пометка «черновик» лучше
  * официального вида с «___» вместо названия организации.
  */
-export function LegalShell({ title, lead, children }: LegalShellProps) {
+export function LegalShell({ title, lead, version, children }: LegalShellProps) {
   const unfilled = hasUnfilledRequisites()
 
   return (
@@ -29,7 +38,7 @@ export function LegalShell({ title, lead, children }: LegalShellProps) {
         <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
           <header className="flex flex-col gap-3 border-b pb-8">
             <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              Редакция от {documentsDateLabel()}
+              Редакция от {documentsDateLabel(version)}
             </p>
             <h1 className="text-balance text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
               {title}
