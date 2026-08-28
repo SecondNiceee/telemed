@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
-import { documentsDateLabel, hasUnfilledRequisites } from '@/lib/legal/operator'
+import { documentsDateLabel } from '@/lib/legal/operator'
 
 interface LegalShellProps {
   title: string
@@ -17,6 +17,15 @@ interface LegalShellProps {
    * документов, этого достаточно для страниц без собственной версии.
    */
   version?: string
+  /**
+   * Показать предупреждение о незаполненных реквизитах оператора.
+   *
+   * Приходит пропом, а не вычисляется внутри: реквизиты теперь лежат в БД, а
+   * читать их каркас не может - он рендерится и на страницах без реквизитов
+   * (реестр клиник). Флаг считает та страница, которая эти реквизиты печатает,
+   * из того же значения, что подставлено в текст.
+   */
+  requisitesUnfilled?: boolean
   children: ReactNode
 }
 
@@ -28,9 +37,13 @@ interface LegalShellProps {
  * не выполняет требование ст. 18.1 152-ФЗ, и честная пометка «черновик» лучше
  * официального вида с «___» вместо названия организации.
  */
-export function LegalShell({ title, lead, version, children }: LegalShellProps) {
-  const unfilled = hasUnfilledRequisites()
-
+export function LegalShell({
+  title,
+  lead,
+  version,
+  requisitesUnfilled = false,
+  children,
+}: LegalShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
@@ -46,7 +59,7 @@ export function LegalShell({ title, lead, version, children }: LegalShellProps) 
             <p className="text-pretty leading-relaxed text-muted-foreground">{lead}</p>
           </header>
 
-          {unfilled ? (
+          {requisitesUnfilled ? (
             <div
               className="mt-8 flex gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4"
               role="alert"
@@ -57,8 +70,8 @@ export function LegalShell({ title, lead, version, children }: LegalShellProps) 
                 <p className="text-pretty leading-relaxed text-muted-foreground">
                   В тексте не указаны реквизиты оператора персональных данных. До их
                   заполнения документ является черновиком и не может считаться
-                  опубликованной политикой. Реквизиты заполняются в файле{' '}
-                  <code className="font-mono text-xs">src/lib/legal/operator.ts</code>.
+                  опубликованной политикой. Реквизиты заполняются администратором в
+                  настройках сайта.
                 </p>
               </div>
             </div>

@@ -1,23 +1,33 @@
 import type { Metadata } from 'next'
 import { LegalShell } from '@/components/legal/legal-shell'
-import { OPERATOR, hasUnfilledRequisites, operatorName } from '@/lib/legal/operator'
+import { hasUnfilledRequisites, operatorName } from '@/lib/legal/operator'
+import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
 import { POLICY_TITLE, policySections } from '@/lib/legal/privacy-policy'
 
-export const metadata: Metadata = {
-  title: `${POLICY_TITLE} — smartcardio`,
-  description:
-    'Какие персональные данные обрабатываются в сервисе smartcardio, с какой целью, кто получает доступ и как реализуются права субъекта персональных данных.',
-  // Черновик без реквизитов не должен попадать в поиск: документ выглядит
-  // официальным, но оператора не называет.
-  robots: hasUnfilledRequisites() ? { index: false, follow: false } : undefined,
+// generateMetadata вместо статического metadata: признак «черновик» зависит от
+// реквизитов в БД, а статический объект вычислялся бы один раз на сборке и после
+// заполнения реквизитов в админке продолжал бы прятать страницу от поиска.
+export async function generateMetadata(): Promise<Metadata> {
+  const requisites = await fetchOperatorRequisitesCached()
+
+  return {
+    title: `${POLICY_TITLE} — smartcardio`,
+    description:
+      'Какие персональные данные обрабатываются в сервисе smartcardio, с какой целью, кто получает доступ и как реализуются права субъекта персональных данных.',
+    // Черновик без реквизитов не должен попадать в поиск: документ выглядит
+    // официальным, но оператора не называет.
+    robots: hasUnfilledRequisites(requisites) ? { index: false, follow: false } : undefined,
+  }
 }
 
-export default function PrivacyPolicyPage() {
-  const sections = policySections()
+export default async function PrivacyPolicyPage() {
+  const requisites = await fetchOperatorRequisitesCached()
+  const sections = policySections(requisites)
 
   return (
     <LegalShell
       title={POLICY_TITLE}
+      requisitesUnfilled={hasUnfilledRequisites(requisites)}
       lead="Документ описывает обработку персональных данных в сервисе smartcardio и составлен в соответствии с Федеральным законом № 152-ФЗ."
     >
       <nav aria-label="Содержание" className="rounded-lg border bg-card p-5">
@@ -114,12 +124,12 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-xl font-semibold leading-snug text-foreground">Реквизиты оператора</h2>
         <dl className="flex flex-col gap-3 text-sm">
           {[
-            ['Наименование', operatorName()],
-            ['ИНН', OPERATOR.inn],
-            ['ОГРН', OPERATOR.ogrn],
-            ['Адрес', OPERATOR.address],
-            ['Электронная почта', OPERATOR.email],
-            ['Телефон', OPERATOR.phone],
+            ['Наименование', operatorName(requisites)],
+            ['ИНН', requisites.inn],
+            ['ОГРН', requisites.ogrn],
+            ['Адрес', requisites.address],
+            ['Электронная почта', requisites.email],
+            ['Телефон', requisites.phone],
           ].map(([label, value]) => (
             <div key={label} className="flex flex-col gap-1 sm:flex-row sm:gap-4">
               <dt className="w-48 shrink-0 text-muted-foreground">{label}</dt>
