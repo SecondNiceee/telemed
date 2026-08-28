@@ -18,6 +18,7 @@ import { getErrorMessage } from "@/lib/api/errors"
 import { ArrowLeft, Loader2, MailCheck } from "lucide-react"
 import { formatPhoneInput, normalizePhone } from "@/utils/phone"
 import { PDN_CONSENT_CHECKBOX_LABEL } from "@/lib/legal/pdn-consent"
+import { OFFER_CHECKBOX_LABEL } from "@/lib/legal/offer"
 
 type Tab = "login" | "register"
 
@@ -38,6 +39,8 @@ export interface RegisterValues {
   password: string
   /** Отметка о согласии на обработку персональных данных. */
   pdnConsentAccepted: boolean
+  /** Отметка о принятии условий публичной оферты. */
+  offerAccepted: boolean
 }
 
 /**
@@ -196,6 +199,15 @@ const RegisterForm = memo(function RegisterForm({
    * считается - оно должно быть конкретным и активным действием.
    */
   const [consent, setConsent] = useState(false)
+  /**
+   * Принятие оферты - отдельная галочка, а не общая «согласен со всем».
+   *
+   * Объединять их нельзя: согласие на обработку данных о здоровье должно быть
+   * конкретным (ч. 2 ст. 10 152-ФЗ), и если оно проставляется тем же движением,
+   * что и принятие договора, оно перестаёт быть отдельно выраженным. Тогда
+   * рушится не удобство формы, а само основание обрабатывать медицинские данные.
+   */
+  const [offer, setOffer] = useState(false)
   /** Ошибки клиентской валидации — отдельно от серверных, которые приходят пропом */
   const [localError, setLocalError] = useState("")
 
@@ -219,8 +231,19 @@ const RegisterForm = memo(function RegisterForm({
       setLocalError("Без согласия на обработку персональных данных регистрация невозможна")
       return
     }
+    if (!offer) {
+      setLocalError("Для регистрации нужно принять условия публичной оферты")
+      return
+    }
 
-    onSubmit({ name, email, phone, password, pdnConsentAccepted: consent })
+    onSubmit({
+      name,
+      email,
+      phone,
+      password,
+      pdnConsentAccepted: consent,
+      offerAccepted: offer,
+    })
   }
 
   return (
@@ -318,6 +341,41 @@ const RegisterForm = memo(function RegisterForm({
               политика обработки данных
             </a>
             {". Запись консультации - отдельное согласие перед звонком."}
+          </p>
+        </div>
+      </div>
+      <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
+        <input
+          id="reg-offer"
+          type="checkbox"
+          checked={offer}
+          onChange={(e) => setOffer(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-primary"
+          aria-describedby="reg-offer-hint"
+        />
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="reg-offer" className="text-sm font-normal leading-5 text-pretty">
+            {OFFER_CHECKBOX_LABEL}
+          </Label>
+          <p id="reg-offer-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
+            <a
+              href="/legal/offer"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              Текст оферты
+            </a>
+            {". Медицинскую помощь оказывает клиника, врача которой вы выберете, - "}
+            <a
+              href="/legal/clinics"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-primary"
+            >
+              список организаций
+            </a>
+            {"."}
           </p>
         </div>
       </div>
