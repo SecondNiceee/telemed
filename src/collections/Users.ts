@@ -185,7 +185,7 @@ export const Users: CollectionConfig = {
       name: 'pdnConsent',
       type: 'group',
       label: 'Согласие на обработку персональных данных',
-      admin: { description: 'Заполняется при регистрации, вручн��ю не изменяется' },
+      admin: { description: 'Заполняется при регистрации, вручную не изменяется' },
       access: { update: adminOnlyField, create: adminOnlyField },
       fields: [
         {
