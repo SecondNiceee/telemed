@@ -11,6 +11,7 @@ import { UserHeroBanner } from "@/components/user-hero-banner"
 import { UserAppointmentCard } from "@/components/user-appointment-card"
 import { FeedbackPrompt } from "@/components/feedback-prompt"
 import { ConsultationGuide } from "@/components/consultation-guide"
+import { RevokeConsentCard } from "@/components/revoke-consent-card"
 import { useUnreadMessages } from "@/hooks/use-unread-messages"
 import { cn } from "@/lib/utils"
 import {
@@ -298,6 +299,18 @@ export function LkContent({
             ))}
           </div>
         )}
+
+        {/*
+          Управление согласием — в самом низу кабинета, после записей.
+          Это редкое и необратимое действие: выше оно конкурировало бы за
+          внимание с оплатой брони и предстоящими консультациями.
+        */}
+        <div className="mt-10">
+          <RevokeConsentCard
+            status={user.dataProcessing?.status ?? "none"}
+            requestedAt={user.dataProcessing?.requestedAt ?? null}
+          />
+        </div>
       </div>
     </div>
   )

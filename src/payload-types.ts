@@ -183,12 +183,13 @@ export interface User {
   role: 'user' | 'admin';
   name?: string | null;
   /**
-   * Заполняется при регистрации, вручн��ю не изменяется
+   * Заполняется при регистрации, вручную не изменяется
    */
   pdnConsent?: {
     acceptedAt?: string | null;
     version?: string | null;
     text?: string | null;
+    ip?: string | null;
   };
   /**
    * Заполняется при регистрации, вручную не изменяется
@@ -196,7 +197,28 @@ export interface User {
   offerAcceptance?: {
     acceptedAt?: string | null;
     version?: string | null;
+    ip?: string | null;
     text?: string | null;
+  };
+  /**
+   * Заявка пациента на отзыв согласия и результат её исполнения. Перевод статуса в «Согласие отозвано» запускает обезличивание — операция необратима.
+   */
+  dataProcessing?: {
+    status?: ('none' | 'requested' | 'revoked') | null;
+    /**
+     * Фиксируется кнопкой в личном кабинете. С этой даты идёт срок исполнения.
+     */
+    requestedAt?: string | null;
+    requestIp?: string | null;
+    /**
+     * Видеозаписи и сообщения будут удалены безвозвратно вместе с файлами. Платежи и суммы сохраняются для учёта.
+     */
+    confirmErasure?: boolean | null;
+    processedAt?: string | null;
+    /**
+     * Что именно было сделано и сколько объектов затронуто. Единственный след удалённых материалов — сами они уже не существуют.
+     */
+    log?: string | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -714,13 +736,25 @@ export interface UsersSelect<T extends boolean = true> {
         acceptedAt?: T;
         version?: T;
         text?: T;
+        ip?: T;
       };
   offerAcceptance?:
     | T
     | {
         acceptedAt?: T;
         version?: T;
+        ip?: T;
         text?: T;
+      };
+  dataProcessing?:
+    | T
+    | {
+        status?: T;
+        requestedAt?: T;
+        requestIp?: T;
+        confirmErasure?: T;
+        processedAt?: T;
+        log?: T;
       };
   updatedAt?: T;
   createdAt?: T;

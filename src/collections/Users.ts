@@ -81,6 +81,76 @@ export const Users: CollectionConfig = {
     },
     tokenExpiration: 60 * 60 * 24 * 7, // 7 days
   },
+  hooks: {
+    /**
+     * Исполнение отзыва: администратор перевёл состояние в «Согласие отозвано».
+     *
+     * Почему afterChange, а не beforeChange: обезличивание правит другие
+     * коллекции (приёмы, записи звонков, сообщения) и сам этот же документ.
+     * Из beforeChange такая работа шла бы внутри ещё не завершённой транзакции
+     * записи пользователя.
+     *
+     * Почему setImmediate и заново полученный payload: ровно та причина, что
+     * описана в Appointments.afterChange - обращение к другим коллекциям на том
+     * же соединении, пока транзакция текущего документа держит блокировку, даёт
+     * взаимную блокировку. Работа откладывается до коммита.
+     *
+     * Идемпотентность обеспечивается сравнением с previousDoc: повторное
+     * сохранение уже обезличенного пользователя ничего не запускает.
+     */
+    afterChange: [
+      async ({ doc, previousDoc, operation }) => {
+        if (operation !== 'update') return
+
+        const nextStatus = (doc?.dataProcessing as { status?: string } | undefined)?.status
+        const prevStatus = (previousDoc?.dataProcessing as { status?: string } | undefined)?.status
+
+        if (nextStatus !== 'revoked' || prevStatus === 'revoked') return
+
+        const userId = Number(doc.id)
+
+        setImmediate(async () => {
+          try {
+            const { getPayload } = await import('payload')
+            const { default: config } = await import('@payload-config')
+            const { anonymizeUser } = await import('@/lib/privacy/anonymize-user')
+
+            const payload = await getPayload({ config })
+
+            const confirmed = Boolean(
+              (doc.dataProcessing as { confirmErasure?: boolean } | undefined)?.confirmErasure,
+            )
+
+            const result = await anonymizeUser({
+              payload,
+              userId,
+              deleteMedicalRecords: confirmed,
+            })
+
+            // Протокол пишется последним и отдельным запросом: если бы он шёл
+            // одним update с обезличиванием, сбой на любом шаге унёс бы и отчёт
+            // о том, что успело выполниться.
+            await payload.update({
+              collection: 'users',
+              id: userId,
+              data: {
+                dataProcessing: {
+                  ...(doc.dataProcessing as Record<string, unknown>),
+                  status: 'revoked',
+                  requestIp: null,
+                  processedAt: new Date().toISOString(),
+                  log: result.log,
+                },
+              } as Record<string, unknown>,
+              overrideAccess: true,
+            })
+          } catch (err) {
+            console.error(`[dataProcessing] обезличивание пользователя #${userId} не удалось:`, err)
+          }
+        })
+      },
+    ],
+  },
   access: {
     /**
      * Чтение: только свой профиль и админ.
@@ -185,7 +255,7 @@ export const Users: CollectionConfig = {
       name: 'pdnConsent',
       type: 'group',
       label: 'Согласие на обработку персональных данных',
-      admin: { description: 'Заполняется при регистрации, вручн��ю не изменяется' },
+      admin: { description: 'Заполняется при регистрации, вручную не изменяется' },
       access: { update: adminOnlyField, create: adminOnlyField },
       fields: [
         {
@@ -203,6 +273,23 @@ export const Users: CollectionConfig = {
           name: 'text',
           type: 'textarea',
           label: 'Текст согласия на момент принятия',
+        },
+        /**
+         * IP, с которого пришло подтверждение.
+         *
+         * Дата, версия и текст отвечают на вопрос «на что человек согласился»,
+         * но не «откуда пришло подтверждение». При споре «я не давал согласия»
+         * адрес - дополнительный реквизит акцепта.
+         *
+         * Сам IP - персональные данные, поэтому он тут не «на всякий случай», а
+         * ровно для этой цели, и удаляется вместе с остальными данными аккаунта.
+         * Может быть пустым: за прокси адрес не всегда определяется, и NULL
+         * честнее выдуманного значения.
+         */
+        {
+          name: 'ip',
+          type: 'text',
+          label: 'IP-адрес при согласии',
         },
       ],
     },
@@ -238,10 +325,122 @@ export const Users: CollectionConfig = {
           type: 'text',
           label: 'Версия оферты',
         },
+        /**
+         * IP акцепта оферты - отдельно от IP согласия по той же причине, по
+         * которой разделены сами группы: это разные сделки. Сейчас оба
+         * заполняются в одном запросе, но акцепт новой редакции оферты может
+         * произойти позже и с другого адреса, не затрагивая согласие на ПДн.
+         */
+        {
+          name: 'ip',
+          type: 'text',
+          label: 'IP-адрес при акцепте',
+        },
         {
           name: 'text',
           type: 'textarea',
           label: 'Текст оферты на момент принятия',
+        },
+      ],
+    },
+    /**
+     * Отзыв согласия на обработку персональных данных.
+     *
+     * Почему заявка и исполнение - это одна группа полей, а не отдельная
+     * коллекция «заявок»: отзыв бывает у аккаунта только один и он необратим,
+     * поэтому отдельная сущность добавила бы связь и таблицу, ничего не дав.
+     *
+     * Почему статус меняет администратор, а не сам пользователь: исполнение
+     * необратимо и затрагивает не только его данные (записи консультаций
+     * относятся и к врачу). Кнопка в кабинете лишь фиксирует обращение и его
+     * дату - с этого момента идёт срок на рассмотрение.
+     */
+    {
+      name: 'dataProcessing',
+      type: 'group',
+      label: 'Отзыв согласия на обработку ПДн',
+      admin: {
+        description:
+          'Заявка пациента на отзыв согласия и результат её исполнения. ' +
+          'Перевод статуса в «Согласие отозвано» запускает обезличивание — операция необратима.',
+      },
+      access: { update: adminOnlyField, create: adminOnlyField },
+      fields: [
+        {
+          name: 'status',
+          type: 'select',
+          defaultValue: 'none',
+          label: 'Состояние',
+          options: [
+            { label: 'Согласие действует', value: 'none' },
+            { label: 'Поступила заявка на отзыв', value: 'requested' },
+            { label: 'Согласие отозвано, данные обезличены', value: 'revoked' },
+          ],
+          /**
+           * Смысловой предохранитель, а не формальность.
+           *
+           * Обезличивание запускается сменой значения в выпадающем списке -
+           * то есть одним неосторожным движением в админке. Требование отдельной
+           * отметки означает, что необратимое удаление записей консультаций и
+           * переписки нельзя выполнить случайно, промахнувшись по строке списка.
+           */
+          validate: (value: unknown, { siblingData }: { siblingData?: unknown }) => {
+            const sibling = (siblingData ?? {}) as { confirmErasure?: boolean }
+            if (value === 'revoked' && !sibling.confirmErasure) {
+              return 'Сначала отметьте «Подтверждаю удаление записей и переписки»: операция необратима.'
+            }
+            return true
+          },
+        },
+        {
+          name: 'requestedAt',
+          type: 'date',
+          label: 'Заявка получена',
+          admin: {
+            readOnly: true,
+            description: 'Фиксируется кнопкой в личном кабинете. С этой даты идёт срок исполнения.',
+            date: { pickerAppearance: 'dayAndTime' },
+          },
+        },
+        {
+          /**
+           * IP обращения - по той же логике, что и IP акцепта: подтверждает, что
+           * отзыв поступил именно от владельца аккаунта. Удаляется вместе с
+           * остальными адресами при исполнении: после обезличивания он уже
+           * ничего не подтверждает, а персональными данными быть не перестаёт.
+           */
+          name: 'requestIp',
+          type: 'text',
+          label: 'IP-адрес обращения',
+          admin: { readOnly: true },
+        },
+        {
+          name: 'confirmErasure',
+          type: 'checkbox',
+          defaultValue: false,
+          label: 'Подтверждаю удаление записей консультаций и переписки',
+          admin: {
+            description:
+              'Видеозаписи и сообщения будут удалены безвозвратно вместе с файлами. ' +
+              'Платежи и суммы сохраняются для учёта.',
+          },
+        },
+        {
+          name: 'processedAt',
+          type: 'date',
+          label: 'Исполнено',
+          admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'log',
+          type: 'textarea',
+          label: 'Протокол исполнения',
+          admin: {
+            readOnly: true,
+            description:
+              'Что именно было сделано и сколько объектов затронуто. Единственный след ' +
+              'удалённых материалов — сами они уже не существуют.',
+          },
         },
       ],
     },
