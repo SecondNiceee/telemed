@@ -5,12 +5,14 @@ import validateMessageText from '../utils/validateMessageText'
 import { createForumTopic, isTelegramConfigured, sendMessage } from '@/lib/telegram/client'
 import {
   HISTORY_LIMIT,
+  emitToOperators,
   emitToVisitor,
   findConversation,
   isSupportRateLimited,
   normalizeContact,
   normalizeName,
   roomName,
+  toConversationDto,
   toDto,
   type SupportAck,
 } from './shared'
@@ -40,11 +42,16 @@ function clientIp(socket: Socket): string {
 /**
  * Отправка в Telegram «по возможности».
  *
- * Сообщение уже сохранено в БД, поэтому недоступность Telegram не должна
- * ломать чат для посетителя: он получит ответ позже, а вопрос никуда не
- * пропадёт — он виден в админке. Поэтому ошибку логируем, но не поднимаем.
+ * Telegram — необязательное зеркало: основной канал оператора это инбокс в
+ * админке. Поэтому при незаданном токене выходим молча, иначе на каждое
+ * сообщение в лог падала бы ошибка «TELEGRAM_BOT_TOKEN не задан».
+ *
+ * Если токен задан, но запрос не прошёл (в РФ Telegram ограничен через ТСПУ),
+ * ошибку логируем и продолжаем: сообщение уже в БД и видно оператору.
  */
 async function trySendToTelegram(text: string, threadId?: number): Promise<void> {
+  if (!isTelegramConfigured()) return
+
   try {
     await sendMessage(text, threadId)
   } catch (error) {
@@ -70,11 +77,6 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
     },
     ack?: unknown,
   ): Promise<void> => {
-    if (!isTelegramConfigured()) {
-      reply(ack, { success: false, error: 'Чат поддержки временно недоступен' })
-      return
-    }
-
     // Без согласия обработка контактов незаконна — отказываем до записи в БД.
     if (data?.consent !== true) {
       reply(ack, { success: false, error: 'Нужно согласие на обработку данных' })
@@ -129,20 +131,24 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
       // Тему создаём после записи в БД: если Telegram недоступен, обращение
       // всё равно сохранено и его видно в админке.
       let topicId: number | undefined
-      try {
-        const topic = await createForumTopic(`${name} · ${contact.kind === 'phone' ? 'тел.' : 'email'}`)
-        topicId = topic.message_thread_id
+      if (isTelegramConfigured()) {
+        try {
+          const topic = await createForumTopic(
+            `${name} · ${contact.kind === 'phone' ? 'тел.' : 'email'}`,
+          )
+          topicId = topic.message_thread_id
 
-        await payload.update({
-          collection: 'support-conversations',
-          id: conversation.id,
-          data: { telegramTopicId: topicId },
-        })
-      } catch (error) {
-        console.error('[support] не удалось создать тему в Telegram', {
-          conversationId: conversation.id,
-          error: error instanceof Error ? error.message : error,
-        })
+          await payload.update({
+            collection: 'support-conversations',
+            id: conversation.id,
+            data: { telegramTopicId: topicId },
+          })
+        } catch (error) {
+          console.error('[support] не удалось создать тему в Telegram', {
+            conversationId: conversation.id,
+            error: error instanceof Error ? error.message : error,
+          })
+        }
       }
 
       const message = await payload.create({
@@ -159,6 +165,10 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
         pageUrl ? `${text}\n\n— страница: ${pageUrl}` : text,
         topicId,
       )
+
+      // Операторам — сразу, это основной канал. Диалог берём из ответа
+      // create(), а не перезапрашиваем: telegramTopicId для инбокса не нужен.
+      emitToOperators(io, toConversationDto(conversation, message), toDto(message))
 
       reply(ack, { success: true, publicId, messages: [toDto(message)] })
     } catch (error) {
@@ -239,7 +249,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         data: { conversation: conversation.id, sender: 'visitor', text },
       })
 
-      await payload.update({
+      const updated = await payload.update({
         collection: 'support-conversations',
         id: conversation.id,
         data: { lastMessageAt: new Date().toISOString(), status: 'open' },
@@ -249,6 +259,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       // добавляет свою копию локально, поэтому дублей не возникает, а порядок
       // сообщений одинаков во всех вкладках.
       emitToVisitor(io, conversation.publicId, toDto(message))
+      emitToOperators(io, toConversationDto(updated, message), toDto(message))
 
       await trySendToTelegram(text, conversation.telegramTopicId ?? undefined)
 

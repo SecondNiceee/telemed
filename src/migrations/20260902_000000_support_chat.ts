@@ -49,6 +49,7 @@ export async function up({ db }: MigrateUpArgs): Promise<void> {
       "status" "enum_support_conversations_status" DEFAULT 'open' NOT NULL,
       "consent_at" timestamp(3) with time zone NOT NULL,
       "last_message_at" timestamp(3) with time zone,
+      "operator_read_at" timestamp(3) with time zone,
       "page_url" varchar,
       "user_agent" varchar,
       "updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
