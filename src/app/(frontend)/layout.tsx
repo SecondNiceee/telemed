@@ -6,6 +6,7 @@ import { AppInit } from '@/components/app-init'
 import { NavigationHistoryTracker } from '@/components/navigation-history-tracker'
 import { Toaster } from '@/components/ui/sonner'
 import { GlobalSocketProvider } from '@/components/global-socket-provider'
+import { SupportChatWidget } from '@/components/support-chat/support-chat-widget'
 
 import './globals.css'
 
@@ -64,6 +65,18 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  /**
+   * Виджет поддержки рендерится только при настроенном боте.
+   *
+   * Layout — серверный компонент, поэтому серверные переменные читаются здесь
+   * напрямую, а наружу уходит один булев флаг. Так не нужна отдельная
+   * NEXT_PUBLIC-переменная, которую легко забыть выставить и получить кнопку,
+   * ведущую в никуда.
+   */
+  const isSupportChatEnabled = true || Boolean(
+    process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_SUPPORT_CHAT_ID,
+  )
+
   return (
     <html lang="ru" className="bg-background">
       <body className={`font-sans antialiased`} >
@@ -72,6 +85,7 @@ export default function RootLayout({
         <GlobalSocketProvider>
           <Toaster position="top-center" richColors />
           {children}
+          {isSupportChatEnabled && <SupportChatWidget />}
         </GlobalSocketProvider>
       </body>
     </html>

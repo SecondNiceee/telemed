@@ -78,6 +78,8 @@ export interface Config {
     messages: Message;
     'call-recordings': CallRecording;
     feedbacks: Feedback;
+    'support-conversations': SupportConversation;
+    'support-messages': SupportMessage;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -94,6 +96,8 @@ export interface Config {
     messages: MessagesSelect<false> | MessagesSelect<true>;
     'call-recordings': CallRecordingsSelect<false> | CallRecordingsSelect<true>;
     feedbacks: FeedbacksSelect<false> | FeedbacksSelect<true>;
+    'support-conversations': SupportConversationsSelect<false> | SupportConversationsSelect<true>;
+    'support-messages': SupportMessagesSelect<false> | SupportMessagesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -604,6 +608,56 @@ export interface Feedback {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "support-conversations".
+ */
+export interface SupportConversation {
+  id: number;
+  /**
+   * Случайные 32 байта. Одновременно имя комнаты сокета и токен доступа к переписке — знание publicId даёт доступ к диалогу, поэтому наружу отдаётся только он, а не числовой id.
+   */
+  publicId: string;
+  visitorName: string;
+  /**
+   * Телефон или email. В Telegram не передаётся — только здесь.
+   */
+  visitorContact: string;
+  contactKind: 'phone' | 'email';
+  /**
+   * message_thread_id темы. По нему ответ оператора находит нужный диалог. Пусто — тему создать не удалось, диалог виден только здесь.
+   */
+  telegramTopicId?: number | null;
+  status: 'open' | 'closed';
+  /**
+   * Момент, когда посетитель отметил чекбокс согласия.
+   */
+  consentAt: string;
+  lastMessageAt?: string | null;
+  /**
+   * Откуда написал посетитель — помогает отвечать по делу.
+   */
+  pageUrl?: string | null;
+  userAgent?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "support-messages".
+ */
+export interface SupportMessage {
+  id: number;
+  conversation: number | SupportConversation;
+  sender: 'visitor' | 'operator';
+  text: string;
+  /**
+   * Защита от дублей: Telegram может доставить один и тот же update повторно, если подтверждение offset не дошло.
+   */
+  telegramMessageId?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -661,6 +715,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'feedbacks';
         value: number | Feedback;
+      } | null)
+    | ({
+        relationTo: 'support-conversations';
+        value: number | SupportConversation;
+      } | null)
+    | ({
+        relationTo: 'support-messages';
+        value: number | SupportMessage;
       } | null);
   globalSlug?: string | null;
   user:
@@ -998,6 +1060,36 @@ export interface FeedbacksSelect<T extends boolean = true> {
   appointment?: T;
   rating?: T;
   text?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "support-conversations_select".
+ */
+export interface SupportConversationsSelect<T extends boolean = true> {
+  publicId?: T;
+  visitorName?: T;
+  visitorContact?: T;
+  contactKind?: T;
+  telegramTopicId?: T;
+  status?: T;
+  consentAt?: T;
+  lastMessageAt?: T;
+  pageUrl?: T;
+  userAgent?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "support-messages_select".
+ */
+export interface SupportMessagesSelect<T extends boolean = true> {
+  conversation?: T;
+  sender?: T;
+  text?: T;
+  telegramMessageId?: T;
   updatedAt?: T;
   createdAt?: T;
 }

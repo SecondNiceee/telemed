@@ -1,0 +1,261 @@
+import { randomBytes } from 'crypto'
+import type { Payload } from 'payload'
+import type { Server as SocketIOServer, Socket } from 'socket.io'
+import validateMessageText from '../utils/validateMessageText'
+import { createForumTopic, isTelegramConfigured, sendMessage } from '@/lib/telegram/client'
+import {
+  HISTORY_LIMIT,
+  emitToVisitor,
+  findConversation,
+  isSupportRateLimited,
+  normalizeContact,
+  normalizeName,
+  roomName,
+  toDto,
+  type SupportAck,
+} from './shared'
+
+type Ack = (response: SupportAck) => void
+
+/** Ack может не прийти от клиента — вызываем только если это функция. */
+function reply(ack: unknown, response: SupportAck): void {
+  if (typeof ack === 'function') (ack as Ack)(response)
+}
+
+/**
+ * Адрес посетителя для ограничения создания диалогов.
+ *
+ * За nginx реальный адрес приходит в X-Forwarded-For, поэтому берём его
+ * первым элементом; `socket.handshake.address` — фолбэк для прямого
+ * подключения при разработке.
+ */
+function clientIp(socket: Socket): string {
+  const forwarded = socket.handshake.headers['x-forwarded-for']
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim()
+  }
+  return socket.handshake.address || 'unknown'
+}
+
+/**
+ * Отправка в Telegram «по возможности».
+ *
+ * Сообщение уже сохранено в БД, поэтому недоступность Telegram не должна
+ * ломать чат для посетителя: он получит ответ позже, а вопрос никуда не
+ * пропадёт — он виден в админке. Поэтому ошибку логируем, но не поднимаем.
+ */
+async function trySendToTelegram(text: string, threadId?: number): Promise<void> {
+  try {
+    await sendMessage(text, threadId)
+  } catch (error) {
+    console.error('[support] не удалось отправить в Telegram', {
+      threadId,
+      error: error instanceof Error ? error.message : error,
+    })
+  }
+}
+
+/**
+ * Новое обращение: посетитель заполнил форму и задал первый вопрос.
+ */
+export function createStartHandler(io: SocketIOServer, payload: Payload) {
+  return async (
+    socket: Socket,
+    data: {
+      name?: unknown
+      contact?: unknown
+      consent?: unknown
+      text?: unknown
+      pageUrl?: unknown
+    },
+    ack?: unknown,
+  ): Promise<void> => {
+    if (!isTelegramConfigured()) {
+      reply(ack, { success: false, error: 'Чат поддержки временно недоступен' })
+      return
+    }
+
+    // Без согласия обработка контактов незаконна — отказываем до записи в БД.
+    if (data?.consent !== true) {
+      reply(ack, { success: false, error: 'Нужно согласие на обработку данных' })
+      return
+    }
+
+    const name = normalizeName(data?.name)
+    if (!name) {
+      reply(ack, { success: false, error: 'Укажите имя' })
+      return
+    }
+
+    const contact = normalizeContact(data?.contact)
+    if (!contact) {
+      reply(ack, { success: false, error: 'Укажите телефон или email' })
+      return
+    }
+
+    const text = validateMessageText(data?.text)
+    if (!text) {
+      reply(ack, { success: false, error: 'Напишите вопрос' })
+      return
+    }
+
+    // Ограничение на создание диалогов: иначе бот наплодит тем в группе.
+    if (isSupportRateLimited(`start:${clientIp(socket)}`)) {
+      reply(ack, { success: false, error: 'Слишком много обращений. Попробуйте позже' })
+      return
+    }
+
+    const publicId = randomBytes(32).toString('hex')
+    const now = new Date().toISOString()
+    const pageUrl = typeof data?.pageUrl === 'string' ? data.pageUrl.slice(0, 500) : undefined
+    const userAgent = socket.handshake.headers['user-agent']?.slice(0, 500)
+
+    try {
+      const conversation = await payload.create({
+        collection: 'support-conversations',
+        data: {
+          publicId,
+          visitorName: name,
+          visitorContact: contact.value,
+          contactKind: contact.kind,
+          status: 'open',
+          consentAt: now,
+          lastMessageAt: now,
+          pageUrl,
+          userAgent,
+        },
+      })
+
+      // Тему создаём после записи в БД: если Telegram недоступен, обращение
+      // всё равно сохранено и его видно в админке.
+      let topicId: number | undefined
+      try {
+        const topic = await createForumTopic(`${name} · ${contact.kind === 'phone' ? 'тел.' : 'email'}`)
+        topicId = topic.message_thread_id
+
+        await payload.update({
+          collection: 'support-conversations',
+          id: conversation.id,
+          data: { telegramTopicId: topicId },
+        })
+      } catch (error) {
+        console.error('[support] не удалось создать тему в Telegram', {
+          conversationId: conversation.id,
+          error: error instanceof Error ? error.message : error,
+        })
+      }
+
+      const message = await payload.create({
+        collection: 'support-messages',
+        data: { conversation: conversation.id, sender: 'visitor', text },
+      })
+
+      await socket.join(roomName(publicId))
+
+      // Контакты в Telegram намеренно не отправляем — они остаются в админке
+      // на аттестованном Рег.облаке. В тему уходит только текст вопроса и
+      // страница обращения, чтобы отвечать по делу.
+      await trySendToTelegram(
+        pageUrl ? `${text}\n\n— страница: ${pageUrl}` : text,
+        topicId,
+      )
+
+      reply(ack, { success: true, publicId, messages: [toDto(message)] })
+    } catch (error) {
+      console.error('[support] не удалось создать обращение', error)
+      reply(ack, { success: false, error: 'Не удалось отправить вопрос' })
+    }
+  }
+}
+
+/**
+ * Возврат на сайт: по сохранённому publicId отдаём переписку и комнату.
+ */
+export function createResumeHandler(payload: Payload) {
+  return async (socket: Socket, data: { publicId?: unknown }, ack?: unknown): Promise<void> => {
+    const conversation = await findConversation(payload, data?.publicId)
+
+    // Диалога нет (или publicId подделан) — клиент очистит localStorage
+    // и покажет форму заново.
+    if (!conversation) {
+      reply(ack, { success: false, error: 'Диалог не найден' })
+      return
+    }
+
+    try {
+      const history = await payload.find({
+        collection: 'support-messages',
+        where: { conversation: { equals: conversation.id } },
+        sort: 'createdAt',
+        limit: HISTORY_LIMIT,
+        depth: 0,
+      })
+
+      await socket.join(roomName(conversation.publicId))
+
+      reply(ack, {
+        success: true,
+        publicId: conversation.publicId,
+        messages: history.docs.map(toDto),
+      })
+    } catch (error) {
+      console.error('[support] не удалось загрузить историю', error)
+      reply(ack, { success: false, error: 'Не удалось загрузить переписку' })
+    }
+  }
+}
+
+/**
+ * Очередное сообщение в уже открытом диалоге.
+ */
+export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
+  return async (
+    socket: Socket,
+    data: { publicId?: unknown; text?: unknown },
+    ack?: unknown,
+  ): Promise<void> => {
+    const text = validateMessageText(data?.text)
+    if (!text) {
+      reply(ack, { success: false, error: 'Пустое сообщение' })
+      return
+    }
+
+    const conversation = await findConversation(payload, data?.publicId)
+    if (!conversation) {
+      reply(ack, { success: false, error: 'Диалог не найден' })
+      return
+    }
+
+    // Ключ — сам диалог, а не socket.id: иначе несколько вкладок дали бы
+    // одному человеку кратный лимит.
+    if (isSupportRateLimited(`msg:${conversation.publicId}`)) {
+      reply(ack, { success: false, error: 'Слишком часто. Подождите немного' })
+      return
+    }
+
+    try {
+      const message = await payload.create({
+        collection: 'support-messages',
+        data: { conversation: conversation.id, sender: 'visitor', text },
+      })
+
+      await payload.update({
+        collection: 'support-conversations',
+        id: conversation.id,
+        data: { lastMessageAt: new Date().toISOString(), status: 'open' },
+      })
+
+      // Эхо от сервера — единственный источник сообщений в UI. Клиент не
+      // добавляет свою копию локально, поэтому дублей не возникает, а порядок
+      // сообщений одинаков во всех вкладках.
+      emitToVisitor(io, conversation.publicId, toDto(message))
+
+      await trySendToTelegram(text, conversation.telegramTopicId ?? undefined)
+
+      reply(ack, { success: true })
+    } catch (error) {
+      console.error('[support] не удалось отправить сообщение', error)
+      reply(ack, { success: false, error: 'Не удалось отправить сообщение' })
+    }
+  }
+}

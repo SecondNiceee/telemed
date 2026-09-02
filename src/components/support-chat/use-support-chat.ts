@@ -1,0 +1,212 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { io, type Socket } from 'socket.io-client'
+
+export interface SupportMessageDto {
+  id: number
+  sender: 'visitor' | 'operator'
+  text: string
+  createdAt: string
+}
+
+interface SupportAck {
+  success: boolean
+  error?: string
+  publicId?: string
+  messages?: SupportMessageDto[]
+}
+
+/**
+ * Ключ в localStorage. Хранит publicId — он же токен доступа к переписке,
+ * поэтому именно localStorage, а не cookie: на сервер его отправляет только
+ * наш код, и то через сокет.
+ */
+const STORAGE_KEY = 'smartcardio:support:publicId'
+
+function readStoredId(): string | null {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY)
+  } catch {
+    // Приватный режим Safari умеет бросать на localStorage — тогда просто
+    // работаем без истории между перезагрузками.
+    return null
+  }
+}
+
+function writeStoredId(publicId: string): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, publicId)
+  } catch {
+    /* см. readStoredId */
+  }
+}
+
+function clearStoredId(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    /* см. readStoredId */
+  }
+}
+
+/**
+ * Состояние чата поддержки.
+ *
+ * `enabled` включается, когда виджет открыли впервые: сокет не поднимается
+ * на каждой странице ради кнопки, которую могут не нажать. Соединение
+ * создаётся лениво и живёт до размонтирования.
+ */
+export function useSupportChat(enabled: boolean) {
+  const [messages, setMessages] = useState<SupportMessageDto[]>([])
+  const [publicId, setPublicId] = useState<string | null>(null)
+  const [isConnected, setIsConnected] = useState(false)
+  const [isBusy, setIsBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Пока история не загружена, форму показывать рано: иначе вернувшийся
+  // посетитель на миг увидит пустую форму вместо своей переписки.
+  const [isRestoring, setIsRestoring] = useState(false)
+
+  const socketRef = useRef<Socket | null>(null)
+
+  useEffect(() => {
+    if (!enabled || socketRef.current) return
+
+    const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001'
+    const socketPath = process.env.NEXT_PUBLIC_SOCKET_PATH || '/socket.io'
+
+    const socket = io(`${baseUrl}/support`, {
+      path: socketPath,
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+    })
+    socketRef.current = socket
+
+    const stored = readStoredId()
+    if (stored) setIsRestoring(true)
+
+    socket.on('connect', () => {
+      setIsConnected(true)
+      setError(null)
+
+      // Комнаты не переживают переподключение (сокету выдаётся новый id),
+      // поэтому resume нужен и при первом входе, и после каждого обрыва.
+      const saved = readStoredId()
+      if (!saved) {
+        setIsRestoring(false)
+        return
+      }
+
+      socket.emit('support:resume', { publicId: saved }, (ack: SupportAck) => {
+        setIsRestoring(false)
+        if (ack?.success && ack.publicId) {
+          setPublicId(ack.publicId)
+          setMessages(ack.messages ?? [])
+        } else {
+          // Диалог не найден — например, его удалили в админке.
+          // Начинаем заново, чтобы посетитель не застрял в пустом чате.
+          clearStoredId()
+          setPublicId(null)
+          setMessages([])
+        }
+      })
+    })
+
+    socket.on('disconnect', () => setIsConnected(false))
+
+    socket.on('connect_error', () => {
+      setIsConnected(false)
+      setIsRestoring(false)
+      setError('Нет связи с сервером')
+    })
+
+    socket.on('support:message', (message: SupportMessageDto) => {
+      setMessages((previous) => {
+        // Сообщение может прийти дважды: своё эхо плюс повторная доставка.
+        if (previous.some((item) => item.id === message.id)) return previous
+        return [...previous, message]
+      })
+    })
+
+    return () => {
+      socket.disconnect()
+      socketRef.current = null
+    }
+  }, [enabled])
+
+  /** Первое обращение: создаёт диалог и тему в Telegram. */
+  const start = useCallback(
+    (input: { name: string; contact: string; consent: boolean; text: string }) => {
+      return new Promise<boolean>((resolve) => {
+        const socket = socketRef.current
+        if (!socket?.connected) {
+          setError('Нет связи с сервером')
+          resolve(false)
+          return
+        }
+
+        setIsBusy(true)
+        setError(null)
+
+        socket.emit(
+          'support:start',
+          { ...input, pageUrl: window.location.href },
+          (ack: SupportAck) => {
+            setIsBusy(false)
+            if (ack?.success && ack.publicId) {
+              writeStoredId(ack.publicId)
+              setPublicId(ack.publicId)
+              setMessages(ack.messages ?? [])
+              resolve(true)
+            } else {
+              setError(ack?.error || 'Не удалось отправить вопрос')
+              resolve(false)
+            }
+          },
+        )
+      })
+    },
+    [],
+  )
+
+  /** Очередное сообщение в открытом диалоге. */
+  const send = useCallback(
+    (text: string) => {
+      return new Promise<boolean>((resolve) => {
+        const socket = socketRef.current
+        if (!socket?.connected || !publicId) {
+          setError('Нет связи с сервером')
+          resolve(false)
+          return
+        }
+
+        setIsBusy(true)
+        setError(null)
+
+        // Локальную копию не добавляем: сообщение придёт эхом от сервера.
+        // Так порядок и идентификаторы одинаковы во всех вкладках.
+        socket.emit('support:send', { publicId, text }, (ack: SupportAck) => {
+          setIsBusy(false)
+          if (ack?.success) {
+            resolve(true)
+          } else {
+            setError(ack?.error || 'Не удалось отправить сообщение')
+            resolve(false)
+          }
+        })
+      })
+    },
+    [publicId],
+  )
+
+  return {
+    messages,
+    hasConversation: publicId !== null,
+    isConnected,
+    isBusy,
+    isRestoring,
+    error,
+    start,
+    send,
+  }
+}
