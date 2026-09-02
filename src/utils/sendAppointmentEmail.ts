@@ -269,6 +269,7 @@ export async function sendAppointmentCancellationEmail({
   date,
   time,
   reason,
+  refunded = false,
 }: {
   payload: { sendEmail: (options: { to: string; subject: string; html: string }) => Promise<unknown> }
   patientEmail: string
@@ -277,11 +278,19 @@ export async function sendAppointmentCancellationEmail({
   date: string
   time: string
   reason: string
+  /** Деньги за консультацию возвращены — сообщаем об этом в письме. */
+  refunded?: boolean
 }): Promise<void> {
+  // Про возврат пишем только когда он действительно прошёл: обещание вернуть
+  // деньги в письме, за которым ничего не последовало, хуже его отсутствия.
+  const refundBlock = refunded
+    ? `<p><strong>Оплата возвращена в полном объёме.</strong> Деньги вернутся на тот же счёт, с которого была произведена оплата — обычно в течение 1–3 рабочих дней, срок зависит от вашего банка.</p>`
+    : ''
+
   await payload.sendEmail({
     to: patientEmail,
     subject: `Консультация отменена — ${doctorName}, ${formatDateRu(date)}`,
-    html: `<!DOCTYPE html><html lang="ru"><body style="margin:0;padding:32px;background:#f4f6fb;font-family:Arial,sans-serif;color:#111827"><main style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:32px"><h1 style="font-size:22px">Консультация отменена</h1><p>Здравствуйте, <strong>${patientName}</strong>.</p><p>Консультация с врачом <strong>${doctorName}</strong> ${formatDateRu(date)} в ${time} была отменена.</p><p><strong>Причина:</strong> ${reason}</p><p style="color:#6b7280;font-size:13px">Это автоматическое уведомление платформы smartcardio.</p></main></body></html>`,
+    html: `<!DOCTYPE html><html lang="ru"><body style="margin:0;padding:32px;background:#f4f6fb;font-family:Arial,sans-serif;color:#111827"><main style="max-width:560px;margin:auto;background:#fff;border-radius:16px;padding:32px"><h1 style="font-size:22px">Консультация отменена</h1><p>Здравствуйте, <strong>${patientName}</strong>.</p><p>Консультация с врачом <strong>${doctorName}</strong> ${formatDateRu(date)} в ${time} была отменена.</p><p><strong>Причина:</strong> ${reason}</p>${refundBlock}<p style="color:#6b7280;font-size:13px">Это автоматическое уведомление платформы smartcardio.</p></main></body></html>`,
   })
 }
 

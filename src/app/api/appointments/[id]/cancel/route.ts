@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import config from '@payload-config'
 import { getPayloadJwtSecret } from '@/lib/server/payload-jwt-secret'
 import { sendAppointmentCancellationEmail } from '@/utils/sendAppointmentEmail'
+import { refundCancelledAppointment } from '@/lib/server/appointment-payments'
 
 const STANDARD_REASONS = [
   'Технические проблемы',
@@ -61,6 +62,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: { status: 'cancelled', reason }, overrideAccess: true,
     })
 
+    // Слот пропал не по вине пациента — деньги возвращаем целиком и сразу.
+    //
+    // Возврат идёт после смены статуса и не влияет на её результат: если ЮKassa
+    // недоступна, консультация всё равно остаётся отменённой, а возврат догонит
+    // `reconcileAbandonedPayments` — он подбирает отменённые записи с оплаченным
+    // платежом. Обратный порядок был бы хуже: упавший возврат заблокировал бы
+    // отмену, и врач не смог бы освободить своё время.
+    let refunded = false
+
+    try {
+      const result = await refundCancelledAppointment({
+        payload,
+        appointmentId,
+        description: 'Возврат за отменённую консультацию',
+      })
+      refunded = result.refunded
+    } catch (error) {
+      console.error('[v0][cancel] возврат не удался, догонит сверка', {
+        appointmentId,
+        error: error instanceof Error ? error.message : error,
+      })
+    }
+
     const patient = typeof appointment.user === 'object' ? appointment.user : null
     if (patient?.email) {
       try {
@@ -72,13 +96,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           date: appointment.date,
           time: appointment.time,
           reason,
+          refunded,
         })
       } catch (error) {
         console.error('Failed to send doctor cancellation email', error)
       }
     }
 
-    return NextResponse.json(updated)
+    return NextResponse.json({ ...updated, refunded })
   } catch (error) {
     console.error('Failed to cancel appointment', error)
     return NextResponse.json({ message: 'Не удалось отменить консультацию' }, { status: 500 })

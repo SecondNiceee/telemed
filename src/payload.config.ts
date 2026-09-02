@@ -15,6 +15,8 @@ import { Appointments } from './collections/Appointments'
 import { Messages } from './collections/Messages'
 import { CallRecordings } from './collections/CallRecordings'
 import { Feedbacks } from './collections/Feedbacks'
+import { SupportConversations } from './collections/SupportConversations'
+import { SupportMessages } from './collections/SupportMessages'
 import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
@@ -36,7 +38,7 @@ export default buildConfig({
     admin: '/cms',
   },
 
-  collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments, Messages, CallRecordings, Feedbacks],
+  collections: [Users, Doctors, Organisations, Media, DoctorCategories, Appointments, Messages, CallRecordings, Feedbacks, SupportConversations, SupportMessages],
   globals: [SiteSettings],
   editor: lexicalEditor(),
   email: nodemailerAdapter({

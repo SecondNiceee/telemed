@@ -2,6 +2,8 @@ import 'dotenv/config'
 import http from 'http'
 import { Server as SocketIOServer } from 'socket.io'
 import { initializeSocketServer } from './lib/socket/server'
+import { initializeSupportNamespace } from './lib/socket/support/namespace'
+import { startSupportBridge } from './lib/telegram/support-bridge'
 
 // Socket.io runs on a SEPARATE port from Next.js
 // This avoids the AsyncLocalStorage conflict with Next.js 15
@@ -65,6 +67,15 @@ async function main() {
 
   // Initialize socket event handlers
   initializeSocketServer(io, payload)
+
+  // Чат поддержки: гостевой namespace /support и мост к Telegram.
+  // Мост живёт именно здесь, в процессе-владельце `io`, — только отсюда
+  // ответ оператора можно немедленно отправить в комнату посетителя.
+  initializeSupportNamespace(io, payload)
+  const stopSupportBridge = startSupportBridge(io, payload)
+
+  process.once('SIGTERM', stopSupportBridge)
+  process.once('SIGINT', stopSupportBridge)
 
   // Start socket server
   httpServer.listen(SOCKET_PORT, () => {
