@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { playChime, setUnreadTitle } from './inbox-notify'
+import { isUnread } from './types'
 import type { InboxConversation, InboxMessage } from './types'
 
 interface OperatorAck {
@@ -11,15 +12,6 @@ interface OperatorAck {
   conversations?: InboxConversation[]
   messages?: InboxMessage[]
   conversation?: InboxConversation
-}
-
-/** Диалог не прочитан, если последнее сообщение новее отметки оператора. */
-export function isUnread(conversation: InboxConversation): boolean {
-  if (!conversation.lastMessageAt) return false
-  // Отвечая, оператор ставит operatorReadAt = lastMessageAt, поэтому свои же
-  // ответы непрочитанными не считаются.
-  if (!conversation.operatorReadAt) return true
-  return new Date(conversation.lastMessageAt) > new Date(conversation.operatorReadAt)
 }
 
 /** Свежие сверху. Диалоги без сообщений уходят в конец. */

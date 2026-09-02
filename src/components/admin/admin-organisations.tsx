@@ -8,6 +8,7 @@ import {
   Building2,
   Database,
   ExternalLink,
+  Inbox,
   KeyRound,
   LogOut,
   Plus,
@@ -42,12 +43,15 @@ function formatDate(value: string) {
 interface AdminOrganisationsProps {
   admin: AdminUser
   initialOrganisations: AdminOrganisation[]
+  /** Сколько обращений с сайта ждут ответа — бейдж на кнопке «Обращения». */
+  unreadSupportCount: number
   onSignedOut: () => void
 }
 
 export function AdminOrganisations({
   admin,
   initialOrganisations,
+  unreadSupportCount,
   onSignedOut,
 }: AdminOrganisationsProps) {
   const router = useRouter()
@@ -181,6 +185,20 @@ export function AdminOrganisations({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href="/admin/inbox">
+                <Inbox className="size-4" />
+                Обращения
+                {unreadSupportCount > 0 && (
+                  <span
+                    className="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--teal)] px-1.5 py-0.5 text-xs font-semibold text-[var(--teal-foreground)]"
+                    aria-label={`непрочитанных: ${unreadSupportCount}`}
+                  >
+                    {unreadSupportCount}
+                  </span>
+                )}
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/admin/categories">
                 <Stethoscope className="size-4" />

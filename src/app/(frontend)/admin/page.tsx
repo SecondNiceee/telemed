@@ -19,6 +19,7 @@ export default async function AdminPage() {
   let admin: Awaited<ReturnType<typeof getAdminFromCookieHeader>> = null
   // Данные грузим на сервере, чтобы панель открывалась уже заполненной.
   let organisations: AdminOrganisation[] = []
+  let unreadSupportCount = 0
 
   try {
     // Пустая база => показываем экран первичной настройки, вход не нужен.
@@ -42,6 +43,22 @@ export default async function AdminPage() {
         email: doc.email,
         createdAt: doc.createdAt,
       }))
+
+      // Непрочитанные обращения — чтобы на входе в панель было видно, что
+      // кто-то ждёт ответа. Сравнение двух полей документа Payload в where
+      // не умеет, поэтому фильтруем на нашей стороне.
+      const conversations = await payload.find({
+        collection: 'support-conversations',
+        where: { status: { equals: 'open' } },
+        limit: 200,
+        depth: 0,
+        overrideAccess: true,
+      })
+      unreadSupportCount = conversations.docs.filter((doc) => {
+        if (!doc.lastMessageAt) return false
+        if (!doc.operatorReadAt) return true
+        return new Date(doc.lastMessageAt) > new Date(doc.operatorReadAt)
+      }).length
     }
   } catch (err) {
     // Чаще всего это отсутствующие PAYLOAD_SECRET / DATABASE_URL — показываем
@@ -56,6 +73,7 @@ export default async function AdminPage() {
         admin ? { id: admin.id, name: admin.name ?? null, email: admin.email } : null
       }
       initialOrganisations={organisations}
+      unreadSupportCount={unreadSupportCount}
     />
   )
 }

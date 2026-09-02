@@ -14,8 +14,15 @@ type AudioContextConstructor = typeof AudioContext
 
 function getAudioContextCtor(): AudioContextConstructor | null {
   if (typeof window === 'undefined') return null
-  const w = window as Window & { webkitAudioContext?: AudioContextConstructor }
-  return w.AudioContext ?? w.webkitAudioContext ?? null
+
+  // Обращаемся к глобальному имени, а не к window.AudioContext: в типах DOM
+  // это `declare var` на globalThis, свойством интерфейса Window он не описан.
+  if (typeof AudioContext !== 'undefined') return AudioContext
+
+  // Префикс для старых Safari, где непрефиксного конструктора ещё нет.
+  const legacy = (window as Window & { webkitAudioContext?: AudioContextConstructor })
+    .webkitAudioContext
+  return legacy ?? null
 }
 
 /**

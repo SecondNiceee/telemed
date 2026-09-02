@@ -146,7 +146,9 @@ export function AdminInboxScreen({ admin, initialConversations }: AdminInboxScre
                 isLoading={isLoadingThread}
                 isSending={isSending}
                 onReply={reply}
-                onStatusChange={setStatus}
+                onStatusChange={(status) => {
+                  if (openConversation) setStatus(openConversation.publicId, status)
+                }}
                 onBack={() => setMobileView('list')}
               />
             </div>
