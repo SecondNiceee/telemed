@@ -65,18 +65,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  /**
-   * Виджет поддержки рендерится только при настроенном боте.
-   *
-   * Layout — серверный компонент, поэтому серверные переменные читаются здесь
-   * напрямую, а наружу уходит один булев флаг. Так не нужна отдельная
-   * NEXT_PUBLIC-переменная, которую легко забыть выставить и получить кнопку,
-   * ведущую в никуда.
-   */
-  const isSupportChatEnabled = Boolean(
-    process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_SUPPORT_CHAT_ID,
-  )
-
   return (
     <html lang="ru" className="bg-background">
       <body className={`font-sans antialiased`} >
@@ -85,7 +73,13 @@ export default function RootLayout({
         <GlobalSocketProvider>
           <Toaster position="top-center" richColors />
           {children}
-          {isSupportChatEnabled && <SupportChatWidget />}
+          {/*
+            Виджет рендерится всегда: оператор отвечает из инбокса в /admin,
+            а не из Telegram. Раньше здесь был флаг по TELEGRAM_*, но после
+            ограничений Telegram в РФ он бы просто скрывал рабочий чат.
+            Telegram остался необязательным зеркалом на стороне сервера.
+          */}
+          <SupportChatWidget />
         </GlobalSocketProvider>
       </body>
     </html>

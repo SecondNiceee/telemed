@@ -633,6 +633,10 @@ export interface SupportConversation {
   consentAt: string;
   lastMessageAt?: string | null;
   /**
+   * Момент, когда оператор последний раз открывал диалог в инбоксе. Непрочитанным считается диалог, у которого lastMessageAt новее этой отметки. Метка времени, а не счётчик: она идемпотентна — повторное открытие диалога из двух вкладок не может «сбить» число.
+   */
+  operatorReadAt?: string | null;
+  /**
    * Откуда написал посетитель — помогает отвечать по делу.
    */
   pageUrl?: string | null;
@@ -1076,6 +1080,7 @@ export interface SupportConversationsSelect<T extends boolean = true> {
   status?: T;
   consentAt?: T;
   lastMessageAt?: T;
+  operatorReadAt?: T;
   pageUrl?: T;
   userAgent?: T;
   updatedAt?: T;

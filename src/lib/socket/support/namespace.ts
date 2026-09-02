@@ -2,6 +2,12 @@ import type { Payload } from 'payload'
 import type { Server as SocketIOServer, Socket } from 'socket.io'
 import { isTelegramConfigured } from '@/lib/telegram/client'
 import { createResumeHandler, createSendMessageHandler, createStartHandler } from './handlers'
+import {
+  createOperatorJoinHandler,
+  createOperatorOpenHandler,
+  createOperatorReplyHandler,
+  createOperatorStatusHandler,
+} from './operator-handlers'
 import { SUPPORT_NAMESPACE, cleanupSupportLimits } from './shared'
 
 /**
@@ -23,6 +29,11 @@ export function initializeSupportNamespace(io: SocketIOServer, payload: Payload)
   const resumeHandler = createResumeHandler(payload)
   const sendMessageHandler = createSendMessageHandler(io, payload)
 
+  const operatorJoinHandler = createOperatorJoinHandler(payload)
+  const operatorOpenHandler = createOperatorOpenHandler(io, payload)
+  const operatorReplyHandler = createOperatorReplyHandler(io, payload)
+  const operatorStatusHandler = createOperatorStatusHandler(io, payload)
+
   const cleanupInterval = setInterval(cleanupSupportLimits, 30_000)
   io.engine.on('close', () => clearInterval(cleanupInterval))
 
@@ -40,15 +51,31 @@ export function initializeSupportNamespace(io: SocketIOServer, payload: Payload)
     socket.on('support:send', (data, ack) => {
       void sendMessageHandler(socket, data ?? {}, ack)
     })
+
+    // Операторская половина того же namespace. Права проверяются внутри
+    // каждого обработчика: middleware здесь гостевой и личность не знает.
+    socket.on('support:operator:join', (ack) => {
+      void operatorJoinHandler(socket, ack)
+    })
+
+    socket.on('support:operator:open', (data, ack) => {
+      void operatorOpenHandler(socket, data ?? {}, ack)
+    })
+
+    socket.on('support:operator:reply', (data, ack) => {
+      void operatorReplyHandler(socket, data ?? {}, ack)
+    })
+
+    socket.on('support:operator:status', (data, ack) => {
+      void operatorStatusHandler(socket, data ?? {}, ack)
+    })
   })
 
-  if (isTelegramConfigured()) {
-    console.log('[support] namespace /support готов')
-  } else {
-    // Не падаем: сайт должен работать и без настроенного бота. Хендлеры
-    // ответят отказом, а виджет на страницах вообще не отрендерится.
-    console.warn(
-      '[support] TELEGRAM_BOT_TOKEN или TELEGRAM_SUPPORT_CHAT_ID не заданы — чат поддержки выключен',
-    )
+  console.log('[support] namespace /support готов')
+
+  if (!isTelegramConfigured()) {
+    // Это не ошибка: основной канал оператора — инбокс в /admin/inbox.
+    // Telegram остался необязательным зеркалом (в РФ он ограничен ТСПУ).
+    console.log('[support] Telegram не настроен — работает только инбокс в админке')
   }
 }
