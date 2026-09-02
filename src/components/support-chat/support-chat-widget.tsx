@@ -19,14 +19,8 @@ export function SupportChatWidget() {
   const [hasOpened, setHasOpened] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const { isBusy, isRestoring, error, start, send } = useSupportChat(hasOpened)
-  // TEMP_FIXTURE
-  const hasConversation = true
-  const messages = [
-    { id: 1, sender: 'visitor' as const, text: 'Здравствуйте! Можно перенести запись на другой день?', createdAt: '' },
-    { id: 2, sender: 'operator' as const, text: 'Здравствуйте! Да, конечно. Напишите удобную дату, и я всё сделаю.', createdAt: '' },
-    { id: 3, sender: 'visitor' as const, text: 'Четверг после обеда', createdAt: '' },
-  ]
+  const { messages, hasConversation, isBusy, isRestoring, error, start, send } =
+    useSupportChat(hasOpened)
 
   const listEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)

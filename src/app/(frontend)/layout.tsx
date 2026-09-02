@@ -73,7 +73,7 @@ export default function RootLayout({
    * NEXT_PUBLIC-переменная, которую легко забыть выставить и получить кнопку,
    * ведущую в никуда.
    */
-  const isSupportChatEnabled = true || Boolean(
+  const isSupportChatEnabled = Boolean(
     process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_SUPPORT_CHAT_ID,
   )
 
