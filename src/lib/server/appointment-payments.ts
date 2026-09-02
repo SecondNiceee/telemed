@@ -233,7 +233,7 @@ export type StartPaymentResult =
  * логика.
  *
  * Повторный вызов не создаёт второй платёж:
- *  - если у записи уже есть незавершённый платёж, он перечитывается из ЮKassa
+ *  - если у записи уже есть незавершённый ��латёж, он перечитывается из ЮKassa
  *    и пользователь уходит по тому же `confirmation_url`;
  *  - если платёж успел завершиться — применяем его результат;
  *  - новый платёж создаётся только после отменённого, и его `Idempotence-Key`
@@ -427,7 +427,14 @@ export async function syncAppointmentPayment({
     return { appointmentStatus: appointment.status, paymentStatus: 'refunded', refunded: true }
   }
 
-  if (appointment.payment?.status === 'succeeded' && appointment.status !== 'pending_payment') {
+  // Запись подтверждена и оплачена — исход доведён до конца.
+  // `cancelled` сюда не попадает: по отменённой записи деньги ещё должны
+  // вернуться, и сверка — единственный способ догнать упавший возврат.
+  if (
+    appointment.payment?.status === 'succeeded' &&
+    appointment.status !== 'pending_payment' &&
+    appointment.status !== 'cancelled'
+  ) {
     return {
       appointmentStatus: appointment.status,
       paymentStatus: 'succeeded',
@@ -507,7 +514,11 @@ export async function applyPaymentOutcome({
       appointment,
       payment,
       snapshot: common,
-      description: 'Время консультации было занято до поступления оплаты',
+      // Запись с `paidAt` была подтверждена и оплачена, а потом отменена —
+      // это возврат за отменённую консультацию, а не опоздавшая оплата.
+      description: appointment.paidAt
+        ? 'Возврат за отменённую консультацию'
+        : 'Время консультации было занято до поступления оплаты',
     })
   }
 
@@ -672,6 +683,69 @@ async function refundLatePayment({
 }
 
 /**
+ * Вернуть деньги за отменённую консультацию.
+ *
+ * Вызывается, когда врач отменяет уже оплаченную запись: слот пропал не по вине
+ * пациента, поэтому деньги возвращаются целиком и без его участия.
+ *
+ * Функция не меняет статус самой записи — её отменяет вызывающий роут. Здесь
+ * только деньги, поэтому упавший возврат не мешает отмене состояться.
+ *
+ * Идемпотентность: исход целиком отдан `refundLatePayment`, который сверяется и
+ * с нашим `refundId`, и с `refunded_amount` из ЮKassa. Повторный вызов (двойной
+ * клик, ретрай сверки) деньги дважды не вернёт.
+ *
+ * Возвращает `refunded: false`, если возвращать нечего: платежа нет, он не
+ * дошёл до `succeeded` или ЮKassa не настроена.
+ */
+export async function refundCancelledAppointment({
+  payload,
+  appointmentId,
+  description,
+}: {
+  payload: PayloadInstance
+  appointmentId: number
+  /** Причина: видна пациенту в выписке и нам в кабинете ЮKassa. */
+  description: string
+}): Promise<{ refunded: boolean; reason?: string }> {
+  if (!isYooKassaConfigured()) return { refunded: false, reason: 'not_configured' }
+
+  const appointment = await loadAppointment(payload, appointmentId)
+  if (!appointment) return { refunded: false, reason: 'not_found' }
+
+  const paymentId = appointment.payment?.paymentId
+  // Запись без платежа — бесплатная или неоплаченная, возвращать нечего.
+  if (!paymentId) return { refunded: false, reason: 'no_payment' }
+
+  // Уже возвращено ранее: в ЮKassa не ходим.
+  if (appointment.payment?.status === 'refunded') return { refunded: true }
+
+  // Снимку статуса в БД не доверяем — читаем платёж напрямую.
+  const payment = await getPayment(paymentId)
+
+  // Деньги не дошли: pending/canceled возвращать нечего. Захолдированный
+  // платёж (`waiting_for_capture`) отменит сверка брошенных платежей.
+  if (payment.status !== 'succeeded') {
+    return { refunded: false, reason: `payment_${payment.status}` }
+  }
+
+  const result = await refundLatePayment({
+    payload,
+    appointment,
+    payment,
+    snapshot: {
+      status: toLocalStatus(payment),
+      amount: parseYooKassaAmount(payment.amount),
+      method: payment.payment_method?.type ?? null,
+      checkedAt: new Date().toISOString(),
+    },
+    description,
+  })
+
+  return { refunded: result.refunded }
+}
+
+/**
  * Оплачен платёж, который записи уже не принадлежит.
  *
  * Так выглядит запоздавшее уведомление по отменённой попытке: в записи лежит
@@ -828,9 +902,11 @@ export async function reconcileAbandonedPayments({
     where: {
       and: [
         { status: { equals: 'cancelled' } },
-        // Только незакрытые платежи. `succeeded` и `refunded` здесь не нужны:
-        // по ним исход уже доведён до конца, а запись хранит след денег.
-        { 'payment.status': { in: ['pending', 'waiting_for_capture', 'canceled'] } },
+        // Незакрытые платежи плюс `succeeded`: по отменённой записи оплата
+        // означает, что деньги ещё у нас. Так проход догоняет возврат, который
+        // не удался при отмене врачом (ЮKassa была недоступна). `refunded`
+        // здесь не нужен — по нему исход доведён до конца.
+        { 'payment.status': { in: ['pending', 'waiting_for_capture', 'canceled', 'succeeded'] } },
         {
           or: [
             { 'payment.checkedAt': { exists: false } },
