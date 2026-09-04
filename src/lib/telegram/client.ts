@@ -7,7 +7,29 @@
  * допускает только одного потребителя getUpdates на бота).
  */
 
-const API_ROOT = 'https://api.telegram.org'
+/**
+ * Куда ходить за Bot API.
+ *
+ * По умолчанию — напрямую в Telegram. Если хостинг до него не достаёт,
+ * в `TELEGRAM_API_BASE` указывается адрес нашего прокси на Vercel
+ * (см. `telegram-proxy/README.md`), а в `TELEGRAM_PROXY_SECRET` — его секрет.
+ * Формат путей у прокси тот же, что у Telegram, поэтому меняется только корень.
+ */
+function apiRoot(): string {
+  return (process.env.TELEGRAM_API_BASE ?? 'https://api.telegram.org').replace(/\/+$/, '')
+}
+
+/**
+ * Сколько секунд Telegram держит getUpdates открытым.
+ *
+ * Напрямую — 50, это рекомендуемое значение. Через прокси на Vercel надо
+ * меньше (~40): у функции лимит 60 секунд на весь запрос, и 50 + сеть в него
+ * не влезают стабильно.
+ */
+export function pollTimeoutSeconds(): number {
+  const raw = Number(process.env.TELEGRAM_POLL_TIMEOUT_SECONDS)
+  return Number.isFinite(raw) && raw > 0 && raw <= 50 ? Math.floor(raw) : 50
+}
 
 export interface TelegramMessage {
   message_id: number
@@ -55,10 +77,16 @@ async function callApi<T>(
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Секрет прокси уходит только если он задан — напрямую в Telegram лишний
+  // заголовок безвреден, но и незачем.
+  const proxySecret = process.env.TELEGRAM_PROXY_SECRET
+  if (proxySecret) headers['x-telegram-proxy-secret'] = proxySecret
+
   try {
-    const response = await fetch(`${API_ROOT}/bot${botToken()}/${method}`, {
+    const response = await fetch(`${apiRoot()}/bot${botToken()}/${method}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal: controller.signal,
     })
@@ -111,7 +139,10 @@ export function sendMessage(text: string, threadId?: number): Promise<TelegramMe
  * `timeout` — это long polling: Telegram держит запрос открытым, пока не
  * появится сообщение. Дешевле и быстрее, чем частые пустые опросы.
  */
-export function getUpdates(offset: number, timeoutSeconds = 50): Promise<TelegramUpdate[]> {
+export function getUpdates(
+  offset: number,
+  timeoutSeconds = pollTimeoutSeconds(),
+): Promise<TelegramUpdate[]> {
   return callApi<TelegramUpdate[]>(
     'getUpdates',
     {
