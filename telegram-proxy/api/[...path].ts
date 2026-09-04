@@ -46,7 +46,20 @@ function secretsMatch(provided: string | null, expected: string): boolean {
   return diff === 0
 }
 
-export default async function handler(request: Request): Promise<Response> {
+/**
+ * Bot API принимает только POST. Остальные методы отвечаем 405 из именованных
+ * экспортов: Vercel вызывает Web-сигнатуру `(request: Request)` только для
+ * экспортов с именем HTTP-метода, а `export default` получил бы Node-стиль
+ * `(req, res)` — и `request.headers.get` упал бы с TypeError.
+ */
+export function GET(): Response {
+  return json(405, 'Только POST')
+}
+export const PUT = GET
+export const PATCH = GET
+export const DELETE = GET
+
+export async function POST(request: Request): Promise<Response> {
   const expectedSecret = process.env.PROXY_SECRET
   if (!expectedSecret) {
     // Лучше не работать вообще, чем работать открытым релеем.
@@ -57,11 +70,10 @@ export default async function handler(request: Request): Promise<Response> {
     return json(401, 'Неверный секрет прокси')
   }
 
-  if (request.method !== 'POST') {
-    return json(405, 'Только POST')
-  }
-
-  const { pathname } = new URL(request.url)
+  // Сюда можно попасть двумя путями: напрямую `/api/bot.../method` и через
+  // rewrite с `/bot.../method` (см. vercel.json). В Telegram уходит путь без
+  // префикса `/api` в любом случае.
+  const pathname = new URL(request.url).pathname.replace(/^\/api(?=\/)/, '')
   if (!BOT_API_PATH.test(pathname)) {
     return json(404, 'Путь не похож на метод Bot API')
   }

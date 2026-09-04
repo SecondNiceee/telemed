@@ -38,3 +38,12 @@ curl -X POST https://<адрес>/bot<TOKEN>/getMe \
 
 Должен вернуться `{"ok":true,"result":{...}}` с данными бота. Без заголовка —
 `401`, с чужим путём — `404`.
+
+## Если не работает
+
+- `404 NOT_FOUND` от Vercel (текстом, не JSON) на `/bot.../getMe` — не применился
+  rewrite из `vercel.json`. Проверить, что Root Directory проекта = `telegram-proxy`.
+- `500 FUNCTION_INVOCATION_FAILED` — смотреть логи функции в Vercel; чаще всего
+  не задан `PROXY_SECRET`.
+- `401 Unauthorized` в JSON от Telegram — прокси работает, неверный токен бота.
+  Токен всегда вида `1234567890:AA...` (цифры, двоеточие, 35 символов).
