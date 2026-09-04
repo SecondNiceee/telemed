@@ -41,8 +41,20 @@ curl -X POST https://<адрес>/bot<TOKEN>/getMe \
 
 ## Если не работает
 
-- `404 NOT_FOUND` от Vercel (текстом, не JSON) на `/bot.../getMe` — не применился
-  rewrite из `vercel.json`. Проверить, что Root Directory проекта = `telegram-proxy`.
+Сначала открыть в браузере `https://<адрес>/api/health`.
+
+- Пришёл JSON `{"ok":true,...}` — функции задеплоены. Если там
+  `"secretConfigured":false` — добавить `PROXY_SECRET` в Environment Variables
+  и сделать Redeploy (переменные применяются только к новым деплоям).
+- Пришёл текстовый `404 NOT_FOUND` от Vercel — папка `api/` не собралась.
+  Открыть Settings → General и проверить: **Root Directory = `telegram-proxy`**,
+  **Framework Preset = Other**, Build Command и Output Directory пустые.
+  Пресет Next.js тут частая ошибка: Vercel угадывает его по корню репозитория
+  и потом пытается собрать несуществующее Next-приложение.
+- `404 NOT_FOUND` только на `/bot.../getMe`, а `/api/health` работает —
+  не применился rewrite из `vercel.json`; убедиться, что задеплоен свежий коммит.
+- В логах сокет-сервера `Unexpected token 'T', "The page c"...` — это тот же
+  текстовый 404 от Vercel, пришедший вместо JSON. Смотреть пункты выше.
 - `500 FUNCTION_INVOCATION_FAILED` — смотреть логи функции в Vercel; чаще всего
   не задан `PROXY_SECRET`.
 - `401 Unauthorized` в JSON от Telegram — прокси работает, неверный токен бота.
