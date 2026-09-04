@@ -1,6 +1,5 @@
 'use client'
 
-import { Phone, Mail } from 'lucide-react'
 import type { InboxConversation } from './types'
 import { isUnread } from './types'
 
@@ -63,15 +62,6 @@ export function InboxConversationList({
                     {formatWhen(conversation.lastMessageAt ?? conversation.createdAt)}
                   </time>
                 </div>
-
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {conversation.contactKind === 'phone' ? (
-                    <Phone className="size-3 shrink-0" aria-hidden="true" />
-                  ) : (
-                    <Mail className="size-3 shrink-0" aria-hidden="true" />
-                  )}
-                  <span className="truncate">{conversation.visitorContact}</span>
-                </p>
 
                 {conversation.lastMessagePreview && (
                   <p className="mt-1.5 truncate text-xs text-muted-foreground">

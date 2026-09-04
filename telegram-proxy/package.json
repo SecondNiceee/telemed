@@ -1,0 +1,6 @@
+{
+  "name": "telemed-telegram-proxy",
+  "private": true,
+  "type": "module",
+  "description": "Прокси к Telegram Bot API для хостинга без доступа к api.telegram.org"
+}

@@ -368,6 +368,8 @@
 
 **PeerJS (legacy):** `PEER_PORT`, `NEXT_PUBLIC_PEER_HOST`, `NEXT_PUBLIC_PEER_PORT`, `NEXT_PUBLIC_PEER_PATH`
 
+**Чат поддержки (Telegram):** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_SUPPORT_CHAT_ID`. Если с хостинга нет доступа к api.telegram.org — `TELEGRAM_API_BASE` (адрес прокси на Vercel из `telegram-proxy/`), `TELEGRAM_PROXY_SECRET`, `TELEGRAM_POLL_TIMEOUT_SECONDS=40`
+
 ---
 
 ## Полезное при разработке

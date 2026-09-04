@@ -134,9 +134,9 @@ export function useSupportChat(enabled: boolean) {
     }
   }, [enabled])
 
-  /** Первое обращение: создаёт диалог и тему в Telegram. */
+  /** Первое сообщение: создаёт диалог и тему в Telegram. */
   const start = useCallback(
-    (input: { name: string; contact: string; consent: boolean; text: string }) => {
+    (text: string) => {
       return new Promise<boolean>((resolve) => {
         const socket = socketRef.current
         if (!socket?.connected) {
@@ -150,7 +150,7 @@ export function useSupportChat(enabled: boolean) {
 
         socket.emit(
           'support:start',
-          { ...input, pageUrl: window.location.href },
+          { text, pageUrl: window.location.href },
           (ack: SupportAck) => {
             setIsBusy(false)
             if (ack?.success && ack.publicId) {
@@ -169,12 +169,20 @@ export function useSupportChat(enabled: boolean) {
     [],
   )
 
-  /** Очередное сообщение в открытом диалоге. */
+  /**
+   * Отправить сообщение.
+   *
+   * Виджету всё равно, первое оно или нет: пока диалога нет — создаём его
+   * этим же текстом, дальше — дописываем в существующий. Так поле ввода
+   * одно и то же с первой секунды, без отдельной «формы первого обращения».
+   */
   const send = useCallback(
     (text: string) => {
+      if (!publicId) return start(text)
+
       return new Promise<boolean>((resolve) => {
         const socket = socketRef.current
-        if (!socket?.connected || !publicId) {
+        if (!socket?.connected) {
           setError('Нет связи с сервером')
           resolve(false)
           return
@@ -196,7 +204,7 @@ export function useSupportChat(enabled: boolean) {
         })
       })
     },
-    [publicId],
+    [publicId, start],
   )
 
   return {
@@ -206,7 +214,6 @@ export function useSupportChat(enabled: boolean) {
     isBusy,
     isRestoring,
     error,
-    start,
     send,
   }
 }
