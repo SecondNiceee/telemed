@@ -12,15 +12,16 @@
  * Почему секрет обязателен: без него любой, кто узнает адрес, сможет гонять
  * через нашу функцию запросы к своим ботам и выжирать лимиты плана.
  *
- * Почему не универсальный прокси: путь жёстко проверяется на форму
- * `/bot<token>/<method>`. Функция не должна уметь ходить куда-либо, кроме
- * Bot API, даже если секрет утечёт.
+ * Почему не универсальный прокси: токен и метод жёстко проверяются регулярками.
+ * Функция не должна уметь ходить куда-либо, кроме Bot API, даже если секрет
+ * утечёт.
  */
 
 const UPSTREAM = 'https://api.telegram.org'
 
-/** `/bot123456:ABC-DEF.../sendMessage` — и ничего другого. */
-const BOT_API_PATH = /^\/bot\d+:[A-Za-z0-9_-]{20,}\/[A-Za-z]+$/
+/** Токен вида `123456:ABC-DEF...` и имя метода из букв — и ничего другого. */
+const BOT_TOKEN = /^\d+:[A-Za-z0-9_-]{20,}$/
+const BOT_METHOD = /^[A-Za-z]+$/
 
 /**
  * Запас относительно `maxDuration: 60` в vercel.json. Long polling getUpdates
@@ -70,17 +71,20 @@ export async function POST(request: Request): Promise<Response> {
     return json(401, 'Неверный секрет прокси')
   }
 
-  // Сюда можно попасть двумя путями: напрямую `/api/bot.../method` и через
-  // rewrite с `/bot.../method` (см. vercel.json). В Telegram уходит путь без
-  // префикса `/api` в любом случае.
-  const pathname = new URL(request.url).pathname.replace(/^\/api(?=\/)/, '')
-  if (!BOT_API_PATH.test(pathname)) {
+  // Токен и метод приходят query-параметрами: rewrite в vercel.json переводит
+  // `/bot<token>/<method>` в `/api/telegram?token=...&method=...`. Динамический
+  // сегмент `[...path].ts` для этого не годится — на Vercel он не ловил
+  // вложенные пути с двоеточием в токене и отдавал текстовый 404.
+  const { searchParams } = new URL(request.url)
+  const token = searchParams.get('token') ?? ''
+  const method = searchParams.get('method') ?? ''
+  if (!BOT_TOKEN.test(token) || !BOT_METHOD.test(method)) {
     return json(404, 'Путь не похож на метод Bot API')
   }
 
   let upstream: Response
   try {
-    upstream = await fetch(`${UPSTREAM}${pathname}`, {
+    upstream = await fetch(`${UPSTREAM}/bot${token}/${method}`, {
       method: 'POST',
       headers: {
         'content-type': request.headers.get('content-type') ?? 'application/json',

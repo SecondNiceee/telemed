@@ -8,7 +8,7 @@
   "rewrites": [
     {
       "source": "/bot:token/:method",
-      "destination": "/api/bot:token/:method"
+      "destination": "/api/telegram?token=:token&method=:method"
     }
   ]
 }
