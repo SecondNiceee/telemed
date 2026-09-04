@@ -72,9 +72,6 @@ export function InboxThread({
               {conversation.visitorName}
             </p>
           </div>
-          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {conversation.visitorContact}
-          </p>
           {conversation.pageUrl && (
             <p className="mt-0.5 truncate text-xs text-muted-foreground/70">
               Обратился со страницы: {conversation.pageUrl}

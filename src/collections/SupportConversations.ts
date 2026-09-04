@@ -6,17 +6,21 @@ import { getCallerFromRequest } from './helpers/auth'
  *
  * Один документ = один диалог = одна тема в Telegram-группе.
  *
+ * Чат анонимный: имя, телефон и email у посетителя не спрашиваются, поэтому
+ * согласие на обработку ПДн для него не требуется, а в Telegram уходит только
+ * текст вопроса. `visitorName` — это техническая метка «Посетитель #xxxx»,
+ * чтобы оператору было чем различать диалоги.
+ *
  * Доступ закрыт для всех, кроме админа: посетитель работает не через REST API
  * Payload, а через сокет-процесс, который обращается к локальному API напрямую
- * (там access control не применяется). Поэтому открывать коллекцию наружу не
- * нужно — и не следует, в ней лежат контакты людей.
+ * (там access control не применяется).
  */
 export const SupportConversations: CollectionConfig = {
   slug: 'support-conversations',
   defaultSort: '-lastMessageAt',
   admin: {
     useAsTitle: 'visitorName',
-    defaultColumns: ['visitorName', 'visitorContact', 'status', 'lastMessageAt'],
+    defaultColumns: ['visitorName', 'status', 'lastMessageAt'],
     group: 'Поддержка',
   },
   access: {
@@ -45,26 +49,12 @@ export const SupportConversations: CollectionConfig = {
       name: 'visitorName',
       type: 'text',
       required: true,
-      label: 'Имя посетителя',
-    },
-    {
-      name: 'visitorContact',
-      type: 'text',
-      required: true,
-      label: 'Контакт',
+      label: 'Метка посетителя',
       admin: {
-        description: 'Телефон или email. В Telegram не передаётся — только здесь.',
+        description:
+          'Техническая метка вида «Посетитель #a1b2», выдаётся сервером. ' +
+          'Настоящее имя не запрашивается.',
       },
-    },
-    {
-      name: 'contactKind',
-      type: 'select',
-      options: [
-        { label: 'Телефон', value: 'phone' },
-        { label: 'Email', value: 'email' },
-      ],
-      required: true,
-      label: 'Тип контакта',
     },
     {
       name: 'telegramTopicId',
@@ -88,15 +78,6 @@ export const SupportConversations: CollectionConfig = {
       required: true,
       index: true,
       label: 'Статус',
-    },
-    {
-      name: 'consentAt',
-      type: 'date',
-      required: true,
-      label: 'Согласие на обработку получено',
-      admin: {
-        description: 'Момент, когда посетитель отметил чекбокс согласия.',
-      },
     },
     {
       name: 'lastMessageAt',

@@ -69,8 +69,6 @@ export default async function AdminInboxPage() {
     return {
       publicId: doc.publicId,
       visitorName: doc.visitorName,
-      visitorContact: doc.visitorContact,
-      contactKind: doc.contactKind,
       status: doc.status,
       lastMessageAt: doc.lastMessageAt ?? null,
       operatorReadAt: doc.operatorReadAt ?? null,

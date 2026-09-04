@@ -9,11 +9,10 @@ import {
   emitToVisitor,
   findConversation,
   isSupportRateLimited,
-  normalizeContact,
-  normalizeName,
   roomName,
   toConversationDto,
   toDto,
+  visitorLabel,
   type SupportAck,
 } from './shared'
 
@@ -63,38 +62,19 @@ async function trySendToTelegram(text: string, threadId?: number): Promise<void>
 }
 
 /**
- * Новое обращение: посетитель заполнил форму и задал первый вопрос.
+ * Новое обращение: первое сообщение посетителя.
+ *
+ * Никакой формы перед ним нет — ни имени, ни контакта, ни чекбокса согласия.
+ * Чат анонимный, ПДн не собираются, поэтому и согласие не требуется. Ответ
+ * приходит в ту же вкладку по сокету, а переписка восстанавливается по
+ * publicId из localStorage посетителя.
  */
 export function createStartHandler(io: SocketIOServer, payload: Payload) {
   return async (
     socket: Socket,
-    data: {
-      name?: unknown
-      contact?: unknown
-      consent?: unknown
-      text?: unknown
-      pageUrl?: unknown
-    },
+    data: { text?: unknown; pageUrl?: unknown },
     ack?: unknown,
   ): Promise<void> => {
-    // Без согласия обработка контактов незаконна — отказываем до записи в БД.
-    if (data?.consent !== true) {
-      reply(ack, { success: false, error: 'Нужно согласие на обработку данных' })
-      return
-    }
-
-    const name = normalizeName(data?.name)
-    if (!name) {
-      reply(ack, { success: false, error: 'Укажите имя' })
-      return
-    }
-
-    const contact = normalizeContact(data?.contact)
-    if (!contact) {
-      reply(ack, { success: false, error: 'Укажите телефон или email' })
-      return
-    }
-
     const text = validateMessageText(data?.text)
     if (!text) {
       reply(ack, { success: false, error: 'Напишите вопрос' })
@@ -108,6 +88,7 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
     }
 
     const publicId = randomBytes(32).toString('hex')
+    const name = visitorLabel(publicId)
     const now = new Date().toISOString()
     const pageUrl = typeof data?.pageUrl === 'string' ? data.pageUrl.slice(0, 500) : undefined
     const userAgent = socket.handshake.headers['user-agent']?.slice(0, 500)
@@ -118,10 +99,7 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
         data: {
           publicId,
           visitorName: name,
-          visitorContact: contact.value,
-          contactKind: contact.kind,
           status: 'open',
-          consentAt: now,
           lastMessageAt: now,
           pageUrl,
           userAgent,
@@ -133,9 +111,7 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
       let topicId: number | undefined
       if (isTelegramConfigured()) {
         try {
-          const topic = await createForumTopic(
-            `${name} · ${contact.kind === 'phone' ? 'тел.' : 'email'}`,
-          )
+          const topic = await createForumTopic(name)
           topicId = topic.message_thread_id
 
           await payload.update({
@@ -158,9 +134,8 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
 
       await socket.join(roomName(publicId))
 
-      // Контакты в Telegram намеренно не отправляем — они остаются в админке
-      // на аттестованном Рег.облаке. В тему уходит только текст вопроса и
-      // страница обращения, чтобы отвечать по делу.
+      // В тему уходит только текст вопроса и страница обращения, чтобы
+      // отвечать по делу. Никаких данных о посетителе у нас нет по замыслу.
       await trySendToTelegram(
         pageUrl ? `${text}\n\n— страница: ${pageUrl}` : text,
         topicId,

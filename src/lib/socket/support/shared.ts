@@ -44,9 +44,8 @@ export interface SupportAck {
  */
 export interface SupportConversationDto {
   publicId: string
+  /** Техническая метка «Посетитель #xxxx» — настоящее имя не собирается. */
   visitorName: string
-  visitorContact: string
-  contactKind: 'phone' | 'email'
   status: 'open' | 'closed'
   lastMessageAt: string | null
   operatorReadAt: string | null
@@ -187,8 +186,6 @@ export function toConversationDto(
   return {
     publicId: conversation.publicId,
     visitorName: conversation.visitorName,
-    visitorContact: conversation.visitorContact,
-    contactKind: conversation.contactKind,
     status: conversation.status,
     lastMessageAt: conversation.lastMessageAt ?? null,
     operatorReadAt: conversation.operatorReadAt ?? null,
@@ -239,38 +236,13 @@ export async function authenticateOperator(
 }
 
 /**
- * Проверка контакта.
+ * Метка посетителя для оператора: «Посетитель #a1b2».
  *
- * Нужна не формальности ради: контакт — единственный способ ответить, если
- * посетитель закроет вкладку до ответа. Мусор в этом поле обесценивает всю
- * затею, поэтому телефон и email проверяются, а не принимаются как есть.
+ * Хвост publicId, а не голова: голова у всех hex-строк визуально похожа,
+ * а полный идентификатор — токен доступа к переписке, его светить в названии
+ * темы Telegram нельзя. Четыре символа дают 65 536 вариантов — для различения
+ * диалогов в инбоксе достаточно, а по коллизии всё равно ничего не откроешь.
  */
-export function normalizeContact(
-  raw: unknown,
-): { value: string; kind: 'phone' | 'email' } | null {
-  if (typeof raw !== 'string') return null
-
-  const trimmed = raw.trim()
-  if (trimmed.length === 0 || trimmed.length > 100) return null
-
-  if (trimmed.includes('@')) {
-    // Намеренно нестрогая проверка: задача — отсечь явный мусор, а не
-    // реализовать RFC 5322. Слишком строгий шаблон отвергает валидные адреса.
-    const looksLikeEmail = /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(trimmed)
-    return looksLikeEmail ? { value: trimmed, kind: 'email' } : null
-  }
-
-  const digits = trimmed.replace(/\D/g, '')
-  // Российские номера — 11 цифр, но оставляем запас на международные.
-  if (digits.length < 10 || digits.length > 15) return null
-
-  return { value: trimmed, kind: 'phone' }
-}
-
-/** Имя посетителя: обрезаем, но не придираемся к содержанию. */
-export function normalizeName(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null
-  const trimmed = raw.trim()
-  if (trimmed.length === 0) return null
-  return trimmed.slice(0, 80)
+export function visitorLabel(publicId: string): string {
+  return `Посетитель #${publicId.slice(-4)}`
 }

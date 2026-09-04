@@ -15,9 +15,8 @@ export interface InboxMessage {
 
 export interface InboxConversation {
   publicId: string
+  /** Техническая метка «Посетитель #xxxx» — чат анонимный, имя не собирается. */
   visitorName: string
-  visitorContact: string
-  contactKind: 'phone' | 'email'
   status: 'open' | 'closed'
   lastMessageAt: string | null
   operatorReadAt: string | null

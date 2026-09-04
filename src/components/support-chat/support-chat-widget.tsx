@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SupportIntakeForm } from './support-intake-form'
 import { useSupportChat } from './use-support-chat'
 
 /**
  * Чат поддержки: кнопка снизу справа, по клику — панель с диалогом.
  *
+ * Анонимный: никакой формы перед первым вопросом — ни имени, ни телефона, ни
+ * согласия. Персональные данные не собираются, поэтому и согласие не нужно.
  * Вопросы уходят в Telegram-группу отдельной темой на каждого посетителя,
  * ответ оператора приходит сюда моментально через сокет.
  */
@@ -19,7 +20,7 @@ export function SupportChatWidget() {
   const [hasOpened, setHasOpened] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const { messages, hasConversation, isBusy, isRestoring, error, start, send } =
+  const { messages, hasConversation, isBusy, isRestoring, error, send } =
     useSupportChat(hasOpened)
 
   const listEndRef = useRef<HTMLDivElement>(null)
@@ -97,13 +98,28 @@ export function SupportChatWidget() {
 
           {isRestoring ? (
             <p className="p-4 text-sm text-muted-foreground">Загружаем переписку…</p>
-          ) : hasConversation ? (
+          ) : (
             <>
               <div
                 className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
                 aria-live="polite"
                 aria-atomic="false"
               >
+                {/* Приветствие — обычный пузырь оператора, а не отдельный экран:
+                    посетитель сразу видит, куда писать. Показываем только пока
+                    диалога нет — в восстановленной переписке оно лишнее. */}
+                {!hasConversation && (
+                  <div className="max-w-[85%] self-start rounded-xl rounded-bl-sm bg-secondary px-3 py-2 text-sm leading-relaxed text-secondary-foreground">
+                    <p className="text-pretty">
+                      Здравствуйте! Напишите вопрос — ответим прямо здесь. Чат анонимный:
+                      имя и телефон не нужны.
+                    </p>
+                    <p className="mt-2 text-xs text-pretty opacity-80">
+                      Это не медицинская консультация — вопросы о здоровье задайте врачу на
+                      приёме.
+                    </p>
+                  </div>
+                )}
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -131,12 +147,15 @@ export function SupportChatWidget() {
                 <div className="flex items-center gap-2">
                   <input
                     ref={inputRef}
+                    // Автофокус при открытии: панель появляется по клику, и
+                    // посетитель ожидает сразу печатать.
+                    autoFocus
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
                     onKeyDown={handleKeyDown}
                     maxLength={5000}
                     aria-label="Сообщение"
-                    placeholder="Сообщение…"
+                    placeholder={hasConversation ? 'Сообщение…' : 'Ваш вопрос…'}
                     className="h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-base outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
                   />
                   <Button
@@ -151,15 +170,6 @@ export function SupportChatWidget() {
                 </div>
               </div>
             </>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              {error && (
-                <p role="alert" className="px-4 pt-4 text-xs text-destructive">
-                  {error}
-                </p>
-              )}
-              <SupportIntakeForm isBusy={isBusy} onSubmit={start} />
-            </div>
           )}
         </section>
       )}

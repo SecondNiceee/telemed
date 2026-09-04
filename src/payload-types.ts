@@ -624,21 +624,15 @@ export interface SupportConversation {
    * Случайные 32 байта. Одновременно имя комнаты сокета и токен доступа к переписке — знание publicId даёт доступ к диалогу, поэтому наружу отдаётся только он, а не числовой id.
    */
   publicId: string;
-  visitorName: string;
   /**
-   * Телефон или email. В Telegram не передаётся — только здесь.
+   * Техническая метка вида «Посетитель #a1b2», выдаётся сервером. Настоящее имя не запрашивается.
    */
-  visitorContact: string;
-  contactKind: 'phone' | 'email';
+  visitorName: string;
   /**
    * message_thread_id темы. По нему ответ оператора находит нужный диалог. Пусто — тему создать не удалось, диалог виден только здесь.
    */
   telegramTopicId?: number | null;
   status: 'open' | 'closed';
-  /**
-   * Момент, когда посетитель отметил чекбокс согласия.
-   */
-  consentAt: string;
   lastMessageAt?: string | null;
   /**
    * Момент, когда оператор последний раз открывал диалог в инбоксе. Непрочитанным считается диалог, у которого lastMessageAt новее этой отметки. Метка времени, а не счётчик: она идемпотентна — повторное открытие диалога из двух вкладок не может «сбить» число.
@@ -1084,11 +1078,8 @@ export interface FeedbacksSelect<T extends boolean = true> {
 export interface SupportConversationsSelect<T extends boolean = true> {
   publicId?: T;
   visitorName?: T;
-  visitorContact?: T;
-  contactKind?: T;
   telegramTopicId?: T;
   status?: T;
-  consentAt?: T;
   lastMessageAt?: T;
   operatorReadAt?: T;
   pageUrl?: T;
