@@ -115,6 +115,25 @@ export const Feedbacks: CollectionConfig = {
               throw new Error('Вы можете оставить отзыв только для своих консультаций.')
             }
           }
+
+          /**
+           * Публичное имя автора фиксируется на сервере, а не берётся с клиента и
+           * не подтягивается из users при чтении: отзыв виден всем, а имя рядом с
+           * отзывом врачу раскрывает факт обращения за медпомощью. Поэтому
+           * публикуем только «Имя Ф.» и только если пациент не выбрал анонимность.
+           * Email в публичный вывод не попадает никогда.
+           */
+          data.isAnonymous = data.isAnonymous === true
+          data.authorName = null
+          if (!data.isAnonymous && userId) {
+            const author = await req.payload.findByID({
+              collection: 'users',
+              id: userId,
+              depth: 0,
+              overrideAccess: true,
+            })
+            data.authorName = publicAuthorName(author?.name)
+          }
         }
         return data
       },
@@ -190,5 +209,35 @@ export const Feedbacks: CollectionConfig = {
         description: 'Текст отзыва пациента',
       },
     },
+    {
+      name: 'isAnonymous',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Анонимный отзыв',
+      admin: {
+        description: 'Пациент попросил не показывать его имя рядом с отзывом.',
+      },
+    },
+    {
+      name: 'authorName',
+      type: 'text',
+      label: 'Публичное имя автора',
+      // Значение с клиента игнорируется: хук beforeChange перезаписывает поле
+      // при создании. Field-level access здесь не подходит — он отработал бы
+      // после коллекционного хука и стёр выставленное им значение.
+      admin: {
+        readOnly: true,
+        description: 'Имя в формате «Имя Ф.», показывается на странице врача. Пусто у анонимных отзывов.',
+      },
+    },
   ],
+}
+
+/** «Иван Петров» → «Иван П.»; одно слово — как есть; пусто → null. */
+function publicAuthorName(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const parts = raw.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return null
+  if (parts.length === 1) return parts[0]
+  return `${parts[0]} ${parts[1][0].toUpperCase()}.`
 }

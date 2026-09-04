@@ -37,6 +37,11 @@ export function FeedbackDialog({
   const [rating, setRating] = useState(0)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [text, setText] = useState('')
+  /**
+   * Отзыв виден всем на странице врача, а имя рядом с ним раскрывает факт
+   * обращения за медпомощью. Поэтому пациент явно выбирает, публиковать ли имя.
+   */
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async () => {
@@ -53,6 +58,7 @@ export function FeedbackDialog({
         user: userId,
         rating,
         text: text.trim() || undefined,
+        isAnonymous,
       })
       toast.success('Отзыв успешно отправлен')
       onOpenChange(false)
@@ -60,6 +66,7 @@ export function FeedbackDialog({
       // Reset form
       setRating(0)
       setText('')
+      setIsAnonymous(false)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось отправить отзыв'
       toast.error(message)
@@ -134,6 +141,31 @@ export function FeedbackDialog({
             <span className="text-xs text-muted-foreground text-right">
               {text.length}/1000
             </span>
+          </div>
+
+          {/* Предупреждение о публикации и выбор анонимности */}
+          <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-3">
+            <p className="text-xs leading-relaxed text-muted-foreground text-pretty">
+              Отзыв и оценка будут опубликованы на странице врача и видны всем посетителям сайта.
+              Не указывайте в тексте диагнозы и другие сведения о здоровье.
+            </p>
+            <label className="flex cursor-pointer items-start gap-2 text-sm leading-5">
+              <input
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(e) => setIsAnonymous(e.target.checked)}
+                disabled={isSubmitting}
+                className="mt-0.5 size-4 shrink-0 accent-primary"
+              />
+              <span className="text-pretty">
+                Опубликовать анонимно
+                <span className="block text-xs text-muted-foreground">
+                  {isAnonymous
+                    ? 'Вместо имени будет указано «Пациент».'
+                    : 'Рядом с отзывом будет показано ваше имя и первая буква фамилии.'}
+                </span>
+              </span>
+            </label>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ export interface CreateFeedbackData {
   user: number
   rating: number
   text?: string
+  isAnonymous?: boolean
 }
 
 export const FeedbacksApi = {
