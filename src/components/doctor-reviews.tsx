@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Star } from 'lucide-react'
+import { Star, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFeedbackStore } from '@/stores/feedback-store'
@@ -56,9 +56,10 @@ function initialsOf(name: string): string {
 }
 
 function ReviewCard({ feedback }: { feedback: ApiFeedback }) {
-  const userName = typeof feedback.user === 'object' 
-    ? feedback.user.name || feedback.user.email 
-    : 'Пациент'
+  // Имя берём только из серверного снимка authorName: он уже сокращён до
+  // «Имя Ф.» и пуст у анонимных отзывов. Email из user не показываем никогда.
+  const isAnonymous = feedback.isAnonymous === true || !feedback.authorName
+  const userName = isAnonymous ? 'Пациент' : (feedback.authorName as string)
   
   return (
     <article className="flex gap-3 py-4">
@@ -66,7 +67,7 @@ function ReviewCard({ feedback }: { feedback: ApiFeedback }) {
         aria-hidden="true"
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal/10 text-xs font-semibold leading-none text-teal ring-1 ring-teal/20"
       >
-        {initialsOf(userName) || '—'}
+        {isAnonymous ? <UserRound className="h-4 w-4" /> : initialsOf(userName) || '—'}
       </span>
 
       <div className="min-w-0 flex-1">

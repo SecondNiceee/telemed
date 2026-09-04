@@ -7,6 +7,7 @@ import { NavigationHistoryTracker } from '@/components/navigation-history-tracke
 import { Toaster } from '@/components/ui/sonner'
 import { GlobalSocketProvider } from '@/components/global-socket-provider'
 import { SupportChatWidget } from '@/components/support-chat/support-chat-widget'
+import { CookieNotice } from '@/components/cookie-notice'
 
 import './globals.css'
 
@@ -80,6 +81,7 @@ export default function RootLayout({
             Telegram остался необязательным зеркалом на стороне сервера.
           */}
           <SupportChatWidget />
+          <CookieNotice />
         </GlobalSocketProvider>
       </body>
     </html>

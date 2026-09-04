@@ -97,14 +97,32 @@ export function SupportIntakeForm({ isBusy, onSubmit }: SupportIntakeFormProps) 
           required
         />
         <span>
-          Согласен на обработку персональных данных в соответствии с{' '}
+          Даю согласие на обработку имени и контакта для ответа на обращение. Ознакомлен с{' '}
+          <a
+            href="/legal/consent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            текстом согласия
+          </a>
+          ,{' '}
           <a
             href="/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="underline underline-offset-2 hover:text-foreground"
           >
-            политикой конфиденциальности
+            политикой обработки данных
+          </a>{' '}
+          и{' '}
+          <a
+            href="/legal/offer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            публичной офертой
           </a>
           .
         </span>

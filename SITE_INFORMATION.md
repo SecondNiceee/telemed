@@ -173,7 +173,7 @@
 
 **Хелперы:**
 - `src/lib/auth-cookies.ts` — `buildSetCookie`, `buildClearCookie`, `signCollectionToken`, `extractCookie`
-- `src/lib/auth/getSessionFromCookie.ts` — сессия по произвольной cookie/коллекции
+- `src/lib/auth/getSessionFromCookie.ts` — сессия п�� произвольной cookie/коллекции
 - `src/lib/auth/adminSession.ts` — `getAdminFromCookieHeader` (с `jwt.verify`), `hasAnyUser`
 - `src/lib/server/route-auth.ts` — `getUserFromCookies` и подобное для route handlers
 - `src/lib/server/payload-jwt-secret.ts` — секрет для подписи/проверки токенов
@@ -242,7 +242,7 @@
 
 **Серверная часть MediaSoup (`src/lib/mediasoup/`):** `worker-manager.ts` (пул воркеров с диапазоном TCP/UDP-портов), `peer.ts` и `room.ts` (идемпотентный lifecycle комнат, transports/producers/consumers), `handlers/signaling.ts` (защищённый Socket.IO-протокол), `room-token.ts` (короткоживущий JWT), `recorder.ts` (запись через FFmpeg), `config.ts`, `client-types.ts`. Токен участника выдаёт `POST /api/mediasoup/token`; leave beacon принимает MediaSoup-процесс по `POST /rooms/appointment_<id>/leave`.
 
-**Конфиг клиента:** `src/lib/video-call/config.ts` — ICE/TURN (Metered), таймауты звонка, media constraints, пороги таймера.
+**Конфиг клиента:** `src/lib/video-call/config.ts` — таймауты звонка, media constraints, пороги таймера.
 
 ### Запись звонков
 
@@ -364,7 +364,7 @@
 
 **Socket.IO:** `SOCKET_PORT`, `SOCKET_PATH`, `SOCKET_ALLOWED_ORIGINS`, `NEXT_PUBLIC_SOCKET_URL`, `NEXT_PUBLIC_SOCKET_PATH`
 
-**MediaSoup:** `NEXT_PUBLIC_USE_MEDIASOUP`, `NEXT_PUBLIC_MEDIASOUP_URL`, `NEXT_PUBLIC_MEDIASOUP_PATH`, `MEDIASOUP_PORT`, `MEDIASOUP_LISTEN_IP`, `MEDIASOUP_ANNOUNCED_IP`, `MEDIASOUP_RTC_MIN_PORT`, `MEDIASOUP_RTC_MAX_PORT`, `MEDIASOUP_NUM_WORKERS`, `MEDIASOUP_LOG_LEVEL`, `MEDIASOUP_CORS_ORIGINS`, `MEDIASOUP_SERVER_SECRET`, `NEXT_PUBLIC_STUN_URL`, `NEXT_PUBLIC_TURN_URL`, `NEXT_PUBLIC_TURN_USERNAME`, `NEXT_PUBLIC_TURN_CREDENTIAL`, `FFMPEG_PATH`, `RECORDING_OUTPUT_DIR`
+**MediaSoup:** `NEXT_PUBLIC_USE_MEDIASOUP`, `NEXT_PUBLIC_MEDIASOUP_URL`, `NEXT_PUBLIC_MEDIASOUP_PATH`, `MEDIASOUP_PORT`, `MEDIASOUP_LISTEN_IP`, `MEDIASOUP_ANNOUNCED_IP`, `MEDIASOUP_RTC_MIN_PORT`, `MEDIASOUP_RTC_MAX_PORT`, `MEDIASOUP_NUM_WORKERS`, `MEDIASOUP_LOG_LEVEL`, `MEDIASOUP_CORS_ORIGINS`, `MEDIASOUP_SERVER_SECRET`, `FFMPEG_PATH`, `RECORDING_OUTPUT_DIR`
 
 **PeerJS (legacy):** `PEER_PORT`, `NEXT_PUBLIC_PEER_HOST`, `NEXT_PUBLIC_PEER_PORT`, `NEXT_PUBLIC_PEER_PATH`
 

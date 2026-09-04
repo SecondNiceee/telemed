@@ -603,6 +603,14 @@ export interface Feedback {
    * Текст отзыва пациента
    */
   text?: string | null;
+  /**
+   * Пациент попросил не показывать его имя рядом с отзывом.
+   */
+  isAnonymous?: boolean | null;
+  /**
+   * Имя в формате «Имя Ф.», показывается на странице врача. Пусто у анонимных отзывов.
+   */
+  authorName?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1064,6 +1072,8 @@ export interface FeedbacksSelect<T extends boolean = true> {
   appointment?: T;
   rating?: T;
   text?: T;
+  isAnonymous?: T;
+  authorName?: T;
   updatedAt?: T;
   createdAt?: T;
 }

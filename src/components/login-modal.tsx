@@ -247,136 +247,142 @@ const RegisterForm = memo(function RegisterForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-1">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-name">Имя</Label>
-        <Input
-          id="reg-name"
-          type="text"
-          placeholder="Иван Иванов"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          autoComplete="name"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-email">Электронная почта</Label>
-        <Input
-          id="reg-email"
-          type="email"
-          placeholder="example@mail.ru"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-phone">Телефон</Label>
-        <Input
-          id="reg-phone"
-          type="tel"
-          inputMode="tel"
-          placeholder="+7 (999) 123-45-67"
-          value={phone}
-          onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
-          required
-          autoComplete="tel"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-password">Пароль</Label>
-        <Input
-          id="reg-password"
-          type="password"
-          placeholder="Минимум 8 символов"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="reg-confirm">Повторите пароль</Label>
-        <Input
-          id="reg-confirm"
-          type="password"
-          placeholder="Повторите пароль"
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
-      </div>
-      <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
-        <input
-          id="reg-consent"
-          type="checkbox"
-          checked={consent}
-          onChange={(e) => setConsent(e.target.checked)}
-          className="mt-0.5 size-4 shrink-0 accent-primary"
-          aria-describedby="reg-consent-hint"
-        />
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="reg-consent" className="text-sm font-normal leading-5 text-pretty">
-            {PDN_CONSENT_CHECKBOX_LABEL}
-          </Label>
-          <p id="reg-consent-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
-            <a
-              href="/legal/consent"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2 hover:text-primary"
-            >
-              Текст согласия
-            </a>
-            {" и "}
-            <a
-              href="/legal/privacy"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2 hover:text-primary"
-            >
-              политика обработки данных
-            </a>
-            {". Запись консультации - отдельное согласие перед звонком."}
-          </p>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 pt-1">
+      {/* Две колонки на sm+: форма становится шире, но заметно ниже —
+          на ноутбуках кнопка «Зарегистрироваться» остаётся в пределах экрана. */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="reg-name">Имя</Label>
+          <Input
+            id="reg-name"
+            type="text"
+            placeholder="Иван Иванов"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="reg-phone">Телефон</Label>
+          <Input
+            id="reg-phone"
+            type="tel"
+            inputMode="tel"
+            placeholder="+7 (999) 123-45-67"
+            value={phone}
+            onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+            required
+            autoComplete="tel"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <Label htmlFor="reg-email">Электронная почта</Label>
+          <Input
+            id="reg-email"
+            type="email"
+            placeholder="example@mail.ru"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="reg-password">Пароль</Label>
+          <Input
+            id="reg-password"
+            type="password"
+            placeholder="Минимум 8 символов"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="reg-confirm">Повторите пароль</Label>
+          <Input
+            id="reg-confirm"
+            type="password"
+            placeholder="Повторите пароль"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
         </div>
       </div>
-      <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
-        <input
-          id="reg-offer"
-          type="checkbox"
-          checked={offer}
-          onChange={(e) => setOffer(e.target.checked)}
-          className="mt-0.5 size-4 shrink-0 accent-primary"
-          aria-describedby="reg-offer-hint"
-        />
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="reg-offer" className="text-sm font-normal leading-5 text-pretty">
-            {OFFER_CHECKBOX_LABEL}
-          </Label>
-          <p id="reg-offer-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
-            <a
-              href="/legal/offer"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2 hover:text-primary"
-            >
-              Текст оферты
-            </a>
-            {". Медицинскую помощь оказывает клиника, врача которой вы выберете, - "}
-            <a
-              href="/legal/clinics"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2 hover:text-primary"
-            >
-              список организаций
-            </a>
-            {"."}
-          </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
+          <input
+            id="reg-consent"
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-primary"
+            aria-describedby="reg-consent-hint"
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="reg-consent" className="text-sm font-normal leading-5 text-pretty">
+              {PDN_CONSENT_CHECKBOX_LABEL}
+            </Label>
+            <p id="reg-consent-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
+              <a
+                href="/legal/consent"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-primary"
+              >
+                Текст согласия
+              </a>
+              {" и "}
+              <a
+                href="/legal/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-primary"
+              >
+                политика обработки данных
+              </a>
+              {"."}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3 rounded-lg border bg-muted/40 p-3">
+          <input
+            id="reg-offer"
+            type="checkbox"
+            checked={offer}
+            onChange={(e) => setOffer(e.target.checked)}
+            className="mt-0.5 size-4 shrink-0 accent-primary"
+            aria-describedby="reg-offer-hint"
+          />
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="reg-offer" className="text-sm font-normal leading-5 text-pretty">
+              {OFFER_CHECKBOX_LABEL}
+            </Label>
+            <p id="reg-offer-hint" className="text-xs leading-5 text-muted-foreground text-pretty">
+              <a
+                href="/legal/offer"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-primary"
+              >
+                Текст оферты
+              </a>
+              {". Медицинскую помощь оказывает клиника, врача которой вы выберете, - "}
+              <a
+                href="/legal/clinics"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-primary"
+              >
+                список организаций
+              </a>
+              {"."}
+            </p>
+          </div>
         </div>
       </div>
       {(localError || error) && (
@@ -427,11 +433,11 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
   const [formKey, setFormKey] = useState(0)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  /** Таймер кулдауна кнопки «Отправить снова» */
+  /** Таймер кулдауна кнопки «Отправить ��нова» */
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   /** Креды для автологина после подтверждения почты — в ref, чтобы не ререндерить */
   const credentialsRef = useRef<{ email: string; password: string } | null>(null)
-  /** submitting в ref — чтобы обработчики Dialog не пересоздавались на каждый submit */
+  /** submitting в ref �� чтобы обработчики Dialog не пересоздавались на каждый submit */
   const submittingRef = useRef(false)
 
   const setSubmittingSafe = (value: boolean) => {
@@ -621,18 +627,22 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent
-        className="sm:max-w-md"
+        // Шире и ниже: поля регистрации идут в две колонки, чтобы на ноутбуках
+        // кнопка не уезжала за экран. max-h + overflow — страховка для мелких окон.
+        className={`max-h-[calc(100dvh-2rem)] overflow-y-auto ${
+          tab === "register" && !forgotMode ? "sm:max-w-2xl" : "sm:max-w-md"
+        }`}
         onPointerDownOutside={guardDismiss}
         onInteractOutside={guardDismiss}
       >
         <DialogHeader>
-          <div className="flex flex-col items-center gap-3 mb-1">
+          <div className="flex flex-col items-center gap-2">
             <img
               src="/images/logo.jpg"
               alt="SmartCardio"
-              width={48}
-              height={48}
-              className="w-12 h-12 rounded-lg object-contain"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-lg object-contain"
             />
             <DialogTitle className="text-xl text-center">
               {forgotMode

@@ -136,6 +136,10 @@ export interface ApiFeedback {
   appointment: ApiAppointment | number
   rating: number
   text?: string | null
+  /** Пациент попросил не показывать имя рядом с отзывом */
+  isAnonymous?: boolean | null
+  /** Публичное имя «Имя Ф.», фиксируется сервером; null у анонимных */
+  authorName?: string | null
   createdAt: string
   updatedAt: string
 }
