@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, Send, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ArrowUp, MessagesSquare, X } from 'lucide-react'
 import { useSupportChat } from './use-support-chat'
 
 /**
@@ -69,39 +68,50 @@ export function SupportChatWidget() {
           type="button"
           onClick={handleOpen}
           aria-label="Задать вопрос"
-          className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          <MessageCircle className="size-6" aria-hidden="true" />
+          <MessagesSquare className="size-6" aria-hidden="true" />
         </button>
       )}
 
+      {/* Без рамки: панель отделяется от страницы только тенью, как нативный
+          мессенджер. Разделителей внутри тоже нет — зоны шапки, ленты и ввода
+          различаются отступами и фоном пузырей. */}
       {isOpen && (
         <section
           role="dialog"
           aria-label="Чат поддержки"
-          className="fixed bottom-5 right-5 z-50 flex max-h-[min(32rem,calc(100dvh-2.5rem))] w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl sm:w-90"
+          className="fixed bottom-5 right-5 z-50 flex max-h-[min(32rem,calc(100dvh-2.5rem))] w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl bg-card shadow-2xl shadow-black/20 sm:w-90"
         >
-          <header className="flex shrink-0 items-center justify-between gap-2 bg-primary px-4 py-3 text-primary-foreground">
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">Поддержка</span>
-              <span className="text-xs opacity-80">Отвечаем в рабочее время</span>
+          <header className="flex shrink-0 items-center justify-between gap-3 px-5 pt-5 pb-3">
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+              >
+                <MessagesSquare className="size-4" />
+              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-semibold text-card-foreground">Поддержка</span>
+                <span className="text-xs text-muted-foreground">Отвечаем в рабочее время</span>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
               aria-label="Закрыть чат"
-              className="rounded-md p-1 transition-colors hover:bg-primary-foreground/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-foreground/50"
+              className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              <X className="size-5" aria-hidden="true" />
+              <X className="size-4" aria-hidden="true" />
             </button>
           </header>
 
           {isRestoring ? (
-            <p className="p-4 text-sm text-muted-foreground">Загружаем переписку…</p>
+            <p className="px-5 pb-5 text-sm text-muted-foreground">Загружаем переписку…</p>
           ) : (
             <>
               <div
-                className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
+                className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3"
                 aria-live="polite"
                 aria-atomic="false"
               >
@@ -109,7 +119,7 @@ export function SupportChatWidget() {
                     посетитель сразу видит, куда писать. Показываем только пока
                     диалога нет — в восстановленной переписке оно лишнее. */}
                 {!hasConversation && (
-                  <div className="max-w-[85%] self-start rounded-xl rounded-bl-sm bg-secondary px-3 py-2 text-sm leading-relaxed text-secondary-foreground">
+                  <div className="max-w-[85%] self-start rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
                     <p className="text-pretty">
                       Здравствуйте! Напишите вопрос — ответим прямо здесь. Чат анонимный:
                       имя и телефон не нужны.
@@ -125,8 +135,8 @@ export function SupportChatWidget() {
                     key={message.id}
                     className={
                       message.sender === 'visitor'
-                        ? 'max-w-[85%] self-end rounded-xl rounded-br-sm bg-primary px-3 py-2 text-sm leading-relaxed text-primary-foreground'
-                        : 'max-w-[85%] self-start rounded-xl rounded-bl-sm bg-secondary px-3 py-2 text-sm leading-relaxed text-secondary-foreground'
+                        ? 'max-w-[85%] self-end rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-sm leading-relaxed text-primary-foreground'
+                        : 'max-w-[85%] self-start rounded-2xl rounded-bl-md bg-muted px-3.5 py-2.5 text-sm leading-relaxed text-foreground'
                     }
                   >
                     <span className="sr-only">
@@ -138,13 +148,15 @@ export function SupportChatWidget() {
                 <div ref={listEndRef} />
               </div>
 
-              <div className="shrink-0 border-t border-border p-3">
+              <div className="shrink-0 px-3 pb-3 pt-1">
                 {error && (
-                  <p role="alert" className="mb-2 text-xs text-destructive">
+                  <p role="alert" className="mb-2 px-2 text-xs text-destructive">
                     {error}
                   </p>
                 )}
-                <div className="flex items-center gap-2">
+                {/* Поле и кнопка в одной «пилюле» на фоне muted: без рамок, как
+                    в мессенджерах. Фокус подсвечивает всю пилюлю целиком. */}
+                <div className="flex items-center gap-1 rounded-full bg-muted py-1 pl-4 pr-1 transition-[box-shadow] has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring/40">
                   <input
                     ref={inputRef}
                     // Автофокус при открытии: панель появляется по клику, и
@@ -156,17 +168,17 @@ export function SupportChatWidget() {
                     maxLength={5000}
                     aria-label="Сообщение"
                     placeholder={hasConversation ? 'Сообщение…' : 'Ваш вопрос…'}
-                    className="h-9 flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-base outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:text-sm"
+                    className="h-8 min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
                   />
-                  <Button
+                  <button
                     type="button"
-                    size="icon"
                     onClick={() => void handleSend()}
                     disabled={draft.trim().length === 0 || isBusy}
                     aria-label="Отправить"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[opacity,transform] hover:scale-105 disabled:scale-100 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    <Send className="size-4" aria-hidden="true" />
-                  </Button>
+                    <ArrowUp className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             </>

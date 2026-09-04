@@ -148,17 +148,12 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
 
       await socket.join(roomName(publicId))
 
-      // В тему уходит только текст вопроса и страница обращения, чтобы
-      // отвечать по делу. Никаких данных о посетителе у нас нет по замыслу.
+      // В Telegram уходит только текст вопроса. Страница обращения хранится в
+      // БД и видна в инбоксе админки — в чате операторам она только мешает.
       // Без темы (всё в General) добавляем метку диалога — иначе оператору не
       // отличить, кому отвечать.
       const header = topicId ? '' : `${name}\n\n`
-      await trySendToTelegram(
-        payload,
-        message.id,
-        `${header}${text}${pageUrl ? `\n\n— страница: ${pageUrl}` : ''}`,
-        topicId,
-      )
+      await trySendToTelegram(payload, message.id, `${header}${text}`, topicId)
 
       // Операторам — сразу, это основной канал. Диалог берём из ответа
       // create(), а не перезапрашиваем: telegramTopicId для инбокса не нужен.
