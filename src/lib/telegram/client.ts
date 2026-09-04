@@ -39,6 +39,11 @@ export interface TelegramMessage {
   from?: { id: number; is_bot: boolean; first_name?: string }
   /** Присутствует у служебного сообщения о создании темы — его игнорируем. */
   forum_topic_created?: unknown
+  /**
+   * Сообщение, на которое оператор ответил через «Ответить». По нему мост
+   * находит диалог, когда темы недоступны и всё идёт в General.
+   */
+  reply_to_message?: { message_id: number; from?: { id: number; is_bot: boolean } }
 }
 
 export interface TelegramUpdate {
@@ -113,12 +118,30 @@ async function callApi<T>(
  * Требует, чтобы в группе были включены «Темы», а бот был администратором
  * с правом управления темами. Иначе Telegram ответит ошибкой прав.
  */
-export function createForumTopic(name: string): Promise<{ message_thread_id: number }> {
-  return callApi('createForumTopic', {
-    chat_id: supportChatId(),
-    // Telegram обрезает длинные названия сам, но лучше не доводить до предела.
-    name: name.slice(0, 128),
-  })
+export async function createForumTopic(name: string): Promise<{ message_thread_id: number }> {
+  try {
+    return await callApi('createForumTopic', {
+      chat_id: supportChatId(),
+      // Telegram обрезает длинные названия сам, но лучше не доводить до предела.
+      name: name.slice(0, 128),
+    })
+  } catch (error) {
+    // Две типовые причины — переводим ответ Telegram в понятное действие,
+    // чтобы не гадать по логам.
+    const text = error instanceof Error ? error.message : String(error)
+    if (/not a forum/i.test(text)) {
+      throw new Error(
+        `${text}. В настройках группы не включены «Темы» (Topics) — включите их, ` +
+          'группа станет форумом.',
+      )
+    }
+    if (/not enough rights|CHAT_ADMIN_REQUIRED/i.test(text)) {
+      throw new Error(
+        `${text}. Бот должен быть администратором группы с правом «Управление темами».`,
+      )
+    }
+    throw error
+  }
 }
 
 /** Отправить сообщение в тему (или в чат, если `threadId` не передан). */

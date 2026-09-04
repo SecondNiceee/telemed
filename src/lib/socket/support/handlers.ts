@@ -47,12 +47,26 @@ function clientIp(socket: Socket): string {
  *
  * Если токен задан, но запрос не прошёл (в РФ Telegram ограничен через ТСПУ),
  * ошибку логируем и продолжаем: сообщение уже в БД и видно оператору.
+ *
+ * `messageId` — наше сообщение в БД. К нему привязываем message_id из
+ * Telegram, чтобы мост находил диалог по reply_to_message, когда оператор
+ * отвечает через «Ответить» вне темы (например, темы в группе не включены).
  */
-async function trySendToTelegram(text: string, threadId?: number): Promise<void> {
+async function trySendToTelegram(
+  payload: Payload,
+  messageId: number | string,
+  text: string,
+  threadId?: number,
+): Promise<void> {
   if (!isTelegramConfigured()) return
 
   try {
-    await sendMessage(text, threadId)
+    const sent = await sendMessage(text, threadId)
+    await payload.update({
+      collection: 'support-messages',
+      id: messageId,
+      data: { telegramMessageId: sent.message_id },
+    })
   } catch (error) {
     console.error('[support] не удалось отправить в Telegram', {
       threadId,
@@ -134,12 +148,12 @@ export function createStartHandler(io: SocketIOServer, payload: Payload) {
 
       await socket.join(roomName(publicId))
 
-      // В тему уходит только текст вопроса и страница обращения, чтобы
-      // отвечать по делу. Никаких данных о посетителе у нас нет по замыслу.
-      await trySendToTelegram(
-        pageUrl ? `${text}\n\n— страница: ${pageUrl}` : text,
-        topicId,
-      )
+      // В Telegram уходит только текст вопроса. Страница обращения хранится в
+      // БД и видна в инбоксе админки — в чате операторам она только мешает.
+      // Без темы (всё в General) добавляем метку диалога — иначе оператору не
+      // отличить, кому отвечать.
+      const header = topicId ? '' : `${name}\n\n`
+      await trySendToTelegram(payload, message.id, `${header}${text}`, topicId)
 
       // Операторам — сразу, это основной канал. Диалог берём из ответа
       // create(), а не перезапрашиваем: telegramTopicId для инбокса не нужен.
@@ -236,7 +250,9 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
       emitToVisitor(io, conversation.publicId, toDto(message))
       emitToOperators(io, toConversationDto(updated, message), toDto(message))
 
-      await trySendToTelegram(text, conversation.telegramTopicId ?? undefined)
+      const topicId = conversation.telegramTopicId ?? undefined
+      const header = topicId ? '' : `${conversation.visitorName}\n\n`
+      await trySendToTelegram(payload, message.id, `${header}${text}`, topicId)
 
       reply(ack, { success: true })
     } catch (error) {

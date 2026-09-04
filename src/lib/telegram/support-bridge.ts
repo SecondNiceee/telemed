@@ -35,16 +35,65 @@ function sleep(ms: number): Promise<void> {
  * Стоит ли обрабатывать это сообщение как ответ оператора.
  *
  * Отсекаем: сообщения самого бота (иначе он ответил бы сам себе), служебные
- * уведомления о создании темы, сообщения без темы (болтовня в общем чате
- * группы) и не из нашей группы.
+ * уведомления о создании темы, пустые сообщения и всё не из нашей группы.
+ *
+ * Сообщения без темы здесь НЕ отсекаем: если в группе не включены «Темы»,
+ * всё идёт в General, и оператор отвечает через «Ответить» на сообщение бота.
+ * Такой ответ мы тоже должны доставить — диалог найдём по reply_to_message.
  */
 function isOperatorReply(message: TelegramMessage | undefined): message is TelegramMessage {
   if (!message) return false
   if (message.from?.is_bot) return false
   if (message.forum_topic_created) return false
-  if (typeof message.message_thread_id !== 'number') return false
   if (typeof message.text !== 'string' || message.text.trim().length === 0) return false
   return String(message.chat.id) === process.env.TELEGRAM_SUPPORT_CHAT_ID
+}
+
+/**
+ * Найти диалог, к которому относится сообщение оператора.
+ *
+ * Два способа, в порядке надёжности:
+ * 1. По теме — если группа-форум и сообщение написано внутри темы диалога.
+ * 2. По reply_to_message — оператор нажал «Ответить» на сообщение бота;
+ *    у нас его message_id сохранён рядом с сообщением посетителя.
+ *
+ * Если ни то, ни другое — это просто разговор операторов между собой в группе,
+ * и на сайт его отправлять нельзя.
+ */
+async function findConversationFor(payload: Payload, message: TelegramMessage) {
+  if (typeof message.message_thread_id === 'number') {
+    const byTopic = await payload.find({
+      collection: 'support-conversations',
+      where: { telegramTopicId: { equals: message.message_thread_id } },
+      limit: 1,
+      depth: 0,
+    })
+    if (byTopic.docs[0]) return byTopic.docs[0]
+  }
+
+  const repliedId = message.reply_to_message?.message_id
+  if (typeof repliedId === 'number') {
+    const replied = await payload.find({
+      collection: 'support-messages',
+      where: { telegramMessageId: { equals: repliedId } },
+      limit: 1,
+      depth: 0,
+    })
+    const original = replied.docs[0]
+    if (original) {
+      const conversationId =
+        typeof original.conversation === 'object' ? original.conversation.id : original.conversation
+      const byReply = await payload.find({
+        collection: 'support-conversations',
+        where: { id: { equals: conversationId } },
+        limit: 1,
+        depth: 0,
+      })
+      if (byReply.docs[0]) return byReply.docs[0]
+    }
+  }
+
+  return null
 }
 
 async function handleOperatorReply(
@@ -52,20 +101,19 @@ async function handleOperatorReply(
   payload: Payload,
   message: TelegramMessage,
 ): Promise<void> {
-  const topicId = message.message_thread_id as number
   const text = (message.text as string).trim()
 
-  const conversations = await payload.find({
-    collection: 'support-conversations',
-    where: { telegramTopicId: { equals: topicId } },
-    limit: 1,
-    depth: 0,
-  })
-
-  const conversation = conversations.docs[0]
+  const conversation = await findConversationFor(payload, message)
   if (!conversation) {
-    // Тема есть, а диалога нет — например, оператор создал тему вручную.
-    // Молча игнорируем: это не ошибка.
+    // Сообщение в General без «Ответить» или в теме, которую создали вручную.
+    // Подсказываем один раз в лог — частая ошибка при первичной настройке.
+    if (typeof message.message_thread_id !== 'number' && !message.reply_to_message) {
+      console.warn(
+        '[support-bridge] сообщение в группе без темы и без «Ответить» — не знаю, ' +
+          'какому посетителю его отправить. Включите «Темы» в группе или отвечайте ' +
+          'через «Ответить» на сообщение бота.',
+      )
+    }
     return
   }
 
