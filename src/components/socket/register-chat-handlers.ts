@@ -6,6 +6,24 @@ import { isInCallRoom } from '@/lib/chat/call-chat-bridge'
 import { playNotificationSound } from './notification-sound'
 import type { SocketHandlerDeps } from './types'
 
+/** Страницы чата по типу получателя: сюда ведёт кнопка «Перейти». */
+const CHAT_PATHS: Record<'user' | 'doctor', string> = {
+  user: '/lk/chat',
+  doctor: '/lk-med/chat',
+}
+
+/**
+ * Пользователь уже на странице чата (любой из двух кабинетов). Читаем
+ * window.location в момент события, а не при регистрации обработчика: сокет
+ * живёт дольше страницы и переживает клиентскую навигацию.
+ */
+function isOnChatPage(): boolean {
+  const { pathname } = window.location
+  return Object.values(CHAT_PATHS).some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  )
+}
+
 /**
  * События чата: сообщения, тосты-уведомления, индикатор набора, прочтения.
  */
@@ -56,7 +74,16 @@ export function registerChatHandlers(
     senderName: string
     text: string
   }) => {
-    // Не показываем тост, если этот чат уже открыт и вкладка видима.
+    // На странице чата тост не нужен независимо от того, какой диалог открыт:
+    // новое сообщение уже видно в ленте или в счётчике непрочитанных слева,
+    // а сам тост ложится поверх поля ввода. Решаем по маршруту, а не по
+    // activeAppointmentId в сторе: на странице чата два SocketProvider
+    // (глобальный и чата), и маршрут - единственный признак, который не
+    // зависит от порядка их монтирования и от выбранного диалога.
+    if (isOnChatPage()) return
+
+    // Вне страницы чата активного диалога быть не может, но проверку оставляем
+    // на случай встроенных чатов (например, панель в звонке ниже).
     const isTabVisible = document.visibilityState === 'visible'
     const isInActiveChat = chatStoreRef.current.activeAppointmentId === appointmentId
     if (isInActiveChat && isTabVisible) return
@@ -68,9 +95,7 @@ export function registerChatHandlers(
     // горит счётчик непрочитанных.
     if (isInCallRoom(appointmentId)) return
 
-    const chatUrl = recipientType === 'doctor'
-      ? `/lk-med/chat?appointment=${appointmentId}`
-      : `/lk/chat?appointment=${appointmentId}`
+    const chatUrl = `${CHAT_PATHS[recipientType]}?appointment=${appointmentId}`
 
     // id тоста = id сообщения: если на странице смонтировано два
     // SocketProvider (глобальный + чат), дубликат не появится.
