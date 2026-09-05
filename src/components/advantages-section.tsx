@@ -1,41 +1,34 @@
 import Image from "next/image";
-import { Activity, FileSearch, HeartPulse, Stethoscope } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { SectionBadge } from "@/components/section-badge";
 
 const ADVANTAGES: {
   title: string;
   description: string;
   image: string;
-  icon: LucideIcon;
 }[] = [
   {
     title: "Жалобы и изменения самочувствия",
     description:
       "Если появились симптомы, изменения состояния или вопросы, которые можно обсудить с врачом дистанционно.",
     image: "/images/telemedicine/complaints-headache.png",
-    icon: Stethoscope,
   },
   {
     title: "Разбор обследований",
     description:
       "Интерпретация анализов, инструментальных, генетических исследований.",
     image: "/images/telemedicine/elderly-woman-ecg.png",
-    icon: FileSearch,
   },
   {
     title: "Второе медицинское мнение",
     description:
       "Если возникают сомнения в диагнозе, понимании результатов обследований или назначенном лечении.",
     image: "/images/telemedicine/doctor-video-call.png",
-    icon: Activity,
   },
   {
     title: "Наличие хронических заболеваний",
     description:
       "Динамическое наблюдение у профильного специалиста, оценка состояния и коррекция терапии без необходимости посещения клиники.",
     image: "/images/telemedicine/elderly-man-tablet.png",
-    icon: HeartPulse,
   },
 ];
 
@@ -69,47 +62,36 @@ export function AdvantagesSection() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {ADVANTAGES.map((advantage) => {
-            const Icon = advantage.icon;
+          {ADVANTAGES.map((advantage) => (
+            <article
+              key={advantage.title}
+              className="sc-card-dark group overflow-hidden"
+            >
+              <div className="relative aspect-[4/3] w-full overflow-hidden">
+                <Image
+                  src={advantage.image || "/placeholder.svg"}
+                  alt={advantage.title}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-surface-dark-elevated via-surface-dark-elevated/20 to-transparent"
+                  aria-hidden="true"
+                />
+              </div>
 
-            return (
-              <article
-                key={advantage.title}
-                className="sc-card-dark group overflow-hidden"
-              >
-                <div className="relative aspect-[4/3] w-full overflow-hidden">
-                  <Image
-                    src={advantage.image || "/placeholder.svg"}
-                    alt={advantage.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div
-                    className="absolute inset-0 bg-gradient-to-t from-surface-dark-elevated via-surface-dark-elevated/20 to-transparent"
-                    aria-hidden="true"
-                  />
-                </div>
+              <div className="flex flex-col gap-2 p-6">
+                <h3 className="text-pretty text-lg font-semibold text-white">
+                  {advantage.title}
+                </h3>
 
-                <div className="flex flex-col gap-3 p-6">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-on-dark/15 transition-colors duration-300 group-hover:bg-teal-on-dark">
-                    <Icon
-                      className="h-5 w-5 text-teal-on-dark transition-colors duration-300 group-hover:text-surface-dark"
-                      aria-hidden="true"
-                    />
-                  </span>
-
-                  <h3 className="text-pretty text-lg font-semibold text-white">
-                    {advantage.title}
-                  </h3>
-
-                  <p className="text-sm leading-relaxed text-white/60">
-                    {advantage.description}
-                  </p>
-                </div>
-              </article>
-            );
-          })}
+                <p className="text-sm leading-relaxed text-white/60">
+                  {advantage.description}
+                </p>
+              </div>
+            </article>
+          ))}
         </div>
       </div>
     </section>
