@@ -78,7 +78,10 @@ export function ConsultationDialogs({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Укажите причину, почему не состоялась консультация</DialogTitle>
-            <DialogDescription>Пациент получит эту причину по электронной почте.</DialogDescription>
+            <DialogDescription>
+              Пациенту автоматически вернётся полная стоимость консультации на карту,
+              а причину он получит по электронной почте.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
             {['Технические проблемы', 'Клиент не отвечает/не берет звонок', 'Другая причина'].map((reason) => (

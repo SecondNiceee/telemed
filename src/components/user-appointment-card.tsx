@@ -5,6 +5,7 @@ import type { ApiAppointment, ApiDoctor } from "@/lib/api/types"
 import { formatDate, getStatusLabel, getStatusColor, getInitials } from "@/lib/utils/date"
 import { cn } from "@/lib/utils"
 import { UnreadDot } from "@/components/unread-dot"
+import { RefundGuideDialog } from "@/components/refund-guide-dialog"
 
 function getDoctorFromAppointment(appt: ApiAppointment): { id: number; email?: string } | null {
   if (typeof appt.doctor === 'object' && appt.doctor !== null) {
@@ -54,6 +55,10 @@ export function UserAppointmentCard({
   // Неоплаченная бронь: чата ещё нет, единственное действие — оплатить.
   const isPendingPayment = appointment.status === "pending_payment" && !isExpiredHold
   const rail = STATUS_RAIL[displayStatus] ?? "var(--border)"
+
+  // Инструкция возврата уместна только пока деньги ещё можно вернуть:
+  // запись оплачена и консультация не завершена и не отменена.
+  const canRefund = displayStatus === "confirmed" || displayStatus === "in_progress"
 
   return (
     <article className="group relative overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_oklch(0_0_0_/_0.07),0_10px_28px_-18px_oklch(0.2079_0.0399_265.8_/_0.20)] transition-shadow duration-300 hover:shadow-[0_0_0_1px_oklch(0.6273_0.1067_201.3_/_0.30),0_16px_36px_-18px_oklch(0.2079_0.0399_265.8_/_0.26)]">
@@ -130,6 +135,7 @@ export function UserAppointmentCard({
                 >
                   Профиль
                 </Link>
+                {canRefund && <RefundGuideDialog appointmentId={appointment.id} />}
               </div>
             )
           )}
