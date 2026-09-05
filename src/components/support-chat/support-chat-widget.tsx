@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, MessagesSquare, X } from 'lucide-react'
-import { useSupportChat } from './use-support-chat'
+import { UnreadDot } from '@/components/unread-dot'
+import { hasStoredConversation, useSupportChat } from './use-support-chat'
 
 /**
  * Чат поддержки: кнопка снизу справа, по клику — панель с диалогом.
@@ -14,12 +15,18 @@ import { useSupportChat } from './use-support-chat'
  */
 export function SupportChatWidget() {
   const [isOpen, setIsOpen] = useState(false)
-  // Сокет поднимаем только после первого открытия и больше не гасим:
-  // переподключение на каждое закрытие теряло бы комнату и историю.
+  // Сокет поднимаем после первого открытия и больше не гасим: переподключение
+  // на каждое закрытие теряло бы комнату и историю. Исключение — посетитель с
+  // уже начатым диалогом: ему сокет нужен сразу, иначе ответ оператора,
+  // пришедший при закрытой панели, не зажжёт точку на кнопке.
   const [hasOpened, setHasOpened] = useState(false)
   const [draft, setDraft] = useState('')
 
-  const { messages, hasConversation, isBusy, isRestoring, error, send } =
+  useEffect(() => {
+    if (hasStoredConversation()) setHasOpened(true)
+  }, [])
+
+  const { messages, hasConversation, isBusy, isRestoring, error, hasUnread, markRead, send } =
     useSupportChat(hasOpened)
 
   const listEndRef = useRef<HTMLDivElement>(null)
@@ -30,6 +37,12 @@ export function SupportChatWidget() {
   useEffect(() => {
     if (isOpen) listEndRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, isOpen])
+
+  // Открытая панель означает «прочитано»: сообщения в ней видны сразу,
+  // поэтому флаг гасим и при открытии, и при каждом новом сообщении.
+  useEffect(() => {
+    if (isOpen && hasUnread) markRead()
+  }, [isOpen, hasUnread, markRead])
 
   const handleOpen = () => {
     setIsOpen(true)
@@ -67,10 +80,19 @@ export function SupportChatWidget() {
         <button
           type="button"
           onClick={handleOpen}
-          aria-label="Задать вопрос"
+          aria-label={hasUnread ? 'Задать вопрос. Есть новое сообщение' : 'Задать вопрос'}
           className="fixed bottom-5 right-5 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/25 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <MessagesSquare className="size-6" aria-hidden="true" />
+          {/* Точка крупнее и с обводкой в цвет страницы: кнопка круглая и
+              тёмная, стандартная обводка под цвет карточки терялась бы. Пульс
+              привлекает взгляд один раз, дальше точка просто горит. */}
+          {hasUnread && (
+            <UnreadDot
+              label=""
+              className="right-0.5 top-0.5 h-3.5 w-3.5 ring-background motion-safe:animate-[pulse_1.5s_ease-in-out_3]"
+            />
+          )}
         </button>
       )}
 
@@ -111,7 +133,7 @@ export function SupportChatWidget() {
           ) : (
             <>
               <div
-                className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3"
+                className="scrollbar-subtle flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-3"
                 aria-live="polite"
                 aria-atomic="false"
               >

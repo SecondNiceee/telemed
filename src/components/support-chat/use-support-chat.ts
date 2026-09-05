@@ -50,6 +50,11 @@ function clearStoredId(): void {
   }
 }
 
+/** Есть ли у посетителя начатый диалог — решает, поднимать ли сокет заранее. */
+export function hasStoredConversation(): boolean {
+  return readStoredId() !== null
+}
+
 /**
  * Состояние чата поддержки.
  *
@@ -66,6 +71,10 @@ export function useSupportChat(enabled: boolean) {
   // Пока история не загружена, форму показывать рано: иначе вернувшийся
   // посетитель на миг увидит пустую форму вместо своей переписки.
   const [isRestoring, setIsRestoring] = useState(false)
+  // Ответ оператора пришёл, пока панель закрыта. Число не считаем — точки
+  // на кнопке достаточно, а пересчёт при переподключении сделал бы его
+  // ненадёжным (см. UnreadDot).
+  const [hasUnread, setHasUnread] = useState(false)
 
   const socketRef = useRef<Socket | null>(null)
 
@@ -124,6 +133,9 @@ export function useSupportChat(enabled: boolean) {
       setMessages((previous) => {
         // Сообщение может прийти дважды: своё эхо плюс повторная доставка.
         if (previous.some((item) => item.id === message.id)) return previous
+        // Флаг ставим только на действительно новое сообщение оператора;
+        // виджет сам снимет его, если панель сейчас открыта.
+        if (message.sender === 'operator') setHasUnread(true)
         return [...previous, message]
       })
     })
@@ -207,6 +219,8 @@ export function useSupportChat(enabled: boolean) {
     [publicId, start],
   )
 
+  const markRead = useCallback(() => setHasUnread(false), [])
+
   return {
     messages,
     hasConversation: publicId !== null,
@@ -214,6 +228,8 @@ export function useSupportChat(enabled: boolean) {
     isBusy,
     isRestoring,
     error,
+    hasUnread,
+    markRead,
     send,
   }
 }
