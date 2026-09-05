@@ -12,6 +12,7 @@ import {
   KeyRound,
   LogOut,
   Plus,
+  ScrollText,
   Search,
   Stethoscope,
   Trash2,
@@ -45,6 +46,8 @@ interface AdminOrganisationsProps {
   initialOrganisations: AdminOrganisation[]
   /** Сколько обращений с сайта ждут ответа — бейдж на кнопке «Обращения». */
   unreadSupportCount: number
+  /** Реквизиты оператора не заполнены — юридические документы в черновике. */
+  requisitesIncomplete: boolean
   onSignedOut: () => void
 }
 
@@ -52,6 +55,7 @@ export function AdminOrganisations({
   admin,
   initialOrganisations,
   unreadSupportCount,
+  requisitesIncomplete,
   onSignedOut,
 }: AdminOrganisationsProps) {
   const router = useRouter()
@@ -205,6 +209,18 @@ export function AdminOrganisations({
                 Категории
               </Link>
             </Button>
+            <Button asChild variant="outline">
+              <Link href="/admin/requisites">
+                <ScrollText className="size-4" />
+                Реквизиты
+                {requisitesIncomplete && (
+                  <span
+                    className="ml-1 size-2 rounded-full bg-destructive"
+                    aria-label="реквизиты не заполнены"
+                  />
+                )}
+              </Link>
+            </Button>
             <Button variant="outline" onClick={() => setSeedOpen(true)}>
               <Database className="size-4" />
               Создать тестовые данные
@@ -306,7 +322,7 @@ export function AdminOrganisations({
             <AlertDialogTitle>Сбросить пароль организации?</AlertDialogTitle>
             <AlertDialogDescription>
               Для {resetTarget?.name} будет сгенерирован новый пароль. Старый перестанет работать
-              сразу — сообщите организации новый.
+              сразу — соо��щите организации новый.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
