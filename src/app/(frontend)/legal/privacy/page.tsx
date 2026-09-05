@@ -59,6 +59,28 @@ export default async function PrivacyPolicyPage() {
               )
             }
 
+            if (block.parts) {
+              return (
+                <p key={blockIndex} className="text-pretty leading-relaxed text-muted-foreground">
+                  {block.parts.map((part, partIndex) =>
+                    typeof part === 'string' ? (
+                      part
+                    ) : (
+                      <a
+                        key={partIndex}
+                        href={part.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                      >
+                        {part.label}
+                      </a>
+                    ),
+                  )}
+                </p>
+              )
+            }
+
             if (block.items) {
               return (
                 <ul key={blockIndex} className="flex flex-col gap-2">
