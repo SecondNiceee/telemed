@@ -173,7 +173,7 @@
 
 **Хелперы:**
 - `src/lib/auth-cookies.ts` — `buildSetCookie`, `buildClearCookie`, `signCollectionToken`, `extractCookie`
-- `src/lib/auth/getSessionFromCookie.ts` — сессия п�� произвольной cookie/коллекции
+- `src/lib/auth/getSessionFromCookie.ts` — сессия по произвольной cookie/коллекции
 - `src/lib/auth/adminSession.ts` — `getAdminFromCookieHeader` (с `jwt.verify`), `hasAnyUser`
 - `src/lib/server/route-auth.ts` — `getUserFromCookies` и подобное для route handlers
 - `src/lib/server/payload-jwt-secret.ts` — секрет для подписи/проверки токенов
