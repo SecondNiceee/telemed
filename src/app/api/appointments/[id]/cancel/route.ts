@@ -78,6 +78,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         description: 'Возврат за отменённую консультацию',
       })
       refunded = result.refunded
+
+      // Одна строка на каждую отмену, чтобы по `pm2 logs` было видно исход, а
+      // не только сбои. `reason` объясняет, почему возврата не было: бесплатная
+      // запись, платёж не дошёл, ЮKassa не настроена.
+      console.info('[v0][cancel] консультация отменена врачом', {
+        appointmentId,
+        doctorId: doctor.id,
+        refunded,
+        ...(result.reason ? { reason: result.reason } : {}),
+      })
     } catch (error) {
       console.error('[v0][cancel] возврат не удался, догонит сверка', {
         appointmentId,

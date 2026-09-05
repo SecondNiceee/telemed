@@ -403,7 +403,7 @@ export interface SyncResult {
 }
 
 /**
- * Сверить платёж записи с ЮKassa и применить исход.
+ * Сверить платёж записи с ЮKassa и пр��менить исход.
  *
  * Вызывается из двух мест: обработчика уведомлений и страницы/поллинга при
  * возврате пользователя на сайт. Возвращает null, если у записи нет платежа.
@@ -663,6 +663,18 @@ async function refundLatePayment({
     description,
   })
 
+  // Единственное место, где мы узнаём, что деньги реально ушли. refundId нужен,
+  // чтобы найти операцию в кабинете ЮKassa, если пациент скажет «не пришло».
+  // Статус `pending` - нормальный ответ для карт: ЮKassa примет и завершит
+  // сама, в БД мы всё равно пишем `refunded`.
+  console.info('[v0][payments] возврат принят ЮKassa', {
+    appointmentId: appointment.id,
+    paymentId: payment.id,
+    refundId: refund.id,
+    refundStatus: refund.status,
+    amount: refund.amount.value,
+  })
+
   await savePayment({
     payload,
     appointment,
@@ -775,7 +787,7 @@ async function refundOrphanPayment(payment: YooKassaPayment): Promise<void> {
  * Разобрать уведомление ЮKassa по id платежа.
  *
  * Запись ищется по `payment.paymentId` (есть индекс), а `metadata.appointmentId`
- * используется как резерв: если уведомление пришло раньше, чем мы успели
+ * использу��тся как резерв: если уведомление пришло раньше, чем мы успели
  * сохранить id платежа, по метаданным запись всё равно находится.
  *
  * Резерв применяется только когда в записи ещё нет id платежа или он совпадает
