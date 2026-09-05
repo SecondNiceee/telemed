@@ -14,6 +14,8 @@ interface AdminPanelProps {
   initialOrganisations: AdminOrganisation[]
   /** Сколько обращений с сайта ждут ответа — бейдж на кнопке инбокса. */
   unreadSupportCount: number
+  /** Реквизиты оператора не заполнены — точка на кнопке «Реквизиты». */
+  requisitesIncomplete: boolean
 }
 
 export function AdminPanel({
@@ -21,6 +23,7 @@ export function AdminPanel({
   initialAdmin,
   initialOrganisations,
   unreadSupportCount,
+  requisitesIncomplete,
 }: AdminPanelProps) {
   const router = useRouter()
   const [admin, setAdmin] = useState<AdminUser | null>(initialAdmin)
@@ -63,6 +66,7 @@ export function AdminPanel({
       admin={admin}
       initialOrganisations={initialOrganisations}
       unreadSupportCount={unreadSupportCount}
+      requisitesIncomplete={requisitesIncomplete}
       onSignedOut={() => {
         setAdmin(null)
         router.refresh()

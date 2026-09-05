@@ -3,6 +3,8 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { AdminPanel } from '@/components/admin/admin-panel'
 import { getAdminFromCookieHeader, hasAnyUser } from '@/lib/auth/adminSession'
+import { fetchOperatorRequisitesCached } from '@/lib/legal/operator.server'
+import { hasUnfilledRequisites } from '@/lib/legal/operator'
 import type { AdminOrganisation } from '@/components/admin/types'
 
 export const metadata = {
@@ -20,6 +22,7 @@ export default async function AdminPage() {
   // Данные грузим на сервере, чтобы панель открывалась уже заполненной.
   let organisations: AdminOrganisation[] = []
   let unreadSupportCount = 0
+  let requisitesIncomplete = false
 
   try {
     // Пустая база => показываем экран первичной настройки, вход не нужен.
@@ -59,6 +62,10 @@ export default async function AdminPage() {
         if (!doc.operatorReadAt) return true
         return new Date(doc.lastMessageAt) > new Date(doc.operatorReadAt)
       }).length
+
+      // Та же проверка, что ставит пометку «черновик» на юридических
+      // страницах — чтобы админ узнал о ней здесь, а не от пользователя.
+      requisitesIncomplete = hasUnfilledRequisites(await fetchOperatorRequisitesCached())
     }
   } catch (err) {
     // Чаще всего это отсутствующие PAYLOAD_SECRET / DATABASE_URL — показываем
@@ -74,6 +81,7 @@ export default async function AdminPage() {
       }
       initialOrganisations={organisations}
       unreadSupportCount={unreadSupportCount}
+      requisitesIncomplete={requisitesIncomplete}
     />
   )
 }
