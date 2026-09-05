@@ -31,11 +31,11 @@ export const CallRecordings: CollectionConfig = {
         return { 'appointment.user': { equals: Number(callerAsUser.id) } }
       }
 
-      // Doctor can read their own recordings
-      const callerAsDoctor = getCallerFromRequest(req, 'doctors')
-      if (callerAsDoctor?.collection === 'doctors' && callerAsDoctor.id) {
-        return { doctor: { equals: Number(callerAsDoctor.id) } }
-      }
+      // Врач записи НЕ читает. Право на чтение здесь было, но ни один экран
+      // им не пользовался, а политика и текст согласия обещают пациенту доступ
+      // только у медицинской организации. Право без интерфейса - это лишний
+      // получатель данных о здоровье, которого нет в документах. Создавать
+      // запись врач по-прежнему может (см. create ниже): её пишет его клиент.
 
       // Organisation can read recordings from their doctors
       const callerAsOrg = getCallerFromRequest(req, 'organisations')
