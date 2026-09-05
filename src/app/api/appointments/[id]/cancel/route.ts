@@ -10,6 +10,7 @@ import { refundCancelledAppointment } from '@/lib/server/appointment-payments'
 const STANDARD_REASONS = [
   'Технические проблемы',
   'Клиент не отвечает/не берет звонок',
+  'Просьба пациента',
   'Другая причина',
 ] as const
 

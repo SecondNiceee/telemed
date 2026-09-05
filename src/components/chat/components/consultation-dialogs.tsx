@@ -84,7 +84,7 @@ export function ConsultationDialogs({
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-2">
-            {['Технические проблемы', 'Клиент не отвечает/не берет звонок', 'Другая причина'].map((reason) => (
+            {['Технические проблемы', 'Клиент не отвечает/не берет звонок', 'Просьба пациента', 'Другая причина'].map((reason) => (
               <label key={reason} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-3 text-sm">
                 <input
                   type="radio"
