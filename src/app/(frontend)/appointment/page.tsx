@@ -6,11 +6,11 @@ import { BackgroundDecor } from "@/components/background-decor";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata = buildMetadata({
-  title: "Записаться на приём",
+  title: "Записаться на консультацию",
   description:
-    "Выберите специалиста и запишитесь на видеоконсультацию на удобное время.",
+    "Выберите специалиста и запишитесь на онлайн-консультацию на удобное время.",
   path: "/appointment",
-  keywords: ["записаться к врачу онлайн", "запись на видеоконсультацию", "выбрать специалиста"],
+  keywords: ["консультация специалиста онлайн", "запись на видеоконсультацию", "выбрать специалиста"],
 });
 
 export const revalidate = 60;

@@ -36,7 +36,7 @@ export function AppointmentPageClient({ initialCategories }: AppointmentPageClie
 
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground text-balance">
-            Записаться на приём
+            Записаться на консультацию
           </h1>
           <span
             aria-hidden="true"

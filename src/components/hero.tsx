@@ -68,7 +68,7 @@ export function Hero({ user }: HeroProps) {
                 href="/appointment"
                 className="group inline-flex items-center justify-center gap-2.5 text-[15px] font-semibold text-primary-foreground bg-primary px-8 py-4 rounded-full shadow-sm shadow-primary/20 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25 active:scale-[0.99] transition-all duration-200"
               >
-                Записаться на приём
+                Записаться на консультацию
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
               {user && (

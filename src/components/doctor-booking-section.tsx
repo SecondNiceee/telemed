@@ -326,7 +326,7 @@ export function DoctorBookingSection({
             aria-hidden="true"
             className="h-5 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-primary to-teal"
           />
-          Записаться на приём
+          Записаться на консультацию
         </h2>
 
         {paymentNotice === "expired" || paymentNotice === "cancelled" ? (
