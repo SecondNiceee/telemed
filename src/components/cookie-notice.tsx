@@ -54,11 +54,15 @@ export function CookieNotice() {
         сервиса.{' '}
         <a
           // Якорь на раздел про cookie, а не на начало политики: человек кликает
-          // именно про cookie и должен сразу увидеть их перечень.
+          // именно про cookie и должен сразу увидеть их перечень. Открываем в
+          // новой вкладке, чтобы не уводить со страницы, на которой он был.
           href="/legal/privacy#cookies"
+          target="_blank"
+          rel="noopener noreferrer"
           className="underline underline-offset-2 hover:text-foreground"
         >
           Подробнее
+          <span className="sr-only"> (откроется в новой вкладке)</span>
         </a>
       </p>
       <button

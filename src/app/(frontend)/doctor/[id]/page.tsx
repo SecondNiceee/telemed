@@ -125,6 +125,14 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
 
   const photoUrl = (doctor.photo as Media)?.url ?? null;
   const specialty = getDoctorSpecialty(doctor);
+  // Юрлицо, с которым пациент заключает договор на консультацию. Полное
+  // наименование предпочтительнее короткого: именно оно должно совпадать с
+  // реестром /legal/clinics, куда ведёт ссылка со страницы. Если реквизиты ещё
+  // не заполнены — показываем хотя бы рабочее название.
+  const organisation =
+    typeof doctor.organisation === "object" && doctor.organisation !== null
+      ? (doctor.organisation.legalName?.trim() || doctor.organisation.name?.trim() || null)
+      : null;
   const education = getDoctorEducation(doctor);
   const services = getDoctorServices(doctor);
   const categories = getDoctorCategories(doctor);
@@ -149,6 +157,7 @@ export default async function DoctorPage({ params }: DoctorPageProps) {
           }}
           photoUrl={photoUrl}
           specialty={specialty}
+          organisation={organisation}
           education={education}
           services={services}
           categories={categories.map(c => ({ slug: c.slug }))}

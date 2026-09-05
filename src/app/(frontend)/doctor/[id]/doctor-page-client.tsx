@@ -11,6 +11,7 @@ import {
   CheckCircle,
   User,
   FileText,
+  ShieldCheck,
   Stethoscope,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,8 @@ interface DoctorPageClientProps {
   };
   photoUrl: string | null;
   specialty: string;
+  /** Медицинская организация, оказывающая услугу; null, если не развёрнута. */
+  organisation: string | null;
   education: string[];
   services: string[];
   categories: { slug: string }[];
@@ -57,6 +60,7 @@ export function DoctorPageClient({
   doctor,
   photoUrl,
   specialty,
+  organisation,
   education,
   services,
   categories,
@@ -189,6 +193,24 @@ export function DoctorPageClient({
         />
       </div>
 
+      {/* Гарантия возврата — сразу под формой записи, где человек решает,
+          платить ли. Одна строка, без карточки: это подпись к форме, а не
+          отдельный блок, конкурирующий с ней за внимание. */}
+      <p className="mb-3 flex items-center justify-center gap-2 px-2 text-center text-sm text-muted-foreground">
+        <ShieldCheck className="h-4 w-4 shrink-0 text-teal" aria-hidden="true" />
+        <span className="text-pretty">
+          Гарантируем возврат при несостоявшейся консультации.{" "}
+          <Link
+            href="/legal/offer"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-teal/40"
+          >
+            Условия
+          </Link>
+        </span>
+      </p>
+
       {/* Шапка врача */}
       <div className="sc-card relative mb-3 overflow-hidden">
         {/* Фирменная градиентная линия как в баннере консультации */}
@@ -244,6 +266,22 @@ export function DoctorPageClient({
               <span className="font-medium text-muted-foreground">Специальность:</span>
               <span className="font-semibold text-teal">{specialty}</span>
             </p>
+            {/* Кто именно оказывает услугу: пациент заключает договор с клиникой,
+                а не с платформой, и должен видеть её до записи. Ссылка ведёт в
+                реестр с реквизитами и лицензией — на него же ссылается политика. */}
+            {organisation && (
+              <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                <span>Медицинская организация:</span>
+                <Link
+                  href="/legal/clinics"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-pretty font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-teal/40"
+                >
+                  {organisation}
+                </Link>
+              </p>
+            )}
           </div>
         </div>
 

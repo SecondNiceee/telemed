@@ -37,9 +37,16 @@ export function ConsultationDisclaimerDialog({
             <AlertTriangle className="h-6 w-6 text-teal" aria-hidden="true" />
           </div>
           <DialogTitle className="text-center text-xl">Важно помнить</DialogTitle>
+          {/*
+            Текст повторяет §2 и §8 оферты и показывается ДО записи: оферта
+            требует подтверждения границ консультации перед бронированием.
+            Править только вместе с offer.ts.
+          */}
           <DialogDescription className="text-center text-base leading-relaxed text-pretty">
-            На онлайн-консультации врач не в праве поставить окончательный диагноз, открыть или
-            закрыть больничный, выписать рецепт.
+            Консультация носит информационный характер и не является медицинской помощью.
+            Специалист объяснит результаты и ответит на вопросы, но не поставит диагноз, не
+            назначит и не изменит лечение, не выпишет рецепт, справку или больничный. Она не
+            заменяет очный приём врача.
           </DialogDescription>
         </DialogHeader>
 

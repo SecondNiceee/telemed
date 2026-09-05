@@ -33,6 +33,8 @@ export interface ApiServiceItem {
 export interface ApiOrganisation {
   id: number
   name: string
+  /** Полное наименование юрлица как в ЕГРЮЛ; пусто, пока клиника не заполнила реквизиты. */
+  legalName?: string | null
   email: string
   supportPhone?: string | null
   createdAt: string
