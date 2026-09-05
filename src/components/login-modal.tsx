@@ -433,11 +433,11 @@ export function LoginModal({ children, onSuccess, open: controlledOpen, onOpenCh
   const [formKey, setFormKey] = useState(0)
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  /** Таймер кулдауна кнопки «Отправить ��нова» */
+  /** Таймер кулдауна кнопки «Отправить снова» */
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   /** Креды для автологина после подтверждения почты — в ref, чтобы не ререндерить */
   const credentialsRef = useRef<{ email: string; password: string } | null>(null)
-  /** submitting в ref �� чтобы обработчики Dialog не пересоздавались на каждый submit */
+  /** submitting в ref — чтобы обработчики Dialog не пересоздавались на каждый submit */
   const submittingRef = useRef(false)
 
   const setSubmittingSafe = (value: boolean) => {

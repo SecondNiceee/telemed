@@ -426,7 +426,7 @@ export const Doctors: CollectionConfig = {
     {
       name: 'degree',
       type: 'text',
-      label: 'Сте��ень / Категория',
+      label: 'Степень / Категория',
       admin: {
         description: 'Например: Врач высшей категории, Кандидат медицинских наук',
       },

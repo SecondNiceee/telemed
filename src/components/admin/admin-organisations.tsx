@@ -322,7 +322,7 @@ export function AdminOrganisations({
             <AlertDialogTitle>Сбросить пароль организации?</AlertDialogTitle>
             <AlertDialogDescription>
               Для {resetTarget?.name} будет сгенерирован новый пароль. Старый перестанет работать
-              сразу — соо��щите организации новый.
+              сразу — сообщите организации новый.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

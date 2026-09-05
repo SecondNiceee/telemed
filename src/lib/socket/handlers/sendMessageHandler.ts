@@ -245,7 +245,7 @@ export function createSendMessageHandler(io: SocketIOServer, payload: Payload) {
         ack?.({ success: true })
 
         // Глобальное уведомление второму участнику в его персональную комнату:
-        // доставляетс�� на любой странице сайта, а не только в открытом чате.
+        // доставляется на любой странице сайта, а не только в открытом чате.
         try {
           const appointment = accessResult.appointment!
           const recipientType = senderType === 'user' ? 'doctor' : 'user'

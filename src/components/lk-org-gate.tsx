@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useOrgStore } from "@/stores/org-store"
 import { LkOrgContent } from "@/components/lk-org-content"
@@ -24,19 +24,67 @@ export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
+  const [isRefreshing, startRefresh] = useTransition()
 
-  const org = storeOrg || initialOrg
+  // Кабинет рисуем только по данным сервера. Стор после login() знает об
+  // организации раньше, чем сервер успел перерендерить страницу с cookie, и
+  // если довериться ему, LkOrgContent смонтируется с пустыми initialDoctors
+  // (они были посчитаны для неавторизованного запроса) и больше их не
+  // обновит - список врачей появится только после F5. Поэтому storeOrg здесь
+  // означает лишь «логин прошёл, ждём refresh», а не «можно показывать».
+  const org = initialOrg
+  const awaitingServer = !initialOrg && !!storeOrg
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    try {
-      await login(email, password)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка при входе")
+    // Весь вход - одна async-transition: isRefreshing становится true до
+    // запроса и остаётся true, пока refresh не дорисует страницу с данными
+    // сервера. Если бы login() шёл снаружи, стор успел бы выставить org до
+    // startRefresh, и на один кадр показалась бы ветка ошибки ниже.
+    startRefresh(async () => {
+      try {
+        await login(email, password)
+        router.refresh()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Ошибка при входе")
+      }
+    })
+  }
+
+  if (awaitingServer) {
+    // refresh завершился, а сервер организацию не увидел: cookie не дошла
+    // (например, заблокирована браузером). Показать это честно лучше, чем
+    // крутить лоадер бесконечно.
+    if (!isRefreshing) {
+      return (
+        <div className="flex-1 flex items-center justify-center py-20">
+          <div className="w-full max-w-sm mx-auto px-4 text-center flex flex-col gap-3">
+            <p className="text-sm text-destructive">
+              Не удалось подтвердить вход. Проверьте, что браузер разрешает cookie для этого
+              сайта, и попробуйте обновить страницу.
+            </p>
+            <Button variant="outline" onClick={() => router.refresh()}>
+              Обновить
+            </Button>
+          </div>
+        </div>
+      )
     }
+
+    return (
+      <div
+        className="flex-1 flex items-center justify-center py-20"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          <span>Загружаем кабинет…</span>
+        </div>
+      </div>
+    )
   }
 
   // Not logged in as organisation -- show login form
@@ -94,8 +142,8 @@ export function LkOrgGate({ initialOrg, initialDoctors, initialStats, children }
                 <p className="text-sm text-destructive text-center">{error}</p>
               )}
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
+              <Button type="submit" className="w-full" disabled={loading || isRefreshing}>
+                {loading || isRefreshing ? (
                   <>
                     <Loader2 className="animate-spin" />
                     <span>Вход...</span>
